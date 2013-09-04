@@ -56,7 +56,17 @@ int main ( int argc, char *argv[])
   for (int k=0; k<f->dims[0]; k++ ) z[k] = (double)k;
 
   // Initialize derivatives for f
-  f->derivFDInit( f->dims[0], x, f->dims[1], y, f->dims[2], z, 8 );
+  f->derivFDInit( f->dims[0], x, f->dims[1], y, f->dims[2], z, 4 );
+
+  // Print the FD coefficients along the x, y, and z directions
+  for (int i=0; i<f->dims[0]; i++ ) {
+    cout << "i : " << i;
+    for (int m=0; m<f->fd->fd_ddx[i].ssize; m++ ) {
+      cout << " " << f->fd->fd_ddx[i].coef[m];
+    }
+    cout << endl;
+  }
+
 
   // Set g to have same field data (does not copy entire class;
   // assumes they are initilized the same);

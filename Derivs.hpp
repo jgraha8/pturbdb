@@ -19,7 +19,8 @@ namespace Derivs
   class FiniteDiff: public Deriv
   {
     
-  private:
+    //private:
+  public:
 
     typedef struct {
       int ssize;
