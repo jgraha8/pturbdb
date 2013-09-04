@@ -256,9 +256,18 @@ namespace Fields {
     return ((long)this->dims[1]*(long)i + (long)j)*(long)this->dims[2] + (long)k;
   }
 
+  // Set the grid pointers for field
+  /********************************************************************/
+  void Field::assignGrid( double *_x, double *_y, double *_z )
+  /********************************************************************/
+  {  
+    x = _x;
+    y = _y;
+    z = _z;
+  }
   // Initialize the finite difference derivatives class
   /********************************************************************/
-  void Field::derivFDInit( int _nx, double *_x, int _ny, double *_y, int _nz, double *_z, int _order )
+  void Field::derivFDInit( int _order )
   /********************************************************************/
   {
 
@@ -268,7 +277,7 @@ namespace Fields {
     }
 
     // First initialize the fd class instance
-    fd = new Derivs::FiniteDiff( _nx, _x, _ny, _y, _nz, _z, _order );
+    fd = new Derivs::FiniteDiff( dims[0], x, dims[1], y, dims[2], z, _order );
     
   }
 

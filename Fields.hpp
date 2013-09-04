@@ -12,6 +12,9 @@ namespace Fields {
     int *dims;
     double *data;
 
+    // Grid pointers; these are not allocated but must be set with setGrid
+    double *x, *y, *z;
+
     // FiniteDifference Class from the Derivs namespace
     Derivs::FiniteDiff *fd;
  
@@ -42,8 +45,10 @@ namespace Fields {
     long index( int i, int j );
     long index( int i, int j, int k );
 
+    // Grid 
+    void assignGrid( double *_x, double *_y, double *_z );
     // Derivative functions
-    void derivFDInit( int _nx, double *_x, int _ny, double *_y, int _nz, double *_z, int _order );
+    void derivFDInit( int _order );
     
   protected:
 
