@@ -39,16 +39,25 @@ int main ( int argc, char *argv[])
     ierr = MPI_Barrier( MPI_COMM_WORLD );
   }
 
-  long (MPIField::*ix)(int,int,int);
-  ix=&MPIField::index;
-
   for (int i=0; i<f->dims[0]; i++) {
     for (int j=0; j<f->dims[1]; j++) {
       for (int k=0; k<f->dims[2]; k++) {
-	f->data[(f->*ix)(i,j,k)] = (double)i*j + k;
+	f->data[f->index(i,j,k)] = (double)i*j + k;
       }
     }
   }
+  
+  double *x = new double[f->dims[0]];
+  double *y = new double[f->dims[1]];
+  double *z = new double[f->dims[2]];
+
+  for (int i=0; i<f->dims[0]; i++ ) x[i] = (double)i;
+  for (int j=0; j<f->dims[0]; j++ ) y[j] = (double)j;
+  for (int k=0; k<f->dims[0]; k++ ) z[k] = (double)k;
+
+  // Initialize derivatives for f
+  f->derivFDInit( f->dims[0], x, f->dims[1], y, f->dims[2], z, 8 );
+
   // Set g to have same field data (does not copy entire class;
   // assumes they are initilized the same);
   (*g)=(*f);

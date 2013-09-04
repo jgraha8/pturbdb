@@ -36,7 +36,7 @@ namespace Derivs {
   void FiniteDiff::fdSetStencil( int _start_index, fd_t &_fd )
   /********************************************************************/
   {
-    for ( int m=0; m<_fd.ssize; m++ ) fd[n].stencil[m] = _start_index + m;
+    for ( int m=0; m<_fd.ssize; m++ ) _fd.stencil[m] = _start_index + m;
   }
 
   /********************************************************************/
@@ -66,6 +66,14 @@ namespace Derivs {
   }
 
   /********************************************************************/
+  void FiniteDiff::fdSetCoef( int _order_deriv, fd_t &_fd )
+  /********************************************************************/
+  {
+    // Generate the finite difference coefficients
+    autofd_stencil_coefs_c( _fd.ssize, _fd.stencil, _fd.ds, _order_deriv, _fd.coef );
+  }
+
+  /********************************************************************/
   FiniteDiff::fd_t *FiniteDiff::fdCreateD1( int _ns, double *_s, int _order ) 
   /********************************************************************/
   {
@@ -81,12 +89,12 @@ namespace Derivs {
 
 	fdInit( 2, fd[n] );
 	if( n== 0 ) {
-	  fdSetStencil( 0, fd[n] );
+	  fdSetStencil( 0, fd[n] ); // Forward differencing
 	} else { 
-	  fdSetStencil( -1, fd[n] );
+	  fdSetStencil( -1, fd[n] ); // Backward differencing
 	}
-	fdSetDS( n, s, fd[n] );
-	//fdSetCoef( 
+	fdSetDS( n, _s, fd[n] );
+	fdSetCoef( 1, fd[n] );
 
       }
 
@@ -98,18 +106,19 @@ namespace Derivs {
 	  fdInit( 3, fd[n] );
 
 	  // Set the stencil
-	  if{ n == 0 ) {
+	  if( n == 0 ) {
 	    // First point
-	    fdSetStencil( 0, fd[n] );
-	  } else if { n == _ns - 1 ) {
+	    fdSetStencil( 0, fd[n] ); // Forward differencing
+	  } else if ( n == _ns - 1 ) {
 	    // Last point
-	    fdSetStencil( -2, fd[n] );
+	    fdSetStencil( -2, fd[n] ); // Backward differencing
 	  } else {
 	    // Interior points
-	    fdSetStencil( -1, fd[n] );
+	    fdSetStencil( -1, fd[n] ); // Central differencing
 	  }
+	  fdSetDS( n, _s, fd[n] );
+	  fdSetCoef( 1, fd[n] );
 
-	  fdSetDS( n, s, fd[n] );
 	}
 	
     } else if( _order == 3 ) {
@@ -119,21 +128,21 @@ namespace Derivs {
 	  fdInit( 4, fd[n] );
 
 	  // Set the stencil
-	  if{ n == 0 ) {
+	  if( n == 0 ) {
 	    // First point
-	    fdSetStencil( 0, fd[n] );
-	  } else if{ n == 1 ) {
+	    fdSetStencil( 0, fd[n] ); // Forward differencing
+	  } else if( n == 1 ) {
 	    // Second point
-	    fdSetStencil( -1, fd[n] );
-	  } else if { n == _ns - 1 ) {
+	    fdSetStencil( -1, fd[n] ); // Forward-biased differencing
+	  } else if ( n == _ns - 1 ) {
 	    // Last point
-	    fdSetStencil( -3, fd[n] );
+	    fdSetStencil( -3, fd[n] ); // Backward differencing
 	  } else {
 	    // Interior points
-	    fdSetStencil( -2, fd[n] );
+	    fdSetStencil( -2, fd[n] ); // Backward-biased differencing
 	  }
-
-	  fdSetDS( n, s, fd[n] );
+	  fdSetDS( n, _s, fd[n] );
+	  fdSetCoef( 1, fd[n] );
 	  
 	}
 
@@ -144,28 +153,35 @@ namespace Derivs {
 	  fdInit( 5, fd[n] );
 
 	  // Set the stencil
-	  if{ n == 0 ) {
+	  if( n == 0 ) {
 	    // First point
-	    fdSetStencil( 0, fd[n] );
-	  } else if{ n == 1 ) {
+	    fdSetStencil( 0, fd[n] ); // Forward differencing
+	  } else if( n == 1 ) {
 	    // Second point
-	    fdSetStencil( -1, fd[n] );
-	  } else if { n == _ns - 2 ) {
+	    fdSetStencil( -1, fd[n] ); // Forward-biased differencing
+	  } else if ( n == _ns - 2 ) {
 	    // Second to last point
-	    fdSetStencil( -3, fd[n] );
-	  } else if { n == _ns - 1 ) {
+	    fdSetStencil( -3, fd[n] ); // Backward-biased differencing
+	  } else if ( n == _ns - 1 ) {
 	    // Last point
-	    fdSetStencil( -4, fd[n] );
+	    fdSetStencil( -4, fd[n] ); // Backward differencing
 	  } else {
 	    // Interior points
-	    fdSetStencil( -2, fd[n] );
+	    fdSetStencil( -2, fd[n] ); // Central differencing
 	  }
 
-	  fdSetDS( n, s, fd[n] );
+	  fdSetDS( n, _s, fd[n] );
+	  fdSetCoef( 1, fd[n] );
 	  
 	}
 
+    } else {
+
+      cout << "Finite difference order >4 not supported" << endl;
+      exit (EXIT_FAILURE);
+
     }
+	
 
     return fd;
   }

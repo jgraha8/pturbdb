@@ -268,9 +268,7 @@ namespace Fields {
     }
 
     // First initialize the fd class instance
-    fd = new Derivs::FiniteDiff();
-
-
+    fd = new Derivs::FiniteDiff( _nx, _x, _ny, _y, _nz, _z, _order );
     
   }
 

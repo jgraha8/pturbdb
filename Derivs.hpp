@@ -44,14 +44,14 @@ namespace Derivs
     // Deconstructor
     ~FiniteDiff(){};
 
-  private:
-
     void FiniteDiffInit( int _nx, double *_x, int _ny, double *_y, int _nz, double *_z, int _order );
+
+  private:
 
     void fdInit( int _ssize, fd_t &_fd );
     void fdSetStencil( int _start_index, fd_t &_fd );
     void fdSetDS( int _n, double *_s, fd_t &_fd );
-    void fdSetCoef( int _n, double *_s, int _zero_index, fd_t &_fd );
+    void fdSetCoef( int _order_deriv, fd_t &_fd );
     fd_t *fdCreateD1( int _ns, double *_s, int _order );
 
   };
