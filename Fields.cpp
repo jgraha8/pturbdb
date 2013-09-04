@@ -52,6 +52,9 @@ namespace Fields {
     // Initialize the data field
     long N = getSize();
     data = new double[N];
+
+    // Initialize pointers to null
+    fd = NULL;
   }
 
   // Field class initializer
@@ -251,6 +254,24 @@ namespace Fields {
   /********************************************************************/
   {
     return ((long)this->dims[1]*(long)i + (long)j)*(long)this->dims[2] + (long)k;
+  }
+
+  // Initialize the finite difference derivatives class
+  /********************************************************************/
+  void Field::derivFDInit( int _nx, double *_x, int _ny, double *_y, int _nz, double *_z, int _order )
+  /********************************************************************/
+  {
+
+    if( fd != NULL ) {
+      cout << "finite difference class instance fd already allocated" << endl;
+      exit (EXIT_FAILURE);
+    }
+
+    // First initialize the fd class instance
+    fd = new Derivs::FiniteDiff();
+
+
+    
   }
 
   //////////////////////////////////////////////////////////////////////
