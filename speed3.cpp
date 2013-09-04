@@ -6,9 +6,9 @@
 
 #include "MPIFields.hpp"
 
-#define NX 512
-#define NY 512
-#define NZ 512
+#define NX 32
+#define NY 32
+#define NZ 32
 
 using namespace std;
 using namespace MPIFields;
@@ -55,18 +55,26 @@ int main ( int argc, char *argv[])
   for (int j=0; j<f->dims[0]; j++ ) y[j] = (double)j;
   for (int k=0; k<f->dims[0]; k++ ) z[k] = (double)k;
 
+  // Assign the grid pointers; needed for finite differencing
+  f->assignGrid( x, y, z );
+
   // Initialize derivatives for f
-  f->derivFDInit( f->dims[0], x, f->dims[1], y, f->dims[2], z, 4 );
+  f->derivFDInit( 1 ); 
 
   // Print the FD coefficients along the x, y, and z directions
-  for (int i=0; i<f->dims[0]; i++ ) {
-    cout << "i : " << i;
-    for (int m=0; m<f->fd->fd_ddx[i].ssize; m++ ) {
-      cout << " " << f->fd->fd_ddx[i].coef[m];
+  const char *var[] = { "i", "j", "k" };
+  const Derivs::FiniteDiff::fd_t *fd_dd[] = { f->fd->fd_ddx, f->fd->fd_ddy, f->fd->fd_ddz }; 
+  
+  for (int p=0; p<3; p++ ) {
+    cout << "======================================================================" << endl;
+    for (int i=0; i<f->dims[p]; i++ ) {
+      cout << var[p] << " : " << i;
+      for (int m=0; m<fd_dd[p][i].ssize; m++ ) {
+	cout << " " << fd_dd[p][i].coef[m];
+      }
+      cout << endl;
     }
-    cout << endl;
   }
-
 
   // Set g to have same field data (does not copy entire class;
   // assumes they are initilized the same);
