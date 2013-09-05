@@ -47,6 +47,14 @@ namespace Derivs
 
     void FiniteDiffInit( int _nx, double *_x, int _ny, double *_y, int _nz, double *_z, int _order );
 
+    void dndxn( fd_t *fd, int _n, double *_a, double *_da );
+    void ddx( int _n, double *_a, double *_da );
+    void ddy( int _n, double *_a, double *_da );
+    void ddz( int _n, double *_a, double *_da );
+    void d2dx2( int _n, double *_a, double *_da );
+    void d2dy2( int _n, double *_a, double *_da );
+    void d2dz2( int _n, double *_a, double *_da );
+
   private:
 
     void fdInit( int _ssize, fd_t &_fd );
@@ -54,6 +62,7 @@ namespace Derivs
     void fdSetDS( int _n, double *_s, fd_t &_fd );
     void fdSetCoef( int _order_deriv, fd_t &_fd );
     fd_t *fdCreateD1( int _ns, double *_s, int _order );
+    fd_t *fdCreateD2( int _ns, double *_s, int _order );
 
   };
 

@@ -59,7 +59,7 @@ int main ( int argc, char *argv[])
   f->assignGrid( x, y, z );
 
   // Initialize derivatives for f
-  f->derivFDInit( 1 ); 
+  f->derivFDInit( 4 ); 
 
   // Print the FD coefficients along the x, y, and z directions
   const char *var[] = { "i", "j", "k" };
@@ -75,6 +75,30 @@ int main ( int argc, char *argv[])
       cout << endl;
     }
   }
+
+  const Derivs::FiniteDiff::fd_t *fd_dd2[] = { f->fd->fd_d2dx2, f->fd->fd_d2dy2, f->fd->fd_d2dz2 }; 
+  
+  for (int p=0; p<3; p++ ) {
+    cout << "======================================================================" << endl;
+    for (int i=0; i<f->dims[p]; i++ ) {
+      cout << var[p] << " : " << i;
+      for (int m=0; m<fd_dd2[p][i].ssize; m++ ) {
+	cout << " " << fd_dd2[p][i].coef[m];
+      }
+      cout << endl;
+    }
+  }
+
+  MPIField *df = new MPIField( *f ); // Make a copy of f
+
+  // Assign the grid pointers; needed for finite differencing
+  df->assignGrid( x, y, z );
+  // Initialize derivatives for f
+  df->derivFDInit( 4 ); 
+  // Take derivative of f
+  df->ddx( *f );
+  df->ddy( *f );
+  df->ddz( *f );
 
   // Set g to have same field data (does not copy entire class;
   // assumes they are initilized the same);

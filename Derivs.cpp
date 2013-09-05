@@ -18,6 +18,10 @@ namespace Derivs {
     fd_ddx = fdCreateD1( _nx, _x, _order );
     fd_ddy = fdCreateD1( _ny, _y, _order );
     fd_ddz = fdCreateD1( _nz, _z, _order );
+    
+    fd_d2dx2 = fdCreateD2( _nx, _x, _order );
+    fd_d2dy2 = fdCreateD2( _ny, _y, _order );
+    fd_d2dz2 = fdCreateD2( _nz, _z, _order );
 
   }
 
@@ -82,24 +86,8 @@ namespace Derivs {
 
     int n=0;
 
-    // First order
-    if( _order == 1 ) {
-
-      for (n=0; n<_ns; n++) {
-
-	fdInit( 2, fd[n] );
-	if( n== 0 ) {
-	  fdSetStencil( 0, fd[n] ); // Forward differencing
-	} else { 
-	  fdSetStencil( -1, fd[n] ); // Backward differencing
-	}
-	fdSetDS( n, _s, fd[n] );
-	fdSetCoef( 1, fd[n] );
-
-      }
-
-      // Second order 
-    } else if( _order == 2 ) {
+    // Second order 
+    if( _order == 2 ) {
       
 	for (n=0; n<_ns; n++ ) {
 
@@ -121,31 +109,6 @@ namespace Derivs {
 
 	}
 	
-    } else if( _order == 3 ) {
-
-	for (n=0; n<_ns; n++ ) {
-
-	  fdInit( 4, fd[n] );
-
-	  // Set the stencil
-	  if( n == 0 ) {
-	    // First point
-	    fdSetStencil( 0, fd[n] ); // Forward differencing
-	  } else if( n == 1 ) {
-	    // Second point
-	    fdSetStencil( -1, fd[n] ); // Forward-biased differencing
-	  } else if ( n == _ns - 1 ) {
-	    // Last point
-	    fdSetStencil( -3, fd[n] ); // Backward differencing
-	  } else {
-	    // Interior points
-	    fdSetStencil( -2, fd[n] ); // Backward-biased differencing
-	  }
-	  fdSetDS( n, _s, fd[n] );
-	  fdSetCoef( 1, fd[n] );
-	  
-	}
-
     } else if( _order == 4 ) {
 
 	for (n=0; n<_ns; n++ ) {
@@ -177,13 +140,134 @@ namespace Derivs {
 
     } else {
 
-      cout << "Finite difference order >4 not supported" << endl;
+      cout << "Finite difference order 2 and 4 only supported" << endl;
+      exit (EXIT_FAILURE);
+
+    }
+    return fd;
+  }
+
+  /********************************************************************/
+  FiniteDiff::fd_t *FiniteDiff::fdCreateD2( int _ns, double *_s, int _order ) 
+  /********************************************************************/
+  {
+
+    FiniteDiff::fd_t *fd = new FiniteDiff::fd_t[_ns];
+
+    int n=0;
+
+    // Second order 
+    if( _order == 2 ) {
+      
+	for (n=0; n<_ns; n++ ) {
+
+	  // Set the stencil
+	  if( n == 0 ) {
+	    // First point
+	    fdInit( 4, fd[n] );
+	    fdSetStencil( 0, fd[n] ); // Forward differencing
+	  } else if ( n == _ns - 1 ) {
+	    // Last point
+	    fdInit( 4, fd[n] );
+	    fdSetStencil( -3, fd[n] ); // Backward differencing
+	  } else {
+	    // Interior points
+	    fdInit( 3, fd[n] );
+	    fdSetStencil( -1, fd[n] ); // Central differencing
+	  }
+	  fdSetDS( n, _s, fd[n] );
+	  fdSetCoef( 2, fd[n] );
+
+	}
+	
+    } else if( _order == 4 ) {
+
+	for (n=0; n<_ns; n++ ) {
+
+	  // Set the stencil
+	  if( n == 0 ) {
+	    // First point
+	    fdInit( 6, fd[n] );
+	    fdSetStencil( 0, fd[n] ); // Forward differencing
+	  } else if( n == 1 ) {
+	    // Second point
+	    fdInit( 6, fd[n] );
+	    fdSetStencil( -1, fd[n] ); // Forward-biased differencing
+	  } else if ( n == _ns - 2 ) {
+	    // Second to last point
+	    fdInit( 6, fd[n] );
+	    fdSetStencil( -4, fd[n] ); // Backward-biased differencing
+	  } else if ( n == _ns - 1 ) {
+	    // Last point
+	    fdInit( 6, fd[n] );
+	    fdSetStencil( -5, fd[n] ); // Backward differencing
+	  } else {
+	    // Interior points
+	    fdInit( 5, fd[n] );
+	    fdSetStencil( -2, fd[n] ); // Central differencing
+	  }
+
+	  fdSetDS( n, _s, fd[n] );
+	  fdSetCoef( 2, fd[n] );
+	  
+	}
+
+    } else {
+
+      cout << "Finite difference order 2 and 4 only are supported" << endl;
       exit (EXIT_FAILURE);
 
     }
 	
-
     return fd;
   }
 
+  //////////////////////////////////////////////////////////////////////
+  /// DERIVATIVES
+  ////////////////////////////////////////////////////////////////////// 
+
+  /********************************************************************/
+  void FiniteDiff::dndxn( FiniteDiff::fd_t *fd, int _n, double *_a, double *_da )
+  /********************************************************************/
+  {
+    for ( int i=0; i<_n; i++ ) {
+      _da[i] = autofd_derivative_c( fd[i].ssize, fd[i].stencil,  fd[i].coef,  _n, _a, i);
+    }
+  } 
+  /********************************************************************/
+  void FiniteDiff::ddx( int _n, double *_a, double *_da )
+  /********************************************************************/
+  {
+    this->dndxn( this->fd_ddx, _n, _a, _da );
+  }
+  /********************************************************************/
+  void FiniteDiff::ddy( int _n, double *_a, double *_da )
+  /********************************************************************/
+  {
+    this->dndxn( this->fd_ddy, _n, _a, _da );
+  }
+  /********************************************************************/
+  void FiniteDiff::ddz( int _n, double *_a, double *_da )
+  /********************************************************************/
+  {
+    this->dndxn( this->fd_ddz, _n, _a, _da );
+  }
+  /********************************************************************/
+  void FiniteDiff::d2dx2( int _n, double *_a, double *_da )
+  /********************************************************************/
+  {
+    this->dndxn( this->fd_d2dx2, _n, _a, _da );
+  }
+  /********************************************************************/
+  void FiniteDiff::d2dy2( int _n, double *_a, double *_da )
+  /********************************************************************/
+  {
+    this->dndxn( this->fd_d2dy2, _n, _a, _da );
+  }
+  /********************************************************************/
+  void FiniteDiff::d2dz2( int _n, double *_a, double *_da )
+  /********************************************************************/
+  {
+    this->dndxn( this->fd_d2dz2, _n, _a, _da );
+  }
 }

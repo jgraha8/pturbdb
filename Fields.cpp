@@ -4,6 +4,7 @@
 #include "Fields.hpp"
 
 using namespace std;
+using namespace Derivs;
 
 namespace Fields {
 
@@ -157,7 +158,7 @@ namespace Fields {
   }
 
   /********************************************************************/
-  void Field::add( const Field &a, const Field &b )
+  void Field::add( Field &a, Field &b )
   /********************************************************************/
   {
     long N = this->getSize();
@@ -178,7 +179,7 @@ namespace Fields {
   }
 
   /********************************************************************/
-  void Field::sub( const Field &a, const Field &b )
+  void Field::sub( Field &a, Field &b )
   /********************************************************************/
   {
     long N = this->getSize();
@@ -200,7 +201,7 @@ namespace Fields {
 
   // Multiply two fields the resulting fields as this = a*b
   /********************************************************************/
-  void Field::mul( const Field &a, const Field &b ) 
+  void Field::mul( Field &a, Field &b ) 
   /********************************************************************/
   {
     long N = this->getSize();
@@ -221,7 +222,7 @@ namespace Fields {
   }
 
   /********************************************************************/
-  void Field::div( const Field &a, const Field &b ) 
+  void Field::div( Field &a, Field &b ) 
   /********************************************************************/
   {
     long N = this->getSize();
@@ -241,6 +242,211 @@ namespace Fields {
     }
   }
 
+  ////////////////////////////////////////////////////////////////////// 
+  /// DERIVATIVES (PUBLIC)
+  //////////////////////////////////////////////////////////////////////
+
+  // Public derivative functions use function pointers which call the private
+  // worker derivative functions. Note that mixed derivatives are computed by
+  // first computing the highest uni-directional (pure) derivative. Compound
+  // operations are then used to compute the subsequent derivatives. Hence we
+  // are not using pure mixed derivatives here.
+
+  /********************************************************************/
+  void Field::ddx( Field &a ) 
+  /********************************************************************/
+  {
+    void (FiniteDiff::*dd)(int, double *, double *);
+    dd = &FiniteDiff::ddx;
+    dndxn( dd, a );
+  }
+
+  /********************************************************************/
+  void Field::ddy( Field &a ) 
+  /********************************************************************/
+  {
+    void (FiniteDiff::*dd)(int, double *, double *);
+    dd = &FiniteDiff::ddy;
+    dndyn( dd, a );
+  }
+
+  /********************************************************************/
+  void Field::ddz( Field &a ) 
+  /********************************************************************/
+  {
+    void (FiniteDiff::*dd)(int, double *, double *);
+    dd = &FiniteDiff::ddz;
+    dndzn( dd, a );
+  }
+
+  /********************************************************************/
+  void Field::d2dx2( Field &a ) 
+  /********************************************************************/
+  {
+    void (FiniteDiff::*dd)(int, double *, double *);
+    dd = &FiniteDiff::d2dx2;
+    dndxn( dd, a );
+  }
+  /********************************************************************/
+  void Field::d2dy2( Field &a ) 
+  /********************************************************************/
+  {
+    void (FiniteDiff::*dd)(int, double *, double *);
+    dd = &FiniteDiff::d2dy2;
+    dndyn( dd, a );
+  }
+
+  /********************************************************************/
+  void Field::d2dz2( Field &a ) 
+  /********************************************************************/
+  {
+    void (FiniteDiff::*dd)(int, double *, double *);
+    dd = &FiniteDiff::d2dz2;
+    dndzn( dd, a );
+  }
+
+  /********************************************************************/
+  void Field::d2dxy( Field &a ) 
+  /********************************************************************/
+  {
+    void (FiniteDiff::*dd)(int, double *, double *);
+    dd = &FiniteDiff::ddx;
+    dndxn( dd, a );
+    dd = &FiniteDiff::ddy;
+    dndyn( dd, *this );
+  } 
+  /********************************************************************/
+  void Field::d2dxz( Field &a ) 
+  /********************************************************************/
+  {
+    void (FiniteDiff::*dd)(int, double *, double *);
+    dd = &FiniteDiff::ddx;
+    dndxn( dd, a );
+    dd = &FiniteDiff::ddz;
+    dndzn( dd, *this );
+  }
+  /********************************************************************/
+  void Field::d2dyz( Field &a ) 
+  /********************************************************************/
+  {
+    void (FiniteDiff::*dd)(int, double *, double *);
+    dd = &FiniteDiff::ddy;
+    dndyn( dd, a );
+    dd = &FiniteDiff::ddz;
+    dndzn( dd, *this );
+  }    
+
+  /********************************************************************/
+  void Field::dndxn( void (FiniteDiff::*dd)( int, double *, double *), Field &a ) 
+  /********************************************************************/
+  {
+
+    // Create buffer to store x-data
+    const int nx = this->dims[0];
+    const int ny = this->dims[1];
+    const int nz = this->dims[2];
+    
+#ifdef BOUNDS_CHECK
+    // First check that the fields are the same size
+    if ( nx != a.dims[0] || ny != a.dims[1] || nz != a.dims[2] ) {
+      cout << "Mismatch in field sizes" << endl;
+      exit (EXIT_FAILURE);
+    }   
+#endif
+
+    double *ax = new double[nx];
+    double *dax = new double[nx];
+    
+    for (int j=0; j<ny; j++ ) {
+      for (int k=0; k<nz; k++ ) {
+	// Pack buffer
+	for ( int i=0; i<nx; i++ ) ax[i] = a.data[a.index(i,j,k)];
+	// Compute the derivative using the FiniteDiff class
+	(this->fd->*dd)( nx, ax, dax );
+	// Unpack buffer
+	for ( int i=0; i<nx; i++ ) this->data[this->index(i,j,k)] = dax[i];
+      }
+    }
+
+    delete [] ax;
+    delete [] dax;
+    
+  }  
+
+  /********************************************************************/
+  void Field::dndyn( void (FiniteDiff::*dd)( int, double *, double *), Field &a ) 
+  /********************************************************************/
+  {
+
+    // Create buffer to store x-data
+    const int nx = this->dims[0];
+    const int ny = this->dims[1];
+    const int nz = this->dims[2];
+    
+#ifdef BOUNDS_CHECK
+    // First check that the fields are the same size
+    if ( nx != a.dims[0] || ny != a.dims[1] || nz != a.dims[2] ) {
+      cout << "Mismatch in field sizes" << endl;
+      exit (EXIT_FAILURE);
+    }   
+#endif
+
+    double *ay = new double[ny];
+    double *day = new double[ny];
+    
+    for ( int i=0; i<nx; i++ ) {
+      for (int k=0; k<nz; k++ ) {
+	// Pack buffer
+	for (int j=0; j<ny; j++ ) ay[j] = a.data[a.index(i,j,k)];
+	// Compute the derivative using the FiniteDiff class
+	(this->fd->*dd)( ny, ay, day );
+	// Unpack buffer
+	for ( int j=0; j<ny; j++ ) this->data[this->index(i,j,k)] = day[j];
+      }
+    }
+
+    delete [] ay;
+    delete [] day;
+    
+  }
+
+  /********************************************************************/
+  void Field::dndzn( void (FiniteDiff::*dd)( int, double *, double *), Field &a ) 
+  /********************************************************************/
+  {
+
+    // Create buffer to store x-data
+    const int nx = this->dims[0];
+    const int ny = this->dims[1];
+    const int nz = this->dims[2];
+    
+#ifdef BOUNDS_CHECK
+    // First check that the fields are the same size
+    if ( nx != a.dims[0] || ny != a.dims[1] || nz != a.dims[2] ) {
+      cout << "Mismatch in field sizes" << endl;
+      exit (EXIT_FAILURE);
+    }   
+#endif
+
+    double *az = new double[nz];
+    double *daz = new double[nz];
+    
+    for ( int i=0; i<nx; i++ ) {
+      for (int j=0; j<ny; j++ ) {
+	// Pack buffer
+	for (int k=0; k<nz; k++ ) az[k] = a.data[a.index(i,j,k)];
+	// Compute the derivative using the FiniteDiff class
+	(this->fd->*dd)( nz, az, daz );
+	// Unpack buffer
+	for (int k=0; k<nz; k++ ) this->data[this->index(i,j,k)] = daz[k];
+      }
+    }
+
+    delete [] az;
+    delete [] daz;
+    
+  }
+
   // Array index for 2D indexing
   /********************************************************************/
   long Field::index( int i, int j )
@@ -253,7 +459,7 @@ namespace Fields {
   long Field::index( int i, int j, int k )
   /********************************************************************/
   {
-    return ((long)this->dims[1]*(long)i + (long)j)*(long)this->dims[2] + (long)k;
+    return ((long)dims[1]*(long)i + (long)j)*(long)dims[2] + (long)k;
   }
 
   // Set the grid pointers for field
@@ -284,25 +490,6 @@ namespace Fields {
   //////////////////////////////////////////////////////////////////////
   /// NON-CLASS MEMBER FUNCTIONS
   //////////////////////////////////////////////////////////////////////
-
-  // // Field Data Assignment
-  // Field operator*( const Field &g, const Field &h )
-  // {
-
-  //   // Make a copy of class g
-  //   Field f( g );
-
-  //   cout << "f data addr " << f.data << endl;
-
-  //   const long N=f.getSize();
-  //   long indx=0;
-  //   while( indx != N ) {
-  //     f.data[indx] = g.data[indx] * h.data[indx];
-  //     ++indx;
-  //   }	
-  //   return f;
-  // }
-
 
 }
 

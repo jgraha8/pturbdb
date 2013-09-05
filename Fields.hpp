@@ -37,10 +37,21 @@ namespace Fields {
     // Get the size of the field
     long getSize();
 
-    void add( const Field &a, const Field &b );
-    void sub( const Field &a, const Field &b );
-    void mul( const Field &a, const Field &b );
-    void div( const Field &a, const Field &b );
+    void add( Field &a, Field &b );
+    void sub( Field &a, Field &b );
+    void mul( Field &a, Field &b );
+    void div( Field &a, Field &b );
+
+    void ddx( Field &a );
+    void ddy( Field &a );
+    void ddz( Field &a );
+
+    void d2dx2( Field &a );
+    void d2dy2( Field &a );
+    void d2dz2( Field &a );
+    void d2dxy( Field &a );
+    void d2dxz( Field &a );
+    void d2dyz( Field &a );
 
     long index( int i, int j );
     long index( int i, int j, int k );
@@ -54,6 +65,10 @@ namespace Fields {
 
     void FieldInit( int *_dims );
     void FieldInit( int _ndim, int *_dims );
+
+    void dndxn( void (Derivs::FiniteDiff::*dd)( int, double *, double *), Field &a );
+    void dndyn( void (Derivs::FiniteDiff::*dd)( int, double *, double *), Field &a );
+    void dndzn( void (Derivs::FiniteDiff::*dd)( int, double *, double *), Field &a );
 
   }; 
 

@@ -9,7 +9,7 @@ INCPATH="-I../autofd"
 LIBPATH="-L../autofd -L../matsolv"
 LIBS="-lautofd -lmatsolv -lgfortran"
 
-CFLAGS="-O0 -Wall -g"
+CFLAGS="-O0 -Wall -g -DBOUNDS_CHECK"
 
 for s in ${SRCS[@]}
 do
