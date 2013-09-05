@@ -58,12 +58,13 @@ namespace Derivs {
     }
 
     if( zero_index == -1 ) {
+      // Did not find the zero index 
       cout << "Finite difference stencil set incorrectly\n" << endl;
       exit (EXIT_FAILURE);
     }
 
     for( int m=0; m<_fd.ssize; m++ ) {
-      // Compute the distance from the 
+      // Compute the distance from the zero index location
       _fd.ds[m] = _s[ _n + _fd.stencil[m] ] - _s[ _n + _fd.stencil[zero_index] ];
     }
 
@@ -227,47 +228,52 @@ namespace Derivs {
   ////////////////////////////////////////////////////////////////////// 
 
   /********************************************************************/
-  void FiniteDiff::dndxn( FiniteDiff::fd_t *fd, int _n, double *_a, double *_da )
+  void FiniteDiff::ddx( int _n, double *_a, double *_da )
+  /********************************************************************/
+  {
+    this->fdOp( this->fd_ddx, _n, _a, _da );
+  }
+  /********************************************************************/
+  void FiniteDiff::ddy( int _n, double *_a, double *_da )
+  /********************************************************************/
+  {
+    this->fdOp( this->fd_ddy, _n, _a, _da );
+  }
+  /********************************************************************/
+  void FiniteDiff::ddz( int _n, double *_a, double *_da )
+  /********************************************************************/
+  {
+    this->fdOp( this->fd_ddz, _n, _a, _da );
+  }
+  /********************************************************************/
+  void FiniteDiff::d2dx2( int _n, double *_a, double *_da )
+  /********************************************************************/
+  {
+    this->fdOp( this->fd_d2dx2, _n, _a, _da );
+  }
+  /********************************************************************/
+  void FiniteDiff::d2dy2( int _n, double *_a, double *_da )
+  /********************************************************************/
+  {
+    this->fdOp( this->fd_d2dy2, _n, _a, _da );
+  }
+  /********************************************************************/
+  void FiniteDiff::d2dz2( int _n, double *_a, double *_da )
+  /********************************************************************/
+  {
+    this->fdOp( this->fd_d2dz2, _n, _a, _da );
+  }
+
+  //
+  // Finite difference operation function
+  //
+  /********************************************************************/
+  void FiniteDiff::fdOp( FiniteDiff::fd_t *fd, int _n, double *_a, double *_da )
   /********************************************************************/
   {
     for ( int i=0; i<_n; i++ ) {
       _da[i] = autofd_derivative_c( fd[i].ssize, fd[i].stencil,  fd[i].coef,  _n, _a, i);
     }
   } 
-  /********************************************************************/
-  void FiniteDiff::ddx( int _n, double *_a, double *_da )
-  /********************************************************************/
-  {
-    this->dndxn( this->fd_ddx, _n, _a, _da );
-  }
-  /********************************************************************/
-  void FiniteDiff::ddy( int _n, double *_a, double *_da )
-  /********************************************************************/
-  {
-    this->dndxn( this->fd_ddy, _n, _a, _da );
-  }
-  /********************************************************************/
-  void FiniteDiff::ddz( int _n, double *_a, double *_da )
-  /********************************************************************/
-  {
-    this->dndxn( this->fd_ddz, _n, _a, _da );
-  }
-  /********************************************************************/
-  void FiniteDiff::d2dx2( int _n, double *_a, double *_da )
-  /********************************************************************/
-  {
-    this->dndxn( this->fd_d2dx2, _n, _a, _da );
-  }
-  /********************************************************************/
-  void FiniteDiff::d2dy2( int _n, double *_a, double *_da )
-  /********************************************************************/
-  {
-    this->dndxn( this->fd_d2dy2, _n, _a, _da );
-  }
-  /********************************************************************/
-  void FiniteDiff::d2dz2( int _n, double *_a, double *_da )
-  /********************************************************************/
-  {
-    this->dndxn( this->fd_d2dz2, _n, _a, _da );
-  }
+
 }
