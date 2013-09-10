@@ -1,10 +1,10 @@
-#include "Fields.hpp"
+#include "field.hpp"
 #include "mpi.h"
 
-#ifndef MPIFIELDS_H
-#define MPIFIELDS_H
+#ifndef MPIFIELD_H
+#define MPIFIELD_H
 
-namespace MPIFields 
+namespace pturb_fields 
 {
   
   typedef enum {
@@ -13,7 +13,7 @@ namespace MPIFields
     CUBE_DECOMP
   } MPIDecomp_t;
 
-  class MPIField: public Fields::Field // Inherits Field class
+  class MPIField: public Field // Inherits Field class
   {
 
   public: 

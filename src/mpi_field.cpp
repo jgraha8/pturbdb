@@ -2,11 +2,11 @@
 #include <cstdlib>
 #include <string.h>
 
-#include "MPIFields.hpp"
+#include "mpi_field.hpp"
 
 using namespace std;
 
-namespace MPIFields {
+namespace pturb_fields {
   
   //////////////////////////////////////////////////////////////////////
   /// CONSTRUCTORS

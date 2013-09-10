@@ -1,12 +1,12 @@
 #!/bin/bash
 
 EXEC=speed3
-SRCS=( Derivs.cpp Fields.cpp MPIFields.cpp speed3.cpp )
+SRCS=( derivative.cpp field.cpp mpi_field.cpp speed3.cpp )
 # Generate the object list
 OBJS=$(for s in ${SRCS[@]}; do echo ${s%.*}.o; done)
 
-INCPATH="-I../autofd"
-LIBPATH="-L../autofd -L../matsolv"
+INCPATH="-I../../autofd"
+LIBPATH="-L../../autofd -L../../matsolv"
 LIBS="-lautofd -lmatsolv -lgfortran"
 
 CFLAGS="-O0 -Wall -g -DBOUNDS_CHECK"

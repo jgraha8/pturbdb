@@ -4,14 +4,14 @@
 
 #define BOUNDS_CHECK
 
-#include "MPIFields.hpp"
+#include "mpi_field.hpp"
 
 #define NX 128
 #define NY 128
 #define NZ 128
 
 using namespace std;
-using namespace MPIFields;
+using namespace pturb_fields;
 
 int main ( int argc, char *argv[]) 
 {

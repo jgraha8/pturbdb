@@ -1,12 +1,11 @@
 #include <iostream>
 #include <cstdlib>
 #include <string.h>
-#include "Fields.hpp"
+#include "field.hpp"
 
 using namespace std;
-using namespace Derivs;
 
-namespace Fields {
+namespace pturb_fields {
 
     // Field class member functions
   /********************************************************************/
@@ -89,6 +88,7 @@ namespace Fields {
     return *this;
   }
 
+
   /********************************************************************/
   Field& Field::operator+=( const Field &a )
   /********************************************************************/
@@ -170,6 +170,7 @@ namespace Fields {
       exit (EXIT_FAILURE);
     }   
 #endif
+
     // Perform the multplication
     long indx=0;
     while( indx != N ) {
@@ -447,13 +448,7 @@ namespace Fields {
     
   }
 
-  // Array index for 2D indexing
-  /********************************************************************/
-  long Field::index( int i, int j )
-  /********************************************************************/
-  {
-    return (long)this->dims[1]*(long)i + (long)j;
-  }
+
   // Array index for 3D indexing
   /********************************************************************/
   long Field::index( int i, int j, int k )
@@ -483,7 +478,7 @@ namespace Fields {
     }
 
     // First initialize the fd class instance
-    fd = new Derivs::FiniteDiff( dims[0], x, dims[1], y, dims[2], z, _order );
+    fd = new FiniteDiff( dims[0], x, dims[1], y, dims[2], z, _order );
     
   }
 

@@ -1,9 +1,9 @@
-#include "Derivs.hpp"
+#include "derivative.hpp"
 
-#ifndef FIELDS_H
-#define FIELDS_H
+#ifndef FIELD_H
+#define FIELD_H
 
-namespace Fields {
+namespace pturb_fields {
   
   class Field {
 
@@ -16,7 +16,7 @@ namespace Fields {
     double *x, *y, *z;
 
     // FiniteDifference Class from the Derivs namespace
-    Derivs::FiniteDiff *fd;
+    FiniteDiff *fd;
  
   public:
 
@@ -53,7 +53,6 @@ namespace Fields {
     void d2dxz( Field &a );
     void d2dyz( Field &a );
 
-    long index( int i, int j );
     long index( int i, int j, int k );
 
     // Grid 
@@ -66,9 +65,9 @@ namespace Fields {
     void FieldInit( int *_dims );
     void FieldInit( int _ndim, int *_dims );
 
-    void dndxn( void (Derivs::FiniteDiff::*dd)( int, double *, double *), Field &a );
-    void dndyn( void (Derivs::FiniteDiff::*dd)( int, double *, double *), Field &a );
-    void dndzn( void (Derivs::FiniteDiff::*dd)( int, double *, double *), Field &a );
+    void dndxn( void (FiniteDiff::*dd)( int, double *, double *), Field &a );
+    void dndyn( void (FiniteDiff::*dd)( int, double *, double *), Field &a );
+    void dndzn( void (FiniteDiff::*dd)( int, double *, double *), Field &a );
 
   }; 
 
