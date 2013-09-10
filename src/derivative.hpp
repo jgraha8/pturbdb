@@ -19,8 +19,7 @@ namespace pturb_fields
   class FiniteDiff: public Derivative
   {
     
-    //private:
-  public:
+  private:
 
     typedef struct {
       int ssize;

@@ -7,22 +7,22 @@ namespace pturb_fields {
   
   class Field {
 
-  public:
-    int ndim;
-    int *dims;
-    double *data;
+  private:
+    int ndim_;
+    int *dims_;
+    double *data_;
 
     // Grid pointers; these are not allocated but must be set with setGrid
-    double *x, *y, *z;
+    double *x_, *y_, *z_;
 
-    // FiniteDifference Class from the Derivs namespace
-    FiniteDiff *fd;
+    // FiniteDiff Class from the D namespace
+    FiniteDiff *fd_;
  
   public:
 
     // Constructor
     Field(){};
-    Field( int _ndim, int *_dims );
+    Field( int ndim, int *dims );
     Field( const Field &g );
     // Deconstructor
     ~Field();
@@ -56,14 +56,14 @@ namespace pturb_fields {
     long index( int i, int j, int k );
 
     // Grid 
-    void assignGrid( double *_x, double *_y, double *_z );
+    void assignGrid( double *x, double *y, double *z );
     // Derivative functions
-    void derivFDInit( int _order );
+    void derivFDInit( int order );
     
   protected:
 
-    void FieldInit( int *_dims );
-    void FieldInit( int _ndim, int *_dims );
+    void FieldInit( int *dims );
+    void FieldInit( int ndim, int *dims );
 
     void dndxn( void (FiniteDiff::*dd)( int, double *, double *), Field &a );
     void dndyn( void (FiniteDiff::*dd)( int, double *, double *), Field &a );

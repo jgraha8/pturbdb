@@ -9,11 +9,11 @@ namespace pturb_fields {
 
     // Field class member functions
   /********************************************************************/
-  Field::Field( int _ndim, int *_dims ) 
+  Field::Field( int ndim, int *dims ) 
   /********************************************************************/
   {
     cout << "Initializing Field" << endl;
-    FieldInit( _ndim, _dims );
+    FieldInit( ndim, dims );
   }
 
   /********************************************************************/
@@ -22,9 +22,9 @@ namespace pturb_fields {
   {
     cout << "Copy Constructor Initializing Field" << endl;
 
-    FieldInit( g.ndim, g.dims );
+    FieldInit( g.ndim_, g.dims_ );
     // Copy the field data from g to this->data
-    memcpy(this->data,g.data,sizeof(*this->data)*this->getSize());
+    memcpy(this->data_,g.data_,sizeof(*this->data_)*this->getSize());
 
   }
 
@@ -33,8 +33,8 @@ namespace pturb_fields {
   /********************************************************************/
   {
     cout << "Field deconstructor" << endl;
-    delete[] dims;
-    delete[] data;
+    delete[] this->dims_;
+    delete[] this->data_;
   }
 
   // Field class initializer; expects ndim to already be set.
@@ -42,19 +42,19 @@ namespace pturb_fields {
   //   dims
   //   data
   /********************************************************************/
-  void Field::FieldInit( int *_dims ) 
+  void Field::FieldInit( int *dims ) 
   /********************************************************************/
   {
-    dims = new int [ndim];    
+    this->dims_ = new int [this->ndim_];    
     // Copy the dims vector
-    memcpy( dims, _dims, sizeof(*dims) * ndim );
+    memcpy( this->dims_, dims, sizeof(*this->dims_) * this->ndim_ );
 
     // Initialize the data field
     long N = getSize();
-    data = new double[N];
+    this->data_ = new double[N];
 
     // Initialize pointers to null
-    fd = NULL;
+    this->fd_ = NULL;
   }
 
   // Field class initializer
@@ -64,11 +64,11 @@ namespace pturb_fields {
   //   dims
   //   data
   /********************************************************************/
-  void Field::FieldInit( int _ndim, int *_dims ) 
+  void Field::FieldInit( int ndim, int *dims ) 
   /********************************************************************/
   {
-    ndim = _ndim;
-    FieldInit( _dims );
+    this->ndim_ = ndim;
+    FieldInit( dims );
   }
 
 
@@ -83,7 +83,7 @@ namespace pturb_fields {
     // Make sure they don't point to the same address
     if (this != &a) {
       // Copy the field data
-      memcpy( data, a.data, sizeof(*data) * getSize() );
+      memcpy( this->data_, a.data_, sizeof(*this->data_) * this->getSize() );
     }	
     return *this;
   }
@@ -93,10 +93,10 @@ namespace pturb_fields {
   Field& Field::operator+=( const Field &a )
   /********************************************************************/
   {
-    const long N=getSize();
+    const long N=this->getSize();
     long indx=0;
     while( indx != N ) {
-      data[indx] += a.data[indx];
+      this->data_[indx] += a.data_[indx];
       ++indx;
     }	
     return *this;
@@ -106,10 +106,10 @@ namespace pturb_fields {
   Field& Field::operator-=( const Field &a )
   /********************************************************************/
   {
-    const long N=getSize();
+    const long N=this->getSize();
     long indx=0;
     while( indx != N ) {
-      data[indx] -= a.data[indx];
+      this->data_[indx] -= a.data_[indx];
       ++indx;
     }	
     return *this;
@@ -119,10 +119,10 @@ namespace pturb_fields {
   Field& Field::operator*=( const Field &a )
   /********************************************************************/
   {
-    const long N=getSize();
+    const long N=this->getSize();
     long indx=0;
     while( indx != N ) {
-      data[indx] *= a.data[indx];
+      this->data_[indx] *= a.data_[indx];
       ++indx;
     }	
     return *this;
@@ -132,10 +132,10 @@ namespace pturb_fields {
   Field& Field::operator/=( const Field &a )
   /********************************************************************/
   {
-    const long N=getSize();
+    const long N=this->getSize();
     long indx=0;
     while( indx != N ) {
-      data[indx] /= a.data[indx];
+      this->data_[indx] /= a.data_[indx];
       ++indx;
     }	
     return *this;
@@ -151,8 +151,8 @@ namespace pturb_fields {
   /********************************************************************/
   {
     long N=1;
-    for (int n=0; n<ndim; n++ ) {
-      N *= dims[n];
+    for (int n=0; n<this->ndim_; n++ ) {
+      N *= this->dims_[n];
     }
     return N;
   }
@@ -174,7 +174,7 @@ namespace pturb_fields {
     // Perform the multplication
     long indx=0;
     while( indx != N ) {
-      this->data[indx] = a.data[indx] + b.data[indx];
+      this->data_[indx] = a.data_[indx] + b.data_[indx];
       ++indx;
     }
   }
@@ -195,7 +195,7 @@ namespace pturb_fields {
     // Perform the multplication
     long indx=0;
     while( indx != N ) {
-      this->data[indx] = a.data[indx] - b.data[indx];
+      this->data_[indx] = a.data_[indx] - b.data_[indx];
       ++indx;
     }
   }
@@ -217,7 +217,7 @@ namespace pturb_fields {
     // Perform the multplication
     long indx=0;
     while( indx != N ) {
-      this->data[indx] = a.data[indx] * b.data[indx];
+      this->data_[indx] = a.data_[indx] * b.data_[indx];
       ++indx;
     }
   }
@@ -238,7 +238,7 @@ namespace pturb_fields {
     // Perform the multplication
     long indx=0;
     while( indx != N ) {
-      this->data[indx] = a.data[indx] / b.data[indx];
+      this->data_[indx] = a.data_[indx] / b.data_[indx];
       ++indx;
     }
   }
@@ -259,7 +259,7 @@ namespace pturb_fields {
   {
     void (FiniteDiff::*dd)(int, double *, double *);
     dd = &FiniteDiff::ddx;
-    dndxn( dd, a );
+    this->dndxn( dd, a );
   }
 
   /********************************************************************/
@@ -268,7 +268,7 @@ namespace pturb_fields {
   {
     void (FiniteDiff::*dd)(int, double *, double *);
     dd = &FiniteDiff::ddy;
-    dndyn( dd, a );
+    this->dndyn( dd, a );
   }
 
   /********************************************************************/
@@ -277,7 +277,7 @@ namespace pturb_fields {
   {
     void (FiniteDiff::*dd)(int, double *, double *);
     dd = &FiniteDiff::ddz;
-    dndzn( dd, a );
+    this->dndzn( dd, a );
   }
 
   /********************************************************************/
@@ -286,7 +286,7 @@ namespace pturb_fields {
   {
     void (FiniteDiff::*dd)(int, double *, double *);
     dd = &FiniteDiff::d2dx2;
-    dndxn( dd, a );
+    this->dndxn( dd, a );
   }
   /********************************************************************/
   void Field::d2dy2( Field &a ) 
@@ -294,7 +294,7 @@ namespace pturb_fields {
   {
     void (FiniteDiff::*dd)(int, double *, double *);
     dd = &FiniteDiff::d2dy2;
-    dndyn( dd, a );
+    this->dndyn( dd, a );
   }
 
   /********************************************************************/
@@ -303,7 +303,7 @@ namespace pturb_fields {
   {
     void (FiniteDiff::*dd)(int, double *, double *);
     dd = &FiniteDiff::d2dz2;
-    dndzn( dd, a );
+    this->dndzn( dd, a );
   }
 
   /********************************************************************/
@@ -312,9 +312,9 @@ namespace pturb_fields {
   {
     void (FiniteDiff::*dd)(int, double *, double *);
     dd = &FiniteDiff::ddx;
-    dndxn( dd, a );
+    this->dndxn( dd, a );
     dd = &FiniteDiff::ddy;
-    dndyn( dd, *this );
+    this->dndyn( dd, *this );
   } 
   /********************************************************************/
   void Field::d2dxz( Field &a ) 
@@ -322,9 +322,9 @@ namespace pturb_fields {
   {
     void (FiniteDiff::*dd)(int, double *, double *);
     dd = &FiniteDiff::ddx;
-    dndxn( dd, a );
+    this->dndxn( dd, a );
     dd = &FiniteDiff::ddz;
-    dndzn( dd, *this );
+    this->dndzn( dd, *this );
   }
   /********************************************************************/
   void Field::d2dyz( Field &a ) 
@@ -332,9 +332,9 @@ namespace pturb_fields {
   {
     void (FiniteDiff::*dd)(int, double *, double *);
     dd = &FiniteDiff::ddy;
-    dndyn( dd, a );
+    this->dndyn( dd, a );
     dd = &FiniteDiff::ddz;
-    dndzn( dd, *this );
+    this->dndzn( dd, *this );
   }    
 
   /********************************************************************/
@@ -343,13 +343,13 @@ namespace pturb_fields {
   {
 
     // Create buffer to store x-data
-    const int nx = this->dims[0];
-    const int ny = this->dims[1];
-    const int nz = this->dims[2];
+    const int nx = this->dims_[0];
+    const int ny = this->dims_[1];
+    const int nz = this->dims_[2];
     
 #ifdef BOUNDS_CHECK
     // First check that the fields are the same size
-    if ( nx != a.dims[0] || ny != a.dims[1] || nz != a.dims[2] ) {
+    if ( nx != a.dims_[0] || ny != a.dims_[1] || nz != a.dims_[2] ) {
       cout << "Mismatch in field sizes" << endl;
       exit (EXIT_FAILURE);
     }   
@@ -361,11 +361,11 @@ namespace pturb_fields {
     for (int j=0; j<ny; j++ ) {
       for (int k=0; k<nz; k++ ) {
 	// Pack buffer
-	for ( int i=0; i<nx; i++ ) ax[i] = a.data[a.index(i,j,k)];
+	for ( int i=0; i<nx; i++ ) ax[i] = a.data_[a.index(i,j,k)];
 	// Compute the derivative using the FiniteDiff class
-	(this->fd->*dd)( nx, ax, dax );
+	(this->fd_->*dd)( nx, ax, dax );
 	// Unpack buffer
-	for ( int i=0; i<nx; i++ ) this->data[this->index(i,j,k)] = dax[i];
+	for ( int i=0; i<nx; i++ ) this->data_[this->index(i,j,k)] = dax[i];
       }
     }
 
@@ -380,13 +380,13 @@ namespace pturb_fields {
   {
 
     // Create buffer to store x-data
-    const int nx = this->dims[0];
-    const int ny = this->dims[1];
-    const int nz = this->dims[2];
+    const int nx = this->dims_[0];
+    const int ny = this->dims_[1];
+    const int nz = this->dims_[2];
     
 #ifdef BOUNDS_CHECK
     // First check that the fields are the same size
-    if ( nx != a.dims[0] || ny != a.dims[1] || nz != a.dims[2] ) {
+    if ( nx != a.dims_[0] || ny != a.dims_[1] || nz != a.dims_[2] ) {
       cout << "Mismatch in field sizes" << endl;
       exit (EXIT_FAILURE);
     }   
@@ -398,11 +398,11 @@ namespace pturb_fields {
     for ( int i=0; i<nx; i++ ) {
       for (int k=0; k<nz; k++ ) {
 	// Pack buffer
-	for (int j=0; j<ny; j++ ) ay[j] = a.data[a.index(i,j,k)];
+	for (int j=0; j<ny; j++ ) ay[j] = a.data_[a.index(i,j,k)];
 	// Compute the derivative using the FiniteDiff class
-	(this->fd->*dd)( ny, ay, day );
+	(this->fd_->*dd)( ny, ay, day );
 	// Unpack buffer
-	for ( int j=0; j<ny; j++ ) this->data[this->index(i,j,k)] = day[j];
+	for ( int j=0; j<ny; j++ ) this->data_[this->index(i,j,k)] = day[j];
       }
     }
 
@@ -417,13 +417,13 @@ namespace pturb_fields {
   {
 
     // Create buffer to store x-data
-    const int nx = this->dims[0];
-    const int ny = this->dims[1];
-    const int nz = this->dims[2];
+    const int nx = this->dims_[0];
+    const int ny = this->dims_[1];
+    const int nz = this->dims_[2];
     
 #ifdef BOUNDS_CHECK
     // First check that the fields are the same size
-    if ( nx != a.dims[0] || ny != a.dims[1] || nz != a.dims[2] ) {
+    if ( nx != a.dims_[0] || ny != a.dims_[1] || nz != a.dims_[2] ) {
       cout << "Mismatch in field sizes" << endl;
       exit (EXIT_FAILURE);
     }   
@@ -435,11 +435,11 @@ namespace pturb_fields {
     for ( int i=0; i<nx; i++ ) {
       for (int j=0; j<ny; j++ ) {
 	// Pack buffer
-	for (int k=0; k<nz; k++ ) az[k] = a.data[a.index(i,j,k)];
+	for (int k=0; k<nz; k++ ) az[k] = a.data_[a.index(i,j,k)];
 	// Compute the derivative using the FiniteDiff class
-	(this->fd->*dd)( nz, az, daz );
+	(this->fd_->*dd)( nz, az, daz );
 	// Unpack buffer
-	for (int k=0; k<nz; k++ ) this->data[this->index(i,j,k)] = daz[k];
+	for (int k=0; k<nz; k++ ) this->data_[this->index(i,j,k)] = daz[k];
       }
     }
 
@@ -454,31 +454,34 @@ namespace pturb_fields {
   long Field::index( int i, int j, int k )
   /********************************************************************/
   {
-    return ((long)dims[1]*(long)i + (long)j)*(long)dims[2] + (long)k;
+    return ((long)this->dims_[1]*(long)i + (long)j)*(long)this->dims_[2] + (long)k;
   }
 
   // Set the grid pointers for field
   /********************************************************************/
-  void Field::assignGrid( double *_x, double *_y, double *_z )
+  void Field::assignGrid( double *x, double *y, double *z )
   /********************************************************************/
   {  
-    x = _x;
-    y = _y;
-    z = _z;
+    this->x_ = x;
+    this->y_ = y;
+    this->z_ = z;
   }
   // Initialize the finite difference derivatives class
   /********************************************************************/
-  void Field::derivFDInit( int _order )
+  void Field::derivFDInit( int order )
   /********************************************************************/
   {
 
-    if( fd != NULL ) {
+    if( this->fd_ != NULL ) {
       cout << "finite difference class instance fd already allocated" << endl;
       exit (EXIT_FAILURE);
     }
 
     // First initialize the fd class instance
-    fd = new FiniteDiff( dims[0], x, dims[1], y, dims[2], z, _order );
+    this->fd_ = new FiniteDiff( this->dims_[0], this->x_, 
+				this->dims_[1], this->y_, 
+				this->dims_[2], this->z_, 
+				order );
     
   }
 

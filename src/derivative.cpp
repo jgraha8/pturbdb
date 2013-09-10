@@ -181,7 +181,7 @@ namespace pturb_fields {
 
 	}
 	
-    } else if( _order == 4 ) {
+    } else if( order == 4 ) {
 
 	for (n=0; n<ns; n++ ) {
 
@@ -194,7 +194,7 @@ namespace pturb_fields {
 	    // Second point
 	    fdInit( 6, fd[n] );
 	    fdSetStencil( -1, fd[n] ); // Forward-biased differencing
-	  } else if ( n == _ns - 2 ) {
+	  } else if ( n == ns - 2 ) {
 	    // Second to last point
 	    fdInit( 6, fd[n] );
 	    fdSetStencil( -4, fd[n] ); // Backward-biased differencing
