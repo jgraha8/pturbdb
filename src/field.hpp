@@ -1,31 +1,70 @@
 #include "derivative.hpp"
+#incllude "mpi_topology.hpp"
+
+#define FIELD_NDIMS 3
 
 #ifndef FIELD_H
 #define FIELD_H
 
 namespace pturb_fields {
+
+  typedef enum {
+    FIELD_DECOMP_SLAB,
+    FIELD_DECOMP_PENCIL,
+    FIELD_DECOMP_CUBE
+  } FieldDecomp_t;
   
   class Field {
 
   private:
-    int ndim_;
-    int *dims_;
-    double *data_;
+
+    int *dims_; // Dimensions of global domain
+    int *dims_local_; // Dimensions of local domain
+    int *dims_operation_; // Dimension of "operations" domain
+
+    int *offset_local_; // Offset of local domain with respect to global domain
+    int *offset_operation_; // Offset of operation domain with respect to local domain
 
     // Grid pointers; these are not allocated but must be set with setGrid
-    double *x_, *y_, *z_;
+    double *x_local_, *y_local_, *z_local_;
 
-    // FiniteDiff Class from the D namespace
-    FiniteDiff *fd_;
+    // FiniteDiff Class 
+    FiniteDiff *finite_diff_;
  
+    // Decomposition
+    FieldDecomp_t field_decomp_;
+
+    // MPI Topology struct
+    MpiTopology_t *mpi_topology_;
+
+  public:
+    double *data_local; // Data of local domain
+
   public:
 
     // Constructor
     Field(){};
-    Field( int ndim, int *dims );
+    Field( int ndim, int *dims, int *periodic, FieldDecomp_t field_decomp, int operator_order );
     Field( const Field &g );
     // Deconstructor
     ~Field();
+
+
+    // Derivative functions
+    void derivFDInit( int order );
+    
+    // Get the size of the field
+    long getSize();
+    MPI_Comm getMpiComm();
+    FieldDecomp_t getFieldDecomp();
+    int *getDims();
+
+    long index( int i, int j, int k );
+    long indexLocal( int i, int j, int k );
+    long indexOperation( int i, int j, int k );
+    long indexOperationToLocal( int i, int j, int k );
+
+    void assignGridLocal( double *x_local, double *y_local, double *z_local );
 
     // Assignment operator
     Field &operator=( const Field &a );
@@ -33,9 +72,6 @@ namespace pturb_fields {
     Field &operator-=( const Field &a );
     Field &operator*=( const Field &a );
     Field &operator/=( const Field &a );
-
-    // Get the size of the field
-    long getSize();
 
     void add( Field &a, Field &b );
     void sub( Field &a, Field &b );
@@ -52,22 +88,19 @@ namespace pturb_fields {
     void d2dxy( Field &a );
     void d2dxz( Field &a );
     void d2dyz( Field &a );
-
-    long index( int i, int j, int k );
-
-    // Grid 
-    void assignGrid( double *x, double *y, double *z );
-    // Derivative functions
-    void derivFDInit( int order );
     
-  protected:
+   
+  private:
 
     void FieldInit( int *dims );
     void FieldInit( int ndim, int *dims );
 
+    int *domainDecomp( int _nproc, int _rank, MPIDecomp_t _decomp, int _ndim, const int *_dims );
+
     void dndxn( void (FiniteDiff::*dd)( int, double *, double *), Field &a );
     void dndyn( void (FiniteDiff::*dd)( int, double *, double *), Field &a );
     void dndzn( void (FiniteDiff::*dd)( int, double *, double *), Field &a );
+   
 
   }; 
 

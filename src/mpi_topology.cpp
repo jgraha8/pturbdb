@@ -20,7 +20,7 @@ MpiTopology_t *MpiTopologyNew( MPI_Comm comm, int ndims, int *dims, int *periodi
 		   mpi_topology->ndims, 
 		   mpi_topology->dims, 
 		   mpi_topology->periodic,
-		   1, 
+		   MPI_TOPOLOGY_CART_REORDER, 
 		   &mpi_topology->comm );
 
 

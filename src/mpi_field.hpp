@@ -11,7 +11,7 @@ namespace pturb_fields
     SLAB_DECOMP,
     PENCIL_DECOMP,
     CUBE_DECOMP
-  } MPIDecomp_t;
+  } MpiDecomp_t;
 
   class MPIField: public Field // Inherits Field class
   {
