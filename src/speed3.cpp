@@ -23,7 +23,7 @@ int main ( int argc, char *argv[])
   int dims[]={ NX, NY, NZ }; 
   int periodic[] = {1, 1, 1};
 
-  Field *f = new Field( dims, FIELD_DECOMP_PENCIL, periodic, 4 );
+  Field *f = new Field( dims, FIELD_DECOMP_PENCIL, periodic, 2 );
   Field *g = new Field( *f ); // Make a copy of f
 
   int rank = f->getMpiTopology()->rank;
@@ -33,7 +33,7 @@ int main ( int argc, char *argv[])
     if( n == rank ) {
       cout << "Number of global data elements : " << g->getSize() << endl;
       cout << "Number of local data elements : " << g->getSizeLocal() << endl;
-      cout << "Number of operation data elements : " << g->getSizeLocal() << endl;
+      cout << "Number of operation data elements : " << g->getSizeOperation() << endl;
     }
     MPI_Barrier( g->getMpiTopology()->comm );
   }
