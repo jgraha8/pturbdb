@@ -4,9 +4,9 @@
 
 #include "field.hpp"
 
-#define NX 128
-#define NY 128
-#define NZ 128
+#define NX 256
+#define NY 256
+#define NZ 256
 
 using namespace std;
 using namespace pturb_fields;
@@ -21,19 +21,21 @@ int main ( int argc, char *argv[])
 
   int ndim=3;
   int dims[]={ NX, NY, NZ }; 
-  int periodic[] = {1, 1, 1};
+  int periodic[] = {1, 0, 1};
 
   Field *f = new Field( dims, FIELD_DECOMP_PENCIL, periodic, 2 );
   Field *g = new Field( *f ); // Make a copy of f
 
   int rank = f->getMpiTopology()->rank;
   int nproc = f->getMpiTopology()->nproc;
-				   
+  int *decomp_dims = f->getMpiTopology()->dims;
+
   for (int n=0; n<nproc; n++) {
     if( n == rank ) {
       cout << "Number of global data elements : " << g->getSize() << endl;
       cout << "Number of local data elements : " << g->getSizeLocal() << endl;
       cout << "Number of operation data elements : " << g->getSizeOperation() << endl;
+      cout << "MPI Topology : " << decomp_dims[0] << "x" << decomp_dims[1] << "x" << decomp_dims[2] << endl;
     }
     MPI_Barrier( g->getMpiTopology()->comm );
   }
