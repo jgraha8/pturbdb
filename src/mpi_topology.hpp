@@ -10,7 +10,6 @@ typedef struct {
   int nproc, rank;
   int ndims;
   int *dims;
-  int *periodic;
   int *coords;
   int *neighbor_next;
   int *neighbor_prev;

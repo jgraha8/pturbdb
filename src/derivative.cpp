@@ -227,52 +227,57 @@ namespace pturb_fields {
   /// DERIVATIVES
   ////////////////////////////////////////////////////////////////////// 
 
+  // 
+  // The offset variable allows the data in a to be a sub-vector of the vector
+  // spanned by the finite differencing struct.
+  // 
+
   /********************************************************************/
-  void FiniteDiff::ddx( int n, double *a, double *da )
+  void FiniteDiff::ddx( int offset, int n, double *a, double *da )
   /********************************************************************/
   {
-    this->fdOp( this->fd_ddx, n, a, da );
+    this->fdOp( this->fd_ddx, offset, n, a, da );
   }
   /********************************************************************/
-  void FiniteDiff::ddy( int n, double *a, double *da )
+  void FiniteDiff::ddy( int offset, int n, double *a, double *da )
   /********************************************************************/
   {
-    this->fdOp( this->fd_ddy, n, a, da );
+    this->fdOp( this->fd_ddy, offset, n, a, da );
   }
   /********************************************************************/
-  void FiniteDiff::ddz( int n, double *a, double *da )
+  void FiniteDiff::ddz( int offset, int n, double *a, double *da )
   /********************************************************************/
   {
-    this->fdOp( this->fd_ddz, n, a, da );
+    this->fdOp( this->fd_ddz, offset, n, a, da );
   }
   /********************************************************************/
-  void FiniteDiff::d2dx2( int n, double *a, double *da )
+  void FiniteDiff::d2dx2( int offset, int n, double *a, double *da )
   /********************************************************************/
   {
-    this->fdOp( this->fd_d2dx2, n, a, da );
+    this->fdOp( this->fd_d2dx2, offset, n, a, da );
   }
   /********************************************************************/
-  void FiniteDiff::d2dy2( int n, double *a, double *da )
+  void FiniteDiff::d2dy2( int offset, int n, double *a, double *da )
   /********************************************************************/
   {
-    this->fdOp( this->fd_d2dy2, n, a, da );
+    this->fdOp( this->fd_d2dy2, offset, n, a, da );
   }
   /********************************************************************/
-  void FiniteDiff::d2dz2( int n, double *a, double *da )
+  void FiniteDiff::d2dz2( int offset, int n, double *a, double *da )
   /********************************************************************/
   {
-    this->fdOp( this->fd_d2dz2, n, a, da );
+    this->fdOp( this->fd_d2dz2, offset, n, a, da );
   }
 
   //
   // Finite difference operation function
   //
   /********************************************************************/
-  void FiniteDiff::fdOp( FiniteDiff::fd_t *fd, int n, double *a, double *da )
+  void FiniteDiff::fdOp( FiniteDiff::fd_t *fd, int offset, int n, double *a, double *da )
   /********************************************************************/
   {
     for ( int i=0; i<n; i++ ) {
-      da[i] = autofd_derivative_c( fd[i].ssize, fd[i].stencil,  fd[i].coef,  n, a, i);
+      da[i] = autofd_derivative_c( fd[i+offset].ssize, fd[i+offset].stencil,  fd[i+offset].coef,  n, a, i);
     }
   } 
 

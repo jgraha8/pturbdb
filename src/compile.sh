@@ -1,7 +1,7 @@
 #!/bin/bash
 
 EXEC=speed3
-SRCS=( derivative.cpp field.cpp mpi_field.cpp speed3.cpp )
+SRCS=( derivative.cpp field.cpp mpi_topology.cpp ) #speed3.cpp )
 # Generate the object list
 OBJS=$(for s in ${SRCS[@]}; do echo ${s%.*}.o; done)
 
@@ -18,6 +18,6 @@ do
     mpicxx $CFLAGS $INCPATH -c -o $o $s
 done
 
-# Link everything
-echo "mpicxx $LIBPATH -o speed3 $OBJS $LIBS"
-mpicxx $LIBPATH -o speed3 $OBJS $LIBS
+# # Link everything
+# echo "mpicxx $LIBPATH -o speed3 $OBJS $LIBS"
+# mpicxx $LIBPATH -o speed3 $OBJS $LIBS

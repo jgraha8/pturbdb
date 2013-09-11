@@ -1,5 +1,5 @@
 #include "derivative.hpp"
-#incllude "mpi_topology.hpp"
+#include "mpi_topology.hpp"
 
 #define FIELD_NDIMS 3
 
@@ -25,7 +25,10 @@ namespace pturb_fields {
     int offset_local_[FIELD_NDIMS]; // Offset of local domain with respect to global domain
     int offset_operation_[FIELD_NDIMS]; // Offset of operation domain with respect to local domain
 
+    int periodic_[FIELD_NDIMS]; // Settings for whether the domain in each field
+				// direction is periodic or not
     int operator_order_; // Order of derivative operations
+    int rind_size_; // Size of the MPI overlap rind
 
     // Decomposition
     FieldDecomp_t field_decomp_;
@@ -48,19 +51,23 @@ namespace pturb_fields {
 
     // Constructor
     Field(){};
-    Field( int ndim, int *dims, FieldDecomp_t field_decomp, int *periodic, int operator_order );
-    Field( const Field &g );
+    Field( const int *dims, FieldDecomp_t field_decomp, const int *periodic, int operator_order );
+    Field( Field &g );
     // Deconstructor
     ~Field();
 
 
     // Derivative functions
-    void derivFDInit( int order );
+    void finiteDiffInit();
     
     // Get the size of the field
     long getSize();
-    MpiTopology_t *getMpiTopology()
+    long getSizeLocal();
+    long getSizeOperation();
+    MpiTopology_t *getMpiTopology();
     FieldDecomp_t getFieldDecomp();
+    int *getFieldPeriodic();
+    int getOperatorOrder();
     int *getDims();
 
     long index( int i, int j, int k );
@@ -68,7 +75,7 @@ namespace pturb_fields {
     long indexOperation( int i, int j, int k );
     long indexOperationToLocal( int i, int j, int k );
 
-    void assignGridLocal( double *x_local, double *y_local, double *z_local );
+    void setGridLocal( double *x_local, double *y_local, double *z_local );
 
     // Assignment operator
     Field &operator=( const Field &a );
@@ -96,10 +103,12 @@ namespace pturb_fields {
    
   private:
 
-    void FieldInit( int *dims );
-    void FieldInit( int ndim, int *dims );
+    void FieldInit( const int *dims, FieldDecomp_t field_decomp, const int *periodic, int operator_order );
 
-    int *computeMpiTopologyDims( mpi_coord_ndims );
+    int *computeMpiTopologyDims( int nproc, int mpi_decomp_ndims );
+
+    void assignMpiTopology();
+    void assignDimsAndOffsets();
 
     void dndxn( void (FiniteDiff::*dd)( int, double *, double *), Field &a );
     void dndyn( void (FiniteDiff::*dd)( int, double *, double *), Field &a );

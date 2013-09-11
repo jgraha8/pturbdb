@@ -46,12 +46,12 @@ namespace pturb_fields
 
     void FiniteDiffInit( int nx, double *x, int ny, double *y, int nz, double *z, int order );
 
-    void ddx( int n, double *a, double *da );
-    void ddy( int n, double *a, double *da );
-    void ddz( int n, double *a, double *da );
-    void d2dx2( int n, double *a, double *da );
-    void d2dy2( int n, double *a, double *da );
-    void d2dz2( int n, double *a, double *da );
+    void ddx( int offset, int n, double *a, double *da );
+    void ddy( int offset, int n, double *a, double *da );
+    void ddz( int offset, int n, double *a, double *da );
+    void d2dx2( int offset, int n, double *a, double *da );
+    void d2dy2( int offset, int n, double *a, double *da );
+    void d2dz2( int offset, int n, double *a, double *da );
 
   private:
 

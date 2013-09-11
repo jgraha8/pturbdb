@@ -8,18 +8,16 @@ MpiTopology_t *MpiTopologyNew( MPI_Comm comm, int ndims, int *dims, int *periodi
   
   mpi_topology->ndims         = ndims;
   mpi_topology->dims          = new int[ndims];
-  mpi_topology->periodic      = new int[ndims];
   mpi_topology->coords        = new int[ndims];
   mpi_topology->neighbor_next = new int[ndims];
   mpi_topology->neighbor_prev = new int[ndims];
 
   memcpy(mpi_topology->dims,dims,sizeof(dims[0])*ndims);
-  memcpy(mpi_topology->periodic,periodic,sizeof(periodic[0])*ndims);
 
   MPI_Cart_create( comm, 
 		   mpi_topology->ndims, 
 		   mpi_topology->dims, 
-		   mpi_topology->periodic,
+		   periodic,
 		   MPI_TOPOLOGY_CART_REORDER, 
 		   &mpi_topology->comm );
 
@@ -46,10 +44,9 @@ void MpiTopologyDelete( MpiTopology_t **mpi_topology )
 {
 
   delete [] (*mpi_topology)->dims; 
-  delete [] (*mpi_topology)->periodic; 
-  delete [] (*mpi_topology)->dims; 
-  delete [] (*mpi_topology)->dims; 
-  delete [] (*mpi_topology)->dims; 
+  delete [] (*mpi_topology)->coords; 
+  delete [] (*mpi_topology)->neighbor_next; 
+  delete [] (*mpi_topology)->neighbor_prev; 
   delete *mpi_topology;
 
   *mpi_topology = NULL;
