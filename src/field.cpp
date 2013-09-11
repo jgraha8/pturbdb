@@ -1,6 +1,7 @@
 #include <iostream>
 #include <cstdlib>
-#include <string.h>
+#include <cstring>
+#include <cmath>
 #include "field.hpp"
 
 using namespace std;
@@ -447,7 +448,7 @@ namespace pturb_fields {
   void Field::ddx( Field &a ) 
   /********************************************************************/
   {
-    void (FiniteDiff::*dd)(int, double *, double *);
+    void (FiniteDiff::*dd)(int, int, double *, double *);
     dd = &FiniteDiff::ddx;
     this->dndxn( dd, a );
   }
@@ -456,7 +457,7 @@ namespace pturb_fields {
   void Field::ddy( Field &a ) 
   /********************************************************************/
   {
-    void (FiniteDiff::*dd)(int, double *, double *);
+    void (FiniteDiff::*dd)(int, int, double *, double *);
     dd = &FiniteDiff::ddy;
     this->dndyn( dd, a );
   }
@@ -465,7 +466,7 @@ namespace pturb_fields {
   void Field::ddz( Field &a ) 
   /********************************************************************/
   {
-    void (FiniteDiff::*dd)(int, double *, double *);
+    void (FiniteDiff::*dd)(int, int, double *, double *);
     dd = &FiniteDiff::ddz;
     this->dndzn( dd, a );
   }
@@ -474,7 +475,7 @@ namespace pturb_fields {
   void Field::d2dx2( Field &a ) 
   /********************************************************************/
   {
-    void (FiniteDiff::*dd)(int, double *, double *);
+    void (FiniteDiff::*dd)(int, int, double *, double *);
     dd = &FiniteDiff::d2dx2;
     this->dndxn( dd, a );
   }
@@ -482,7 +483,7 @@ namespace pturb_fields {
   void Field::d2dy2( Field &a ) 
   /********************************************************************/
   {
-    void (FiniteDiff::*dd)(int, double *, double *);
+    void (FiniteDiff::*dd)(int, int, double *, double *);
     dd = &FiniteDiff::d2dy2;
     this->dndyn( dd, a );
   }
@@ -491,7 +492,7 @@ namespace pturb_fields {
   void Field::d2dz2( Field &a ) 
   /********************************************************************/
   {
-    void (FiniteDiff::*dd)(int, double *, double *);
+    void (FiniteDiff::*dd)(int, int, double *, double *);
     dd = &FiniteDiff::d2dz2;
     this->dndzn( dd, a );
   }
@@ -500,7 +501,7 @@ namespace pturb_fields {
   void Field::d2dxy( Field &a ) 
   /********************************************************************/
   {
-    void (FiniteDiff::*dd)(int, double *, double *);
+    void (FiniteDiff::*dd)(int, int, double *, double *);
     dd = &FiniteDiff::ddx;
     this->dndxn( dd, a );
     dd = &FiniteDiff::ddy;
@@ -510,7 +511,7 @@ namespace pturb_fields {
   void Field::d2dxz( Field &a ) 
   /********************************************************************/
   {
-    void (FiniteDiff::*dd)(int, double *, double *);
+    void (FiniteDiff::*dd)(int, int, double *, double *);
     dd = &FiniteDiff::ddx;
     this->dndxn( dd, a );
     dd = &FiniteDiff::ddz;
@@ -520,7 +521,7 @@ namespace pturb_fields {
   void Field::d2dyz( Field &a ) 
   /********************************************************************/
   {
-    void (FiniteDiff::*dd)(int, double *, double *);
+    void (FiniteDiff::*dd)(int, int, double *, double *);
     dd = &FiniteDiff::ddy;
     this->dndyn( dd, a );
     dd = &FiniteDiff::ddz;
@@ -532,7 +533,7 @@ namespace pturb_fields {
   //////////////////////////////////////////////////////////////////////
 
   /********************************************************************/
-  void Field::dndxn( void (FiniteDiff::*dd)( int, double *, double *), Field &a ) 
+  void Field::dndxn( void (FiniteDiff::*dd)(int, int, double *, double *), Field &a ) 
   /********************************************************************/
   {
 
@@ -569,7 +570,7 @@ namespace pturb_fields {
   }  
 
   /********************************************************************/
-  void Field::dndyn( void (FiniteDiff::*dd)( int, double *, double *), Field &a ) 
+  void Field::dndyn( void (FiniteDiff::*dd)(int, int, double *, double *), Field &a ) 
   /********************************************************************/
   {
 
@@ -596,7 +597,7 @@ namespace pturb_fields {
 	// Compute the derivative using the FiniteDiff class
 	(this->finite_diff_->*dd)( this->offset_operation_[1], ny, ay, day );
 	// Unpack buffer
-	for ( int j=0; j<ny; j++ ) this->data_[this->indexOperationToLocal(i,j,k)] = day[j];
+	for ( int j=0; j<ny; j++ ) this->data_local[this->indexOperationToLocal(i,j,k)] = day[j];
       }
     }
 
@@ -606,7 +607,7 @@ namespace pturb_fields {
   }
 
   /********************************************************************/
-  void Field::dndzn( void (FiniteDiff::*dd)( int, double *, double *), Field &a ) 
+  void Field::dndzn( void (FiniteDiff::*dd)(int, int, double *, double *), Field &a ) 
   /********************************************************************/
   {
 
@@ -662,12 +663,13 @@ namespace pturb_fields {
   //   mpi_topology_dims[FIELD_NDIMS] - topology dimensions in each field direction
   // 
   /********************************************************************/  
-  int *computeMpiTopologyDims( int nproc, int mpi_decomp_ndims )
+  int *Field::computeMpiTopologyDims( int nproc, int mpi_decomp_ndims )
   /********************************************************************/  
   {
 
     // initialize the MPI topology dimensions to 1
-    int *mpi_topology_dims = new int(1)[FIELD_NDIMS];
+    int *mpi_topology_dims = new int[FIELD_NDIMS];
+    std::fill_n(mpi_topology_dims, FIELD_NDIMS, 1);
 
     if( mpi_decomp_ndims == 1 ) {
 
@@ -717,14 +719,13 @@ namespace pturb_fields {
   /********************************************************************/
   {
 
-    static const int mpi_coord_ndims = FIELD_NDIMS;
-    int mpi_coord_dims[FIELD_NDIMS];
+    //static const int mpi_coord_ndims = FIELD_NDIMS;
     int mpi_decomp_ndims;
 
     // Determine the MPI coordinate dimensions
-    if( field_decomp == FIELD_DECOMP_SLAB ) {
+    if( this->field_decomp_ == FIELD_DECOMP_SLAB ) {
       mpi_decomp_ndims = 1;
-    } else if ( field_decomp == FIELD_DECOMP_PENCIL ) {
+    } else if ( this->field_decomp_ == FIELD_DECOMP_PENCIL ) {
       mpi_decomp_ndims = 2;
     } else {
       cout << "only slab or pencil decompositions currently supported" << endl;
@@ -752,7 +753,8 @@ namespace pturb_fields {
   /********************************************************************/
   {
     
-    int *zero3=new int(0)[FIELD_NDIMS]; // Zero vector of dimension FIELD_NDIMS
+    int *zero3=new int[FIELD_NDIMS]; // Zero vector of dimension FIELD_NDIMS
+    std::fill_n(zero3,FIELD_NDIMS,0);
 
     // Initialize the local/operation dimensions and offset
     memcpy( this->dims_local_, this->dims_, sizeof( *this->dims_ ) * FIELD_NDIMS );
@@ -774,7 +776,7 @@ namespace pturb_fields {
 
       // Check that the rind size is not larger than the size of the smallest dimension
       if( d < this->rind_size_ ) {
-	cout << "Domain decomposition too fine to support derivatives of order " << operator_order << endl;
+	cout << "Domain decomposition too fine to support derivatives of order " << this->operator_order_ << endl;
 	exit(EXIT_FAILURE);
       }
 
@@ -786,11 +788,11 @@ namespace pturb_fields {
       this->dims_operation_[n] = this->dims_local_[n];
 
       // Now determine the full local dimensions with the rind
-      if( this->mpi_topology_->neighbors_next[n] >= 0 ) this->dims_local_[n] += this->rind_size_; // If we have a neighbor then add the rind points
-      if( this->mpi_topology_->neighbors_prev[n] >= 0 ) {
+      if( this->mpi_topology_->neighbor_next[n] >= 0 ) this->dims_local_[n] += this->rind_size_; // If we have a neighbor then add the rind points
+      if( this->mpi_topology_->neighbor_prev[n] >= 0 ) {
 	this->dims_local_[n] += this->rind_size_;
 	this->offset_local_[n] -= this->rind_size_; // Move the local offset position back to compensate for the rind points
-	this->offset_operation_[n] = this->rind_size; // Set the operation offset distance relative to the local domain 
+	this->offset_operation_[n] = this->rind_size_; // Set the operation offset distance relative to the local domain 
       }
     }
   }

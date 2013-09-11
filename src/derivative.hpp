@@ -9,6 +9,7 @@ namespace pturb_fields
   
   class Derivative
   {
+
   public:
     // Constructor
     Derivative(){};
@@ -16,9 +17,10 @@ namespace pturb_fields
     ~Derivative(){};
   };
 
+
   class FiniteDiff: public Derivative
   {
-    
+
   private:
 
     typedef struct {
@@ -35,7 +37,7 @@ namespace pturb_fields
     fd_t *fd_d2dx2;
     fd_t *fd_d2dy2;
     fd_t *fd_d2dz2;
-
+    
   public:
 
     // Constructor
@@ -63,7 +65,7 @@ namespace pturb_fields
     fd_t *fdCreateD2( int ns, double *s, int order );
 
     // Performs the finite differencing operation
-    void fdOp( fd_t *fd, int n, double *a, double *da );
+    void fdOp( fd_t *fd, int offset, int n, double *a, double *da );
 
   };
 

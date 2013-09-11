@@ -110,9 +110,9 @@ namespace pturb_fields {
     void assignMpiTopology();
     void assignDimsAndOffsets();
 
-    void dndxn( void (FiniteDiff::*dd)( int, double *, double *), Field &a );
-    void dndyn( void (FiniteDiff::*dd)( int, double *, double *), Field &a );
-    void dndzn( void (FiniteDiff::*dd)( int, double *, double *), Field &a );
+    void dndxn( void (FiniteDiff::*dd)(int, int, double *, double *), Field &a );
+    void dndyn( void (FiniteDiff::*dd)(int, int, double *, double *), Field &a );
+    void dndzn( void (FiniteDiff::*dd)(int, int, double *, double *), Field &a );
    
 
   }; 
