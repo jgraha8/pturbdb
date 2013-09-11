@@ -13,11 +13,11 @@ namespace pturb_fields {
   
     // Field class member functions
   /********************************************************************/
-  Field::Field( MPI_Comm comm, FieldDecomp_t field_decomp, const int *dims);
+  Field::Field( const int *dims, FieldDecomp_t field_decomp, const int *periodic, int operator_order ) 
   /********************************************************************/
   {
     cout << "Initializing Field" << endl;
-    FieldInit( comm, decomp, ndim, dims );
+    FieldInit( dims, field_decomp, periodic, operator_order );
   }
 
   /********************************************************************/
@@ -26,10 +26,10 @@ namespace pturb_fields {
   {
     cout << "Copy Constructor Initializing Field" << endl;
 
-    FieldInit( g.getMpiComm(), g.getFieldDecomp(), g.getDims() );
+    FieldInit( g.getDims(), g.getFieldDecomp(), g.getMpiTopology()->periodic, g.getOperatorOrder() );
 
     // Copy the field data from g to this->data
-    memcpy(this->data_,g.data_,sizeof(*this->data_)*this->getSize());
+    memcpy(this->data_local,g.data_local,sizeof(*this->data_local)*this->getSizeLocal());
 
   }
 
@@ -42,7 +42,7 @@ namespace pturb_fields {
   /********************************************************************/
   {
     cout << "Field deconstructor" << endl;
-    delete[] this->data_;
+    delete[] this->data_local;
     delete this->finite_diff_;
     delete this-> mpi_topology_;
   }
@@ -58,14 +58,15 @@ namespace pturb_fields {
   //   dims
   //   data
   /********************************************************************/
-  void Field::FieldInit( int *dims, int *periodic, FieldDecomp_t field_decomp, int operator_order ) 
+  void Field::FieldInit( int *dims, FieldDecomp_t field_decomp, int *periodic, int operator_order ) 
   /********************************************************************/
   {
 
   
     // Set the global dimensions
     memcpy( this->dims_, dims, sizeof(*this->dims_) * FIELD_NDIMS );
-    
+    this->field_decomp_ = field_decomp;
+    this->operator_order_ = operator_order;
 
     int mpi_coord_ndims;
     int *mpi_coord_dims;
@@ -73,37 +74,72 @@ namespace pturb_fields {
     // Determine the MPI coordinate dimensions
     if( field_decomp == FIELD_DECOMP_SLAB ) {
       mpi_coord_ndims = 1;
-      
+    } else if ( field_decomp == FIELD_DECOMP_PENCIL ) {
+      mpi_coord_ndims = 2;
+    } else {
+      cout << "only slab or pencil decompositions currently supported" << endl;
+      exit(EXIT_FAILURE);
+    }
+    // Compute the coordinate dimensions for the given Field decomposition
+    mpi_coord_dims = computeMpiTopologyDims( mpi_coord_ndims );
 
-
-    // Create the MPI topology struct
+    // Create the MPI topology struct; this contains all the comm, rank, nproc, neighbors, etc.
     this->mpi_topology_ = MpiTopologyNew( MPI_COMM_WORLD, mpi_coord_ndims, mpi_coord_dims, periodic );
 
-    // Get the processor local dimensions from the domain
-    // decomposition; may have struct here for additional data
-    int *dims_local = domainDecomp( _nproc, _rank, _decomp, _dims );
+    int *zero3=new int(0)[FIELD_NDIMS]; // Zero vector of dimension FIELD_NDIMS
 
+    // Rind size to support finite differencing at interprocessor boundaries
+    int rind_size = operator_order / 2 + operator_order % 2; // Second part adds 1 if odd operator order
 
+    // Initialize the local/operation dimensions and offset
+    memcpy( this->dims_local_, this->dims_, sizeof( *this->dims_ ) * FIELD_NDIMS );
+    memcpy( this->offset_local_, zero3, sizeof( *this->offset_local_ ) * FIELD_NDIMS );
 
-    // Initialize the data field
-    long N = getSizeLocal();
-    this->data_local = new double[N];
+    memcpy( this->dims_operation_, this->dims_, sizeof( *this->dims_ ) * FIELD_NDIMS );
+    memcpy( this->offset_operation_, zero3, sizeof( *this->offset_local_ ) * FIELD_NDIMS );
+
+    delete [] zero3;
+
+    // For each dimension in the MPI topology; determin what the dimensions and
+    // offsets are of the local and operation domains
+    for( int n=0; n<this->mpi_topology_->ndims; n++ ) {
+
+      int p = this->dims_[n] % this->mpi_topology_->dims[n]; // Remainder of points (surplus)
+
+      int d = this->dims_[n] / this->mpi_topology_->dims[n];
+      int s = ( this->mpi_topology_->coords[n] < p ) ? 1 : 0; // Take one of the surplus values if in low enough rank
+
+      // Check that the rind size is not larger than the size of the smallest dimension
+      if( d < rind_size ) {
+	cout << "Domain decomposition too fine to support derivatives of order " << operator_order << endl;
+	exit(EXIT_FAILURE);
+      }
+
+      this->dims_local_[n] = d + s; // Local domain size without rind data
+      // Offset of the local domain with respect to the global domain
+      this->offset_local_[n] = this->mpi_topology_->coords[n] * d + std::min( this->mpi_topology_->coords[n], p );
+
+      // The operation domain is the local domain without rind data
+      this->dims_operation_[n] = this->dims_local_[n];
+
+      // Now determine the full local dimensions with the rind
+      if( this->mpi_topology_->neighbors_next[n] >= 0 ) this->dims_local_[n] += rind_size; // If we have a neighbor then add the rind points
+      if( this->mpi_topology_->neighbors_prev[n] >= 0 ) {
+	this->dims_local_[n] += rind_size;
+	this->offset_local_[n] -= rind_size; // Move the local offset position back to compensate for the rind points
+	this->offset_operation_[n] = rind_size; // Set the operation offset distance relative to the local domain 
+      }
+
+    }
+
+    // Now that we have set dims_local_ we may get the total number of elements
+    this->data_local = new double[this->getSizeLocal()];
 
     // Initialize pointers to null
     this->finite_diff_ = NULL;
 
   }
 
-  // Field class initializer; expects ndims to be set
-  // Initilizes:
-  //   dims
-  //   data
-  /********************************************************************/
-  void Field::FieldInit( int *dims ) 
-  /********************************************************************/
-  {
-    FieldInit( this->ndims, dims );
-  }
 
   // Initialize the finite difference derivatives class
   /********************************************************************/
@@ -124,24 +160,49 @@ namespace pturb_fields {
     
   }
 
+
   /********************************************************************/
-  int *Field::domainDecomp( int nproc, int rank, FieldDecomp_t field_decomp, const int *dims )
+  int *Field::computeMpiTopologyDims( mpi_coord_ndims ) 
   /********************************************************************/
   {
 
-    int dims_local[FIELD_NDIMS];
+    int nproc;
 
-    // Now need to decompose 
-    if( field_decomp == FIELD_DECOMP_SLAB ) {
-      // Cut along the first dimension
-      dims_loc[0] = dims[0] / nproc;
-      for (int n=1; n<FIELD_NDIMS; n++ ) dims_local[n] = dims[n];
+    // Get the total number of procs
+    MPI_Comm_size( MPI_COMM_WORLD, &nproc );
+
+
+    int *mpi_topology_dims = new int[mpi_coord_ndims];
+    if( mpi_coord_ndims == 1 ) {
+      mpi_topology_dims[0] = nproc;
+    } else if( mpi_coord_ndims == 2 ) {
+
+	int M = std::min( (int)ceil( sqrt(nproc*(double)this->dims_[0]/this->dims_[1] )), nproc );
+	int N = nproc / M;
+	
+	while(1) {
+	  if( N*M == nproc ) {
+	    break;
+	  } else if( N*M < nproc ) {
+	    M++;
+	  } else {
+	    std::cout << "Unable to set topology" << std::endl;
+	    exit(EXIT_FAILURE);
+	  }  
+	  N = nproc / M;
+	}
+
+	mpi_topology_dims[0] = M;
+	mpi_topology_dims[1] = N;
+
     } else {
-      cout << "Only FieldDecomp_t FIELD_DECOMP_SLAB currently supported" << endl;
-      exit (EXIT_FAILURE);
-    }    
+
+      std::cout << "Currently only MPI topologies up to 2 dimensions are supported" << std::endl;
+      exit(EXIT_FAILURE);
+
+    }
     
-    return dims_local;
+    return mpi_topology_dims;
 
   }
 
@@ -161,10 +222,10 @@ namespace pturb_fields {
   }
 
   /********************************************************************/
-  MPI_Comm Field::getMpiComm()
+  MpiTopology_t *Field::getMpiTopology()
   /********************************************************************/
   {
-    return this->mpi_topology_->comm;
+    return this->mpi_topology_;
   }
 
   /********************************************************************/

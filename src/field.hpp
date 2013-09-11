@@ -18,24 +18,28 @@ namespace pturb_fields {
 
   private:
 
-    int *dims_; // Dimensions of global domain
-    int *dims_local_; // Dimensions of local domain
-    int *dims_operation_; // Dimension of "operations" domain
+    int dims_[FIELD_NDIMS]; // Dimensions of global domain
+    int dims_local_[FIELD_NDIMS]; // Dimensions of local domain
+    int dims_operation_[FIELD_NDIMS]; // Dimension of "operations" domain
 
-    int *offset_local_; // Offset of local domain with respect to global domain
-    int *offset_operation_; // Offset of operation domain with respect to local domain
+    int offset_local_[FIELD_NDIMS]; // Offset of local domain with respect to global domain
+    int offset_operation_[FIELD_NDIMS]; // Offset of operation domain with respect to local domain
 
-    // Grid pointers; these are not allocated but must be set with setGrid
-    double *x_local_, *y_local_, *z_local_;
+    int operator_order_; // Order of derivative operations
 
-    // FiniteDiff Class 
-    FiniteDiff *finite_diff_;
- 
     // Decomposition
     FieldDecomp_t field_decomp_;
 
     // MPI Topology struct
     MpiTopology_t *mpi_topology_;
+
+    // FiniteDiff Class 
+    FiniteDiff *finite_diff_;
+ 
+
+    // Grid pointers; these are not allocated but must be set with setGrid
+    double *x_local_, *y_local_, *z_local_;
+
 
   public:
     double *data_local; // Data of local domain
@@ -44,7 +48,7 @@ namespace pturb_fields {
 
     // Constructor
     Field(){};
-    Field( int ndim, int *dims, int *periodic, FieldDecomp_t field_decomp, int operator_order );
+    Field( int ndim, int *dims, FieldDecomp_t field_decomp, int *periodic, int operator_order );
     Field( const Field &g );
     // Deconstructor
     ~Field();
@@ -55,7 +59,7 @@ namespace pturb_fields {
     
     // Get the size of the field
     long getSize();
-    MPI_Comm getMpiComm();
+    MpiTopology_t *getMpiTopology()
     FieldDecomp_t getFieldDecomp();
     int *getDims();
 
@@ -95,7 +99,7 @@ namespace pturb_fields {
     void FieldInit( int *dims );
     void FieldInit( int ndim, int *dims );
 
-    int *domainDecomp( int _nproc, int _rank, MPIDecomp_t _decomp, int _ndim, const int *_dims );
+    int *computeMpiTopologyDims( mpi_coord_ndims );
 
     void dndxn( void (FiniteDiff::*dd)( int, double *, double *), Field &a );
     void dndyn( void (FiniteDiff::*dd)( int, double *, double *), Field &a );
