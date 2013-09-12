@@ -48,12 +48,12 @@ namespace pturb_fields
 
     void FiniteDiffInit( int nx, double *x, int ny, double *y, int nz, double *z, int order );
 
-    void ddx( int offset, int n, double *a, double *da );
-    void ddy( int offset, int n, double *a, double *da );
-    void ddz( int offset, int n, double *a, double *da );
-    void d2dx2( int offset, int n, double *a, double *da );
-    void d2dy2( int offset, int n, double *a, double *da );
-    void d2dz2( int offset, int n, double *a, double *da );
+    void ddx( int offset, int na, double *a, int nda, double *da );
+    void ddy( int offset, int na, double *a, int nda, double *da );
+    void ddz( int offset, int na, double *a, int nda, double *da );
+    void d2dx2( int offset, int na, double *a, int nda, double *da );
+    void d2dy2( int offset, int na, double *a, int nda, double *da );
+    void d2dz2( int offset, int na, double *a, int nda, double *da );
 
   private:
 
@@ -65,7 +65,7 @@ namespace pturb_fields
     fd_t *fdCreateD2( int ns, double *s, int order );
 
     // Performs the finite differencing operation
-    void fdOp( fd_t *fd, int offset, int n, double *a, double *da );
+    void fdOp( fd_t *fd, int offset, int na, double *a, int nda, double *da );
 
   };
 

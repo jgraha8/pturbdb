@@ -87,6 +87,9 @@ namespace pturb_fields {
     this->z_local_ = NULL;
     this->finite_diff_ = NULL;
 
+    // Initalize state variables
+    this->synchronized_ = false;
+
   }
 
 
@@ -156,6 +159,22 @@ namespace pturb_fields {
   }
 
   /********************************************************************/
+  long Field::getSizeRind( int dim )
+  /********************************************************************/
+  {
+    if( dim == 0 ) {
+      return (long)this->rind_size_ * (long)this->dims_operation_[1] * (long)this->dims_operation_[2];
+    } else if( dim == 1 ) {
+      return (long)this->dims_operation_[0] * (long)this->rind_size_ * (long)this->dims_operation_[2];
+    } else if( dim == 2 ) {
+      return (long)this->dims_operation_[0] * (long)this->dims_operation_[1] * (long)this->rind_size_;
+    } else {
+      cout << "Field::getSizeRind: incorrect dimension number specified" << endl;
+      exit(EXIT_FAILURE);
+    }
+  }
+
+  /********************************************************************/
   MpiTopology_t *Field::getMpiTopology()
   /********************************************************************/
   {
@@ -190,6 +209,28 @@ namespace pturb_fields {
   {
     return this->dims_;
   }
+
+  /********************************************************************/
+  int *Field::getDimsLocal()
+  /********************************************************************/
+  {
+    return this->dims_local_;
+  }
+
+  /********************************************************************/
+  int *Field::getDimsOperation()
+  /********************************************************************/
+  {
+    return this->dims_operation_;
+  }
+
+  /********************************************************************/
+  bool Field::getSynchronized()
+  /********************************************************************/
+  {
+    return this->synchronized_;
+  }
+  
 
   // Array index for 3D indexing
   /********************************************************************/
@@ -249,7 +290,9 @@ namespace pturb_fields {
     if (this != &a) {
       // Copy the field data
       memcpy( this->data_local, a.data_local, sizeof(*this->data_local) * this->getSizeLocal() );
-    }	
+    }
+    // Set unsynchronized
+    this->synchronized_ = false;
     return *this;
   }
 
@@ -270,6 +313,9 @@ namespace pturb_fields {
       }
     }
 
+    // Set unsynchronized
+    this->synchronized_ = false;
+
     return *this;
   }
 
@@ -288,6 +334,10 @@ namespace pturb_fields {
 	}
       }
     }
+
+    // Set unsynchronized
+    this->synchronized_ = false;
+
     return *this;
   }
 
@@ -306,6 +356,9 @@ namespace pturb_fields {
       }
     }
 	
+    // Set unsynchronized
+    this->synchronized_ = false;
+
     return *this;
   }
 
@@ -324,6 +377,10 @@ namespace pturb_fields {
 	}
       }
     }
+
+    // Set unsynchronized
+    this->synchronized_ = false;
+
     return *this;
   }
 
@@ -356,6 +413,10 @@ namespace pturb_fields {
 	}
       }
     }
+
+    // Set unsynchronized
+    this->synchronized_ = false;
+
   }
 
   /********************************************************************/
@@ -381,6 +442,10 @@ namespace pturb_fields {
 	}
       }
     }
+
+    // Set unsynchronized
+    this->synchronized_ = false;
+
   }
 
   /********************************************************************/
@@ -406,6 +471,10 @@ namespace pturb_fields {
 	}
       }
     }
+
+    // Set unsynchronized
+    this->synchronized_ = false;
+
   }
 
   /********************************************************************/
@@ -431,6 +500,10 @@ namespace pturb_fields {
 	}
       }
     }
+
+    // Set unsynchronized
+    this->synchronized_ = false;
+
   }
 
 
@@ -448,7 +521,7 @@ namespace pturb_fields {
   void Field::ddx( Field &a ) 
   /********************************************************************/
   {
-    void (FiniteDiff::*dd)(int, int, double *, double *);
+    void (FiniteDiff::*dd)(int, int, double *, int, double *);
     dd = &FiniteDiff::ddx;
     this->dndxn( dd, a );
   }
@@ -457,7 +530,7 @@ namespace pturb_fields {
   void Field::ddy( Field &a ) 
   /********************************************************************/
   {
-    void (FiniteDiff::*dd)(int, int, double *, double *);
+    void (FiniteDiff::*dd)(int, int, double *, int, double *);
     dd = &FiniteDiff::ddy;
     this->dndyn( dd, a );
   }
@@ -466,7 +539,7 @@ namespace pturb_fields {
   void Field::ddz( Field &a ) 
   /********************************************************************/
   {
-    void (FiniteDiff::*dd)(int, int, double *, double *);
+    void (FiniteDiff::*dd)(int, int, double *, int, double *);
     dd = &FiniteDiff::ddz;
     this->dndzn( dd, a );
   }
@@ -475,7 +548,7 @@ namespace pturb_fields {
   void Field::d2dx2( Field &a ) 
   /********************************************************************/
   {
-    void (FiniteDiff::*dd)(int, int, double *, double *);
+    void (FiniteDiff::*dd)(int, int, double *, int, double *);
     dd = &FiniteDiff::d2dx2;
     this->dndxn( dd, a );
   }
@@ -483,7 +556,7 @@ namespace pturb_fields {
   void Field::d2dy2( Field &a ) 
   /********************************************************************/
   {
-    void (FiniteDiff::*dd)(int, int, double *, double *);
+    void (FiniteDiff::*dd)(int, int, double *, int, double *);
     dd = &FiniteDiff::d2dy2;
     this->dndyn( dd, a );
   }
@@ -492,7 +565,7 @@ namespace pturb_fields {
   void Field::d2dz2( Field &a ) 
   /********************************************************************/
   {
-    void (FiniteDiff::*dd)(int, int, double *, double *);
+    void (FiniteDiff::*dd)(int, int, double *, int, double *);
     dd = &FiniteDiff::d2dz2;
     this->dndzn( dd, a );
   }
@@ -501,7 +574,7 @@ namespace pturb_fields {
   void Field::d2dxy( Field &a ) 
   /********************************************************************/
   {
-    void (FiniteDiff::*dd)(int, int, double *, double *);
+    void (FiniteDiff::*dd)(int, int, double *, int, double *);
     dd = &FiniteDiff::ddx;
     this->dndxn( dd, a );
     dd = &FiniteDiff::ddy;
@@ -511,7 +584,7 @@ namespace pturb_fields {
   void Field::d2dxz( Field &a ) 
   /********************************************************************/
   {
-    void (FiniteDiff::*dd)(int, int, double *, double *);
+    void (FiniteDiff::*dd)(int, int, double *, int, double *);
     dd = &FiniteDiff::ddx;
     this->dndxn( dd, a );
     dd = &FiniteDiff::ddz;
@@ -521,7 +594,7 @@ namespace pturb_fields {
   void Field::d2dyz( Field &a ) 
   /********************************************************************/
   {
-    void (FiniteDiff::*dd)(int, int, double *, double *);
+    void (FiniteDiff::*dd)(int, int, double *, int, double *);
     dd = &FiniteDiff::ddy;
     this->dndyn( dd, a );
     dd = &FiniteDiff::ddz;
@@ -533,36 +606,48 @@ namespace pturb_fields {
   //////////////////////////////////////////////////////////////////////
 
   /********************************************************************/
-  void Field::dndxn( void (FiniteDiff::*dd)(int, int, double *, double *), Field &a ) 
+  void Field::dndxn( void (FiniteDiff::*dd)(int, int, double *, int, double *), Field &a ) 
   /********************************************************************/
   {
 
     // Create buffer to store x-data
-    const int nx = this->dims_operation_[0];
+    const int nx_local     = this->dims_local_[0];
+    const int nx_operation = this->dims_operation_[0];
     const int ny = this->dims_operation_[1];
     const int nz = this->dims_operation_[2];
+
+    // Offsets
+    const int x_offset = this->offset_operation_[0];
+    const int y_offset = this->offset_operation_[1];
+    const int z_offset = this->offset_operation_[2];
     
 #ifdef BOUNDS_CHECK
     // First check that the fields are the same size
-    if ( nx != a.dims_operation_[0] || ny != a.dims_operation_[1] || nz != a.dims_operation_[2] ) {
-      cout << "Mismatch in field sizes" << endl;
-      exit (EXIT_FAILURE);
-    }   
+    // if ( nx != a.dims_operation_[0] || ny != a.dims_operation_[1] || nz != a.dims_operation_[2] ) {
+    //   cout << "Mismatch in field sizes" << endl;
+    //   exit (EXIT_FAILURE);
+    // }   
 #endif
 
-    double *ax = new double[nx];
-    double *dax = new double[nx];
-    
+    double *ax = new double[nx_local];
+    double *dax = new double[nx_operation];
+
+    // Make sure the fields are synchronized; the state should be the same across all processes
+    if( a.getSynchronized() == false ) a.synchronize();
+
     for (int j=0; j<ny; j++ ) {
       for (int k=0; k<nz; k++ ) {
-	// Pack buffer
-	for ( int i=0; i<nx; i++ ) ax[i] = a.data_local[a.indexOperationToLocal(i,j,k)];
+	// Pack buffer; need the entire buffer; have to manually apply operation offsets 
+	for ( int i=0; i<nx_local; i++ ) ax[i] = a.data_local[a.indexLocal(i,j+y_offset,k+z_offset)];
 	// Compute the derivative using the FiniteDiff class
-	(this->finite_diff_->*dd)( this->offset_operation_[0], nx, ax, dax );
+	(this->finite_diff_->*dd)( x_offset, nx_local, ax, nx_operation, dax );
 	// Unpack buffer
-	for ( int i=0; i<nx; i++ ) this->data_local[this->indexOperationToLocal(i,j,k)] = dax[i];
+	for ( int i=0; i<nx_operation; i++ ) this->data_local[this->indexOperationToLocal(i,j,k)] = dax[i];
       }
     }
+
+    // Synchronize this field
+    this->synchronize();
 
     delete [] ax;
     delete [] dax;
@@ -570,36 +655,48 @@ namespace pturb_fields {
   }  
 
   /********************************************************************/
-  void Field::dndyn( void (FiniteDiff::*dd)(int, int, double *, double *), Field &a ) 
+  void Field::dndyn( void (FiniteDiff::*dd)(int, int, double *, int, double *), Field &a ) 
   /********************************************************************/
   {
 
     // Create buffer to store x-data
     const int nx = this->dims_operation_[0];
-    const int ny = this->dims_operation_[1];
+    const int ny_local = this->dims_local_[1];
+    const int ny_operation = this->dims_operation_[1];
     const int nz = this->dims_operation_[2];
+
+    // Offsets
+    const int x_offset = this->offset_operation_[0];
+    const int y_offset = this->offset_operation_[1];
+    const int z_offset = this->offset_operation_[2];
     
 #ifdef BOUNDS_CHECK
     // First check that the fields are the same size
-    if ( nx != a.dims_operation_[0] || ny != a.dims_operation_[1] || nz != a.dims_operation_[2] ) {
-      cout << "Mismatch in field sizes" << endl;
-      exit (EXIT_FAILURE);
-    }   
+    // if ( nx != a.dims_operation_[0] || ny != a.dims_operation_[1] || nz != a.dims_operation_[2] ) {
+    //   cout << "Mismatch in field sizes" << endl;
+    //   exit (EXIT_FAILURE);
+    // }   
 #endif
 
-    double *ay = new double[ny];
-    double *day = new double[ny];
+    double *ay = new double[ny_local];
+    double *day = new double[ny_operation];
+
+    // Make sure the fields are synchronized; the state should be the same across all processes
+    if( a.getSynchronized() == false ) a.synchronize();
     
     for ( int i=0; i<nx; i++ ) {
       for (int k=0; k<nz; k++ ) {
 	// Pack buffer
-	for (int j=0; j<ny; j++ ) ay[j] = a.data_local[a.indexOperationToLocal(i,j,k)];
+	for (int j=0; j<ny_local; j++ ) ay[j] = a.data_local[a.indexLocal(i+x_offset,j,k+z_offset)];
 	// Compute the derivative using the FiniteDiff class
-	(this->finite_diff_->*dd)( this->offset_operation_[1], ny, ay, day );
+	(this->finite_diff_->*dd)( y_offset, ny_local, ay, ny_operation, day );
 	// Unpack buffer
-	for ( int j=0; j<ny; j++ ) this->data_local[this->indexOperationToLocal(i,j,k)] = day[j];
+	for ( int j=0; j<ny_operation; j++ ) this->data_local[this->indexOperationToLocal(i,j,k)] = day[j];
       }
     }
+
+    // Synchronize this field
+    this->synchronize();
 
     delete [] ay;
     delete [] day;
@@ -607,36 +704,48 @@ namespace pturb_fields {
   }
 
   /********************************************************************/
-  void Field::dndzn( void (FiniteDiff::*dd)(int, int, double *, double *), Field &a ) 
+  void Field::dndzn( void (FiniteDiff::*dd)(int, int, double *, int, double *), Field &a ) 
   /********************************************************************/
   {
 
     // Create buffer to store x-data
     const int nx = this->dims_operation_[0];
     const int ny = this->dims_operation_[1];
-    const int nz = this->dims_operation_[2];
+    const int nz_local = this->dims_local_[2];
+    const int nz_operation = this->dims_operation_[2];
+
+    // Offsets
+    const int x_offset = this->offset_operation_[0];
+    const int y_offset = this->offset_operation_[1];
+    const int z_offset = this->offset_operation_[2];
     
 #ifdef BOUNDS_CHECK
     // First check that the fields are the same size
-    if ( nx != a.dims_operation_[0] || ny != a.dims_operation_[1] || nz != a.dims_operation_[2] ) {
-      cout << "Mismatch in field sizes" << endl;
-      exit (EXIT_FAILURE);
-    }   
+    // if ( nx != a.dims_operation_[0] || ny != a.dims_operation_[1] || nz != a.dims_operation_[2] ) {
+    //   cout << "Mismatch in field sizes" << endl;
+    //   exit (EXIT_FAILURE);
+    // }   
 #endif
 
-    double *az = new double[nz];
-    double *daz = new double[nz];
+    double *az = new double[nz_local];
+    double *daz = new double[nz_operation];
+
+    // Make sure the fields are synchronized; the state should be the same across all processes
+    if( a.getSynchronized() == false ) a.synchronize();
     
     for ( int i=0; i<nx; i++ ) {
       for (int j=0; j<ny; j++ ) {
 	// Pack buffer
-	for (int k=0; k<nz; k++ ) az[k] = a.data_local[a.indexOperationToLocal(i,j,k)];
+	for (int k=0; k<nz_local; k++ ) az[k] = a.data_local[a.indexLocal(i+x_offset,j+y_offset,k)];
 	// Compute the derivative using the FiniteDiff class
-	(this->finite_diff_->*dd)( this->offset_operation_[2], nz, az, daz );
+	(this->finite_diff_->*dd)( z_offset, nz_local, az, nz_operation, daz );
 	// Unpack buffer
-	for (int k=0; k<nz; k++ ) this->data_local[this->indexOperationToLocal(i,j,k)] = daz[k];
+	for (int k=0; k<nz_operation; k++ ) this->data_local[this->indexOperationToLocal(i,j,k)] = daz[k];
       }
     }
+
+    // Synchronize this field
+    this->synchronize();
 
     delete [] az;
     delete [] daz;
@@ -795,6 +904,299 @@ namespace pturb_fields {
 	this->offset_operation_[n] = this->rind_size_; // Set the operation offset distance relative to the local domain 
       }
     }
+  }
+
+  //////////////////////////////////////////////////////////////////////////////// 
+  /// MPI TRANSFER FUNCTIONS
+  //////////////////////////////////////////////////////////////////////////////// 
+
+  /********************************************************************/
+  void Field::synchronize()
+  /********************************************************************/
+  {
+
+    MPI_Status status;
+
+    MpiTopology_t *mpi_topology = this->mpi_topology_;
+
+    long buffer_size;
+    double *send_buffer;
+    double *recv_buffer;
+
+#ifdef VERBOSE
+    cout << this->mpi_topology_->rank << ": Synchronizing field" << endl;
+#endif
+
+    // x pass
+    if( this->field_decomp_ == FIELD_DECOMP_SLAB || 
+	this->field_decomp_ == FIELD_DECOMP_PENCIL ) {
+      
+      buffer_size = this->getSizeRind( 0 );
+      send_buffer = this->createRindBuffer( 0 );
+      recv_buffer = this->createRindBuffer( 0 );
+
+      // Packs the buffer at the lower indicies
+      this->packRindBuffer( 0, -1, send_buffer );
+
+      // send prev/recv next
+      MPI_Sendrecv( send_buffer, buffer_size, MPI_DOUBLE, mpi_topology->neighbor_prev[0], 1, 
+		    recv_buffer, buffer_size, MPI_DOUBLE, mpi_topology->neighbor_next[0], 1, 
+		    mpi_topology->comm, &status);
+
+      // Unpacks the buffer to the upper indicies
+      this->unpackRindBuffer( 0, 1, recv_buffer );
+
+      // Packs the buffer at the upper indicies
+      this->packRindBuffer( 0, 1, send_buffer );
+
+      // send next/recv prev
+      MPI_Sendrecv( send_buffer, buffer_size, MPI_DOUBLE, mpi_topology->neighbor_next[0], 2, 
+		    recv_buffer, buffer_size, MPI_DOUBLE, mpi_topology->neighbor_prev[0], 2, 
+		    mpi_topology->comm, &status);
+
+      // Unpacks the buffer to the lower indicies
+      this->unpackRindBuffer( 0, -1, recv_buffer );
+
+      delete [] send_buffer;
+      delete [] recv_buffer;
+
+    }
+
+    if( this->field_decomp_ == FIELD_DECOMP_PENCIL ) {
+      
+      buffer_size = this->getSizeRind( 1 );
+      send_buffer = this->createRindBuffer( 1 );
+      recv_buffer = this->createRindBuffer( 1 );
+
+      // Packs the buffer at the lower indicies
+      this->packRindBuffer( 1, -1, send_buffer );
+
+      // send prev/recv next
+      MPI_Sendrecv( send_buffer, buffer_size, MPI_DOUBLE, mpi_topology->neighbor_prev[1], 3, 
+		    recv_buffer, buffer_size, MPI_DOUBLE, mpi_topology->neighbor_next[1], 3, 
+		    mpi_topology->comm, &status);
+
+      // Unpacks the buffer to the upper indicies
+      this->unpackRindBuffer( 1, 1, recv_buffer );
+
+      // Packs the buffer at the upper indicies
+      this->packRindBuffer( 1, 1, send_buffer );
+
+      // send next/recv prev
+      MPI_Sendrecv( send_buffer, buffer_size, MPI_DOUBLE, mpi_topology->neighbor_next[1], 2, 
+		    recv_buffer, buffer_size, MPI_DOUBLE, mpi_topology->neighbor_prev[1], 2, 
+		    mpi_topology->comm, &status);
+
+      // Unpacks the buffer to the lower indicies
+      this->unpackRindBuffer( 1, -1, recv_buffer );
+
+      delete [] send_buffer;
+      delete [] recv_buffer;
+
+    }
+
+    // Set that the field is synchronized
+    this->synchronized_ = true;
+
+  }
+
+  /********************************************************************/
+  double *Field::createRindBuffer( int dim )
+  /********************************************************************/
+  {
+    return new double[this->getSizeRind(dim)];
+  }
+
+  // 
+  // This procedure packs the data buffer for MPI transfers. 
+  // 
+  // Inputs:
+  //   dim - dimension to pack buffer for (0-x, 1-y, 2-z)
+  //   location - location in domain (-1-bottom/left, 1-top/right)
+  // Outputs:
+  //   rind_buffer - buffer to pack data into 
+  // 
+  // Note: rind_buffer must be the correct size. Use createRindBuffer to
+  // allocate the buffer.
+  //
+  /********************************************************************/
+  void Field::packRindBuffer( int dim, int location, double *rind_buffer )
+  /********************************************************************/
+  {
+
+    int imin, imax;
+    int jmin, jmax;
+    int kmin, kmax;
+
+    if( dim == 0 ) {
+
+      if( location == -1 ) {
+	imin = 0;
+      } else {
+	imin = this->dims_operation_[0] - this->rind_size_;
+      }
+      imax = imin + this->rind_size_ - 1;
+      
+      jmin = 0;
+      jmax = this->dims_operation_[1] - 1;
+
+      kmin = 0;
+      kmax = this->dims_operation_[2] - 1;
+
+    } else if( dim == 1 ) {
+
+      imin = 0;
+      imax = this->dims_operation_[0] - 1;
+
+      if( location == -1 ) {
+	jmin = 0;
+      } else {
+	jmin = this->dims_operation_[1] - this->rind_size_;
+      }
+      jmax = jmin + this->rind_size_ - 1;
+
+      kmin = 0;
+      kmax = this->dims_operation_[2] - 1;
+
+    } else if( dim == 2 ) {
+
+      imin = 0;
+      imax = this->dims_operation_[0] - 1;
+      jmin = 0;
+      jmax = this->dims_operation_[1] - 1;
+
+      if( location == -1 ) {
+	kmin = 0;
+      } else {
+	kmin = this->dims_operation_[2] - this->rind_size_;
+      }
+      kmax = kmin + this->rind_size_ - 1;
+
+    } else {
+      std::cout << "Field::packRindBuffer: unable to pack buffer: incorrect dimension specified" << std::endl;
+      exit(EXIT_FAILURE);
+    }
+
+    long index=0;
+    for( int i=imin; i<=imax; i++ ) {
+      for (int j=jmin; j<=jmax; j++ ) {
+	for ( int k=kmin; k<=kmax; k++ ) { 
+	  rind_buffer[index++] = this->data_local[this->indexOperationToLocal(i,j,k)];
+	}
+      }
+    }
+
+    int error=0;
+    // Perform sanity check
+    if( index != this->getSizeRind( dim ) ) {
+      std::cout << "Field::packRindBuffer: mismatch in expected rind buffer size" << std::endl;
+      std::cout << "dim, location : " << dim << " " << location << std::endl;
+      std::cout << "index, getSizeRind() : " << index << " " << this->getSizeRind(dim) << std::endl;
+      error=1;
+
+    }
+
+    MPI_Barrier(this->mpi_topology_->comm);
+
+    if( error == 1 ) exit(EXIT_FAILURE);
+
+  }
+
+  // 
+  // This procedure unpacks the data buffer for MPI transfers. 
+  // 
+  // Inputs:
+  //   dim - dimension to pack buffer for (0-x, 1-y, 2-z)
+  //   location - location in domain (-1-bottom/left, 1-top/right)
+  //   rind_buffer - buffer to pack data into 
+  // 
+  // Note: rind_buffer must be the correct size. Use createRindBuffer to
+  // allocate the buffer.
+  //
+  /********************************************************************/
+  void Field::unpackRindBuffer( int dim, int location, double *rind_buffer )
+  /********************************************************************/
+  {
+
+    int imin, imax;
+    int jmin, jmax;
+    int kmin, kmax;
+
+    if( dim == 0 ) {
+
+      if( location == -1 ) {
+	imin = 0;
+      } else {
+	imin = this->dims_local_[0] - this->rind_size_;
+      }
+      imax = imin + this->rind_size_ - 1;
+      
+      jmin = 0;
+      jmax = this->dims_operation_[1] - 1;
+
+      kmin = 0;
+      kmax = this->dims_operation_[2] - 1;
+
+    } else if( dim == 1 ) {
+
+      imin = 0;
+      imax = this->dims_operation_[0] - 1;
+
+      if( location == -1 ) {
+	jmin = 0;
+      } else {
+	jmin = this->dims_local_[1] - this->rind_size_;
+      }
+      jmax = jmin + this->rind_size_ - 1;
+
+      kmin = 0;
+      kmax = this->dims_operation_[2] - 1;
+
+    } else if( dim == 2 ) {
+
+      imin = 0;
+      imax = this->dims_operation_[0] - 1;
+      jmin = 0;
+      jmax = this->dims_operation_[1] - 1;
+
+      if( location == -1 ) {
+	kmin = 0;
+      } else {
+	kmin = this->dims_local_[2] - this->rind_size_;
+      }
+      kmax = kmin + this->rind_size_ - 1;
+
+    } else {
+      std::cout << "Field::unpackRindBuffer: unable to pack buffer: incorrect dimension specified" << std::endl;
+      exit(EXIT_FAILURE);
+    }
+
+    long index=0;
+    for( int i=imin; i<=imax; i++ ) {
+      for (int j=jmin; j<=jmax; j++ ) {
+	for ( int k=kmin; k<=kmax; k++ ) { 
+	  this->data_local[this->indexLocal(i,j,k)] = rind_buffer[index++];
+	}
+      }
+    }
+
+    int error;
+    // Perform sanity check
+    if( index != this->getSizeRind( dim ) ) {
+      std::cout << "Field::unpackRindBuffer: mismatch in expected rind buffer size" << std::endl;
+      std::cout << "dim, location : " << dim << " " << location << std::endl;
+      std::cout << "imin, imax : " << imin << " " << imax << std::endl;
+      std::cout << "jmin, jmax : " << jmin << " " << jmax << std::endl;
+      std::cout << "kmin, kmax : " << kmin << " " << kmax << std::endl;
+      std::cout << "index, getSizeRind() : " << index << " " << this->getSizeRind(dim) << std::endl;
+      error=1;
+
+    }
+
+    MPI_Barrier(this->mpi_topology_->comm);
+
+    if( error == 1 ) exit(EXIT_FAILURE);
+    
   }
 
   //////////////////////////////////////////////////////////////////////

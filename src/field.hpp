@@ -43,6 +43,7 @@ namespace pturb_fields {
     // Grid pointers; these are not allocated but must be set with setGrid
     double *x_local_, *y_local_, *z_local_;
 
+    bool synchronized_;
 
   public:
     double *data_local; // Data of local domain
@@ -64,11 +65,15 @@ namespace pturb_fields {
     long getSize();
     long getSizeLocal();
     long getSizeOperation();
+    long getSizeRind( int dim );
     MpiTopology_t *getMpiTopology();
     FieldDecomp_t getFieldDecomp();
     int *getFieldPeriodic();
     int getOperatorOrder();
     int *getDims();
+    int *getDimsLocal();
+    int *getDimsOperation();
+    bool getSynchronized();
 
     long index( int i, int j, int k );
     long indexLocal( int i, int j, int k );
@@ -110,9 +115,14 @@ namespace pturb_fields {
     void assignMpiTopology();
     void assignDimsAndOffsets();
 
-    void dndxn( void (FiniteDiff::*dd)(int, int, double *, double *), Field &a );
-    void dndyn( void (FiniteDiff::*dd)(int, int, double *, double *), Field &a );
-    void dndzn( void (FiniteDiff::*dd)(int, int, double *, double *), Field &a );
+    void synchronize();
+    double *createRindBuffer( int dim );
+    void packRindBuffer( int dim, int location, double *rind_buffer );
+    void unpackRindBuffer( int dim, int location, double *rind_buffer );
+
+    void dndxn( void (FiniteDiff::*dd)(int, int, double *, int, double *), Field &a );
+    void dndyn( void (FiniteDiff::*dd)(int, int, double *, int, double *), Field &a );
+    void dndzn( void (FiniteDiff::*dd)(int, int, double *, int, double *), Field &a );
    
 
   }; 

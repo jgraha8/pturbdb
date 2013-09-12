@@ -4,9 +4,9 @@
 
 #include "field.hpp"
 
-#define NX 256
-#define NY 256
-#define NZ 256
+#define NX 32
+#define NY 64
+#define NZ 128
 
 using namespace std;
 using namespace pturb_fields;
@@ -21,7 +21,7 @@ int main ( int argc, char *argv[])
 
   int ndim=3;
   int dims[]={ NX, NY, NZ }; 
-  int periodic[] = {1, 0, 1};
+  int periodic[] = {1, 1, 1};
 
   Field *f = new Field( dims, FIELD_DECOMP_PENCIL, periodic, 2 );
   Field *g = new Field( *f ); // Make a copy of f
@@ -40,27 +40,30 @@ int main ( int argc, char *argv[])
     MPI_Barrier( g->getMpiTopology()->comm );
   }
 
- // for (int i=0; i<f->dims[0]; i++) {
- //    for (int j=0; j<f->dims[1]; j++) {
- //      for (int k=0; k<f->dims[2]; k++) {
- // 	f->data[f->index(i,j,k)] = (double)i*j + k;
- //      }
- //    }
- //  }
+  int *dims_local = f->getDimsLocal();
+
+  long index=0;
+  for (int i=0; i<dims_local[0]; i++) {
+    for (int j=0; j<dims_local[1]; j++) {
+	for (int k=0; k<dims_local[2]; k++) {
+	    f->data_local[index++] = (double)i*j + k;
+	}
+    }
+  }
   
- //  double *x = new double[f->dims[0]];
- //  double *y = new double[f->dims[1]];
- //  double *z = new double[f->dims[2]];
+  double *x = new double[*dims_local];
+  double *y = new double[*(dims_local+1)];
+  double *z = new double[*(dims_local+2)];
 
- //  for (int i=0; i<f->dims[0]; i++ ) x[i] = (double)i;
- //  for (int j=0; j<f->dims[0]; j++ ) y[j] = (double)j;
- //  for (int k=0; k<f->dims[0]; k++ ) z[k] = (double)k;
+  for (int i=0; i<dims_local[0]; i++ ) x[i] = (double)i;
+  for (int j=0; j<dims_local[1]; j++ ) y[j] = (double)j;
+  for (int k=0; k<dims_local[2]; k++ ) z[k] = (double)k;
 
- //  // Assign the grid pointers; needed for finite differencing
- //  f->assignGrid( x, y, z );
+  // Assign the grid pointers; needed for finite differencing
+  f->setGridLocal( x, y, z );
 
- //  // Initialize derivatives for f
- //  f->derivFDInit( 4 ); 
+  // Initialize derivatives for f
+  f->finiteDiffInit(); 
 
  //  // // Print the FD coefficients along the x, y, and z directions
  //  // const char *var[] = { "i", "j", "k" };
@@ -89,28 +92,72 @@ int main ( int argc, char *argv[])
  //  //     cout << endl;
  //  //   }
  //  // }
+       
+  Field *df = new Field( *f ); // Make a copy of f
+  //  MPIField *df2 = new MPIField( *f ); // Make a copy of 
 
- //  MPIField *df = new MPIField( *f ); // Make a copy of f
- //  MPIField *df2 = new MPIField( *f ); // Make a copy of 
+  //  // Assign the grid pointers; needed for finite differencing
+  df->setGridLocal( x, y, z );
+  //  df2->assignGrid( x, y, z );
+  //  // Initialize derivatives for f
+  df->finiteDiffInit( ); 
+  //  df2->derivFDInit( 4 );
+  // Take derivatives of f
+  cout << "Taking derivatives" << endl;
+  df->ddx( *f );
+  *f+=*f;
+  df->ddy( *f );
+  *f-=*f;
+  df->ddz( *f );
+  df->d2dx2( *f );
+  if( f->getSynchronized() == false ) cout << "something bad" << endl;
+  df->d2dy2( *f );
+  df->d2dz2( *f );
+  df->d2dxy( *f );
+  df->d2dxz( *f );
+  df->d2dyz( *f );
 
- //  // Assign the grid pointers; needed for finite differencing
- //  df->assignGrid( x, y, z );
- //  df2->assignGrid( x, y, z );
- //  // Initialize derivatives for f
- //  df->derivFDInit( 4 ); 
- //  df2->derivFDInit( 4 );
- //  // Take derivatives of f
- //  cout << "Taking derivatives" << endl;
- //  // df->ddx( *f );
- //  // df->ddy( *f );
- //  // df->ddz( *f );
- //  df->d2dx2( *f );
- //  df2->d2dy2( *f );
- //  // df->d2dz2( *f );
- //  // df->d2dxy( *f );
- //  // df->d2dxz( *f );
- //  // df->d2dyz( *f );
+  // Test synchronization
+  Field *test = new Field( *f );
 
+  dims_local = test->getDimsLocal();
+
+  index=0;
+  for (int i=0; i<dims_local[0]; i++) {
+    for (int j=0; j<dims_local[1]; j++) {
+      for (int k=0; k<dims_local[2]; k++) {
+	if( test->getMpiTopology()->coords[0] == 1 && 
+	    test->getMpiTopology()->coords[1] == 1 ) {
+	  test->data_local[index++] = 0.0;
+	} else {
+	  test->data_local[index++] = 1.0;
+	}
+      }
+    }
+  }
+
+  //  test->synchronize();
+  df->ddx( *test );
+
+  double sum_test=0.0;
+  if( test->getMpiTopology()->coords[0] == 1 && 
+      test->getMpiTopology()->coords[1] == 1 ) {
+
+    index=0;
+    for (int i=0; i<dims_local[0]; i++) {
+      for (int j=0; j<dims_local[1]; j++) {
+	for (int k=0; k<dims_local[2]; k++) {
+	  sum_test += test->data_local[index++];
+	}
+      }
+    }
+
+    // sum test should equal the number of rind points
+    cout << "sum_test, # rind points : " << (long)sum_test << " " << 2*( test->getSizeRind(0) + test->getSizeRind(1) + test->getSizeRind(2) ) << endl;
+
+  }
+
+  
  //  df->add( *df, *df2 );
 
  //  // Set g to have same field data (does not copy entire class;
