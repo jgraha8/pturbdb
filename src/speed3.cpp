@@ -21,7 +21,7 @@ int main ( int argc, char *argv[])
 
   int ndim=3;
   int dims[]={ NX, NY, NZ }; 
-  int periodic[] = {0, 0, 0};
+  int periodic[] = {1, 1, 0};
 
   Field *f = new Field( dims, FIELD_DECOMP_PENCIL, periodic, 2 );
   Field *g = new Field( *f ); // Make a copy of f
@@ -99,8 +99,8 @@ int main ( int argc, char *argv[])
   for (int i=0; i<dims_local[0]; i++) {
     for (int j=0; j<dims_local[1]; j++) {
       for (int k=0; k<dims_local[2]; k++) {
-	if( test->getMpiTopology()->coords[0] == 0 && 
-	    test->getMpiTopology()->coords[1] == 0 ) {
+	if( test->getMpiTopology()->coords[0] == 1 && 
+	    test->getMpiTopology()->coords[1] == 1 ) {
 	  test->data_local[index++] = 0.0;
 	} else {
 	  test->data_local[index++] = 1.0;
@@ -113,8 +113,8 @@ int main ( int argc, char *argv[])
   df->ddx( *test );
 
   double sum_test=0.0;
-  if( test->getMpiTopology()->coords[0] == 0 && 
-      test->getMpiTopology()->coords[1] == 0 ) {
+  if( test->getMpiTopology()->coords[0] == 1 && 
+      test->getMpiTopology()->coords[1] == 1 ) {
 
     cout << "center rank : " << test->getMpiTopology()->rank << endl;
     cout << "dims_local : " << dims_local[0] << " " << dims_local[1] << " " << dims_local[2] << endl;

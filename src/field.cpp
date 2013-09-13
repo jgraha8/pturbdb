@@ -1141,56 +1141,50 @@ namespace pturb_fields {
   /********************************************************************/
   {
 
-    int imin, imax;
-    int jmin, jmax;
-    int kmin, kmax;
+    int istart, isize;
+    int jstart, jsize;
+    int kstart, ksize;
 
     // If there is no rind do nothing
     if( !this->hasRind( dim, location ) ) return;
 
+    // Preset the starting indicies and sizes
+    istart = this->offset_operation_[0];
+    isize = this->dims_operation_[0];
+
+    jstart = this->offset_operation_[1];
+    jsize = this->dims_operation_[1];
+
+    kstart = this->offset_operation_[2];
+    ksize = this->dims_operation_[2];
+
+    // Reset values along dim direction
     if( dim == 0 ) {
 
       if( location == -1 ) {
-	imin = 0;
+	istart = 0;
       } else {
-	imin = this->dims_local_[0] - this->rind_size_;
+	istart = this->dims_local_[0] - this->rind_size_;
       }
-      imax = imin + this->rind_size_ - 1;
-      
-      jmin = 0;
-      jmax = this->dims_operation_[1] - 1;
-
-      kmin = 0;
-      kmax = this->dims_operation_[2] - 1;
+      isize = this->rind_size_;
 
     } else if( dim == 1 ) {
 
-      imin = 0;
-      imax = this->dims_operation_[0] - 1;
-
       if( location == -1 ) {
-	jmin = 0;
+	jstart = 0;
       } else {
-	jmin = this->dims_local_[1] - this->rind_size_;
+	jstart = this->dims_local_[1] - this->rind_size_;
       }
-      jmax = jmin + this->rind_size_ - 1;
-
-      kmin = 0;
-      kmax = this->dims_operation_[2] - 1;
+      jsize = this->rind_size_;
 
     } else if( dim == 2 ) {
 
-      imin = 0;
-      imax = this->dims_operation_[0] - 1;
-      jmin = 0;
-      jmax = this->dims_operation_[1] - 1;
-
       if( location == -1 ) {
-	kmin = 0;
+	kstart = 0;
       } else {
-	kmin = this->dims_local_[2] - this->rind_size_;
+	kstart = this->dims_local_[2] - this->rind_size_;
       }
-      kmax = kmin + this->rind_size_ - 1;
+      ksize = this->rind_size_;
 
     } else {
       std::cout << "Field::unpackRindBuffer: unable to pack buffer: incorrect dimension specified" << std::endl;
@@ -1198,9 +1192,9 @@ namespace pturb_fields {
     }
 
     long index=0;
-    for( int i=imin; i<=imax; i++ ) {
-      for (int j=jmin; j<=jmax; j++ ) {
-	for ( int k=kmin; k<=kmax; k++ ) { 
+    for( int i=istart; i<istart + isize; i++ ) {
+      for (int j=jstart; j<jstart + jsize; j++ ) {
+	for ( int k=kstart; k<kstart + ksize; k++ ) { 
 	  this->data_local[this->indexLocal(i,j,k)] = rind_buffer[index++];
 	}
       }
@@ -1211,9 +1205,9 @@ namespace pturb_fields {
     if( index != this->getSizeRind( dim, location ) ) {
       std::cout << "Field::unpackRindBuffer: mismatch in expected rind buffer size" << std::endl;
       std::cout << "dim, location : " << dim << " " << location << std::endl;
-      std::cout << "imin, imax : " << imin << " " << imax << std::endl;
-      std::cout << "jmin, jmax : " << jmin << " " << jmax << std::endl;
-      std::cout << "kmin, kmax : " << kmin << " " << kmax << std::endl;
+      std::cout << "imin, imax : " << istart << " " << isize << std::endl;
+      std::cout << "jmin, jmax : " << jstart << " " << jsize << std::endl;
+      std::cout << "kmin, kmax : " << kstart << " " << ksize << std::endl;
       std::cout << "index, getSizeRind() : " << index << " " << this->getSizeRind(dim,location) << std::endl;
       error=1;
 
