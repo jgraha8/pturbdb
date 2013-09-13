@@ -159,9 +159,12 @@ namespace pturb_fields {
   }
 
   /********************************************************************/
-  long Field::getSizeRind( int dim )
+  long Field::getSizeRind( int dim, int location )
   /********************************************************************/
   {
+    // If the dimension and location does not have a rind, return 0
+    if( !this->hasRind( dim, location ) ) return 0;
+
     if( dim == 0 ) {
       return (long)this->rind_size_ * (long)this->dims_operation_[1] * (long)this->dims_operation_[2];
     } else if( dim == 1 ) {
@@ -910,6 +913,20 @@ namespace pturb_fields {
   /// MPI TRANSFER FUNCTIONS
   //////////////////////////////////////////////////////////////////////////////// 
 
+  /*
+   * Procedure to check if the field has a rind for a given dimension and location
+   */
+  /********************************************************************/
+  bool Field::hasRind(int dim, int location)
+  /********************************************************************/
+  {
+    if( location == -1 ) {
+      return ( this->mpi_topology_->neighbor_prev[dim] >= 0 ) ? true : false;
+    } else {
+      return ( this->mpi_topology_->neighbor_next[dim] >= 0 ) ? true : false;
+    }
+  }
+
   /********************************************************************/
   void Field::synchronize()
   /********************************************************************/
@@ -919,9 +936,10 @@ namespace pturb_fields {
 
     MpiTopology_t *mpi_topology = this->mpi_topology_;
 
-    long buffer_size;
-    double *send_buffer;
-    double *recv_buffer;
+    long prev_buffer_size, next_buffer_size;
+    double *prev_buffer;
+    double *next_buffer;
+    
 
 #ifdef VERBOSE
     cout << this->mpi_topology_->rank << ": Synchronizing field" << endl;
@@ -931,67 +949,69 @@ namespace pturb_fields {
     if( this->field_decomp_ == FIELD_DECOMP_SLAB || 
 	this->field_decomp_ == FIELD_DECOMP_PENCIL ) {
       
-      buffer_size = this->getSizeRind( 0 );
-      send_buffer = this->createRindBuffer( 0 );
-      recv_buffer = this->createRindBuffer( 0 );
+      prev_buffer_size = this->getSizeRind( 0, -1 );
+      next_buffer_size = this->getSizeRind( 0, 1 );
+      prev_buffer = this->createRindBuffer( 0, -1 );
+      next_buffer = this->createRindBuffer( 0, 1 );
 
       // Packs the buffer at the lower indicies
-      this->packRindBuffer( 0, -1, send_buffer );
+      this->packRindBuffer( 0, -1, prev_buffer );
 
       // send prev/recv next
-      MPI_Sendrecv( send_buffer, buffer_size, MPI_DOUBLE, mpi_topology->neighbor_prev[0], 1, 
-		    recv_buffer, buffer_size, MPI_DOUBLE, mpi_topology->neighbor_next[0], 1, 
+      MPI_Sendrecv( prev_buffer, prev_buffer_size, MPI_DOUBLE, mpi_topology->neighbor_prev[0], 1, 
+		    next_buffer, next_buffer_size, MPI_DOUBLE, mpi_topology->neighbor_next[0], 1, 
 		    mpi_topology->comm, &status);
 
       // Unpacks the buffer to the upper indicies
-      this->unpackRindBuffer( 0, 1, recv_buffer );
+      this->unpackRindBuffer( 0, 1, next_buffer );
 
       // Packs the buffer at the upper indicies
-      this->packRindBuffer( 0, 1, send_buffer );
+      this->packRindBuffer( 0, 1, next_buffer );
 
       // send next/recv prev
-      MPI_Sendrecv( send_buffer, buffer_size, MPI_DOUBLE, mpi_topology->neighbor_next[0], 2, 
-		    recv_buffer, buffer_size, MPI_DOUBLE, mpi_topology->neighbor_prev[0], 2, 
+      MPI_Sendrecv( next_buffer, next_buffer_size, MPI_DOUBLE, mpi_topology->neighbor_next[0], 2, 
+		    prev_buffer, prev_buffer_size, MPI_DOUBLE, mpi_topology->neighbor_prev[0], 2, 
 		    mpi_topology->comm, &status);
 
       // Unpacks the buffer to the lower indicies
-      this->unpackRindBuffer( 0, -1, recv_buffer );
+      this->unpackRindBuffer( 0, -1, prev_buffer );
 
-      delete [] send_buffer;
-      delete [] recv_buffer;
+      delete [] prev_buffer;
+      delete [] next_buffer;
 
     }
 
     if( this->field_decomp_ == FIELD_DECOMP_PENCIL ) {
       
-      buffer_size = this->getSizeRind( 1 );
-      send_buffer = this->createRindBuffer( 1 );
-      recv_buffer = this->createRindBuffer( 1 );
+      prev_buffer_size = this->getSizeRind( 1, -1 );
+      next_buffer_size = this->getSizeRind( 1, 1 );
+      prev_buffer = this->createRindBuffer( 1, -1 );
+      next_buffer = this->createRindBuffer( 1, 1 );
 
       // Packs the buffer at the lower indicies
-      this->packRindBuffer( 1, -1, send_buffer );
+      this->packRindBuffer( 1, -1, prev_buffer );
 
       // send prev/recv next
-      MPI_Sendrecv( send_buffer, buffer_size, MPI_DOUBLE, mpi_topology->neighbor_prev[1], 3, 
-		    recv_buffer, buffer_size, MPI_DOUBLE, mpi_topology->neighbor_next[1], 3, 
+      MPI_Sendrecv( prev_buffer, prev_buffer_size, MPI_DOUBLE, mpi_topology->neighbor_prev[1], 3, 
+		    next_buffer, next_buffer_size, MPI_DOUBLE, mpi_topology->neighbor_next[1], 3, 
 		    mpi_topology->comm, &status);
 
       // Unpacks the buffer to the upper indicies
-      this->unpackRindBuffer( 1, 1, recv_buffer );
+      this->unpackRindBuffer( 1, 1, next_buffer );
 
       // Packs the buffer at the upper indicies
-      this->packRindBuffer( 1, 1, send_buffer );
+      this->packRindBuffer( 1, 1, next_buffer );
 
       // send next/recv prev
-      MPI_Sendrecv( send_buffer, buffer_size, MPI_DOUBLE, mpi_topology->neighbor_next[1], 2, 
-		    recv_buffer, buffer_size, MPI_DOUBLE, mpi_topology->neighbor_prev[1], 2, 
+      MPI_Sendrecv( next_buffer, next_buffer_size, MPI_DOUBLE, mpi_topology->neighbor_next[1], 4, 
+		    prev_buffer, prev_buffer_size, MPI_DOUBLE, mpi_topology->neighbor_prev[1], 4, 
 		    mpi_topology->comm, &status);
 
       // Unpacks the buffer to the lower indicies
-      this->unpackRindBuffer( 1, -1, recv_buffer );
+      this->unpackRindBuffer( 1, -1, prev_buffer );
 
-      delete [] send_buffer;
-      delete [] recv_buffer;
+      delete [] prev_buffer;
+      delete [] next_buffer;
 
     }
 
@@ -1001,10 +1021,10 @@ namespace pturb_fields {
   }
 
   /********************************************************************/
-  double *Field::createRindBuffer( int dim )
+  double *Field::createRindBuffer( int dim, int location )
   /********************************************************************/
   {
-    return new double[this->getSizeRind(dim)];
+    return new double[this->getSizeRind(dim,location)];
   }
 
   // 
@@ -1027,6 +1047,9 @@ namespace pturb_fields {
     int imin, imax;
     int jmin, jmax;
     int kmin, kmax;
+
+    // If there is no rind do nothing
+    if( !this->hasRind( dim, location ) ) return;
 
     if( dim == 0 ) {
 
@@ -1088,10 +1111,10 @@ namespace pturb_fields {
 
     int error=0;
     // Perform sanity check
-    if( index != this->getSizeRind( dim ) ) {
+    if( index != this->getSizeRind( dim, location ) ) {
       std::cout << "Field::packRindBuffer: mismatch in expected rind buffer size" << std::endl;
       std::cout << "dim, location : " << dim << " " << location << std::endl;
-      std::cout << "index, getSizeRind() : " << index << " " << this->getSizeRind(dim) << std::endl;
+      std::cout << "index, getSizeRind() : " << index << " " << this->getSizeRind(dim,location) << std::endl;
       error=1;
 
     }
@@ -1121,6 +1144,9 @@ namespace pturb_fields {
     int imin, imax;
     int jmin, jmax;
     int kmin, kmax;
+
+    // If there is no rind do nothing
+    if( !this->hasRind( dim, location ) ) return;
 
     if( dim == 0 ) {
 
@@ -1182,13 +1208,13 @@ namespace pturb_fields {
 
     int error;
     // Perform sanity check
-    if( index != this->getSizeRind( dim ) ) {
+    if( index != this->getSizeRind( dim, location ) ) {
       std::cout << "Field::unpackRindBuffer: mismatch in expected rind buffer size" << std::endl;
       std::cout << "dim, location : " << dim << " " << location << std::endl;
       std::cout << "imin, imax : " << imin << " " << imax << std::endl;
       std::cout << "jmin, jmax : " << jmin << " " << jmax << std::endl;
       std::cout << "kmin, kmax : " << kmin << " " << kmax << std::endl;
-      std::cout << "index, getSizeRind() : " << index << " " << this->getSizeRind(dim) << std::endl;
+      std::cout << "index, getSizeRind() : " << index << " " << this->getSizeRind(dim,location) << std::endl;
       error=1;
 
     }

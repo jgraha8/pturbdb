@@ -65,7 +65,7 @@ namespace pturb_fields {
     long getSize();
     long getSizeLocal();
     long getSizeOperation();
-    long getSizeRind( int dim );
+    long getSizeRind( int dim, int location );
     MpiTopology_t *getMpiTopology();
     FieldDecomp_t getFieldDecomp();
     int *getFieldPeriodic();
@@ -115,10 +115,11 @@ namespace pturb_fields {
     void assignMpiTopology();
     void assignDimsAndOffsets();
 
-    void synchronize();
-    double *createRindBuffer( int dim );
+    bool hasRind(int dim, int location);
+    double *createRindBuffer( int dim, int location );
     void packRindBuffer( int dim, int location, double *rind_buffer );
     void unpackRindBuffer( int dim, int location, double *rind_buffer );
+    void synchronize();
 
     void dndxn( void (FiniteDiff::*dd)(int, int, double *, int, double *), Field &a );
     void dndyn( void (FiniteDiff::*dd)(int, int, double *, int, double *), Field &a );

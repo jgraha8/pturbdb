@@ -5,8 +5,8 @@
 #include "field.hpp"
 
 #define NX 32
-#define NY 64
-#define NZ 128
+#define NY 32
+#define NZ 32
 
 using namespace std;
 using namespace pturb_fields;
@@ -21,7 +21,7 @@ int main ( int argc, char *argv[])
 
   int ndim=3;
   int dims[]={ NX, NY, NZ }; 
-  int periodic[] = {1, 1, 1};
+  int periodic[] = {0, 0, 0};
 
   Field *f = new Field( dims, FIELD_DECOMP_PENCIL, periodic, 2 );
   Field *g = new Field( *f ); // Make a copy of f
@@ -64,34 +64,6 @@ int main ( int argc, char *argv[])
 
   // Initialize derivatives for f
   f->finiteDiffInit(); 
-
- //  // // Print the FD coefficients along the x, y, and z directions
- //  // const char *var[] = { "i", "j", "k" };
- //  // const Derivs::FiniteDiff::fd_t *fd_dd[] = { f->fd->fd_ddx, f->fd->fd_ddy, f->fd->fd_ddz }; 
-  
- //  // for (int p=0; p<3; p++ ) {
- //  //   cout << "======================================================================" << endl;
- //  //   for (int i=0; i<f->dims[p]; i++ ) {
- //  //     cout << var[p] << " : " << i;
- //  //     for (int m=0; m<fd_dd[p][i].ssize; m++ ) {
- //  // 	cout << " " << fd_dd[p][i].coef[m];
- //  //     }
- //  //     cout << endl;
- //  //   }
- //  // }
-
- //  // const Derivs::FiniteDiff::fd_t *fd_dd2[] = { f->fd->fd_d2dx2, f->fd->fd_d2dy2, f->fd->fd_d2dz2 }; 
-  
- //  // for (int p=0; p<3; p++ ) {
- //  //   cout << "======================================================================" << endl;
- //  //   for (int i=0; i<f->dims[p]; i++ ) {
- //  //     cout << var[p] << " : " << i;
- //  //     for (int m=0; m<fd_dd2[p][i].ssize; m++ ) {
- //  // 	cout << " " << fd_dd2[p][i].coef[m];
- //  //     }
- //  //     cout << endl;
- //  //   }
- //  // }
        
   Field *df = new Field( *f ); // Make a copy of f
   //  MPIField *df2 = new MPIField( *f ); // Make a copy of 
@@ -100,7 +72,7 @@ int main ( int argc, char *argv[])
   df->setGridLocal( x, y, z );
   //  df2->assignGrid( x, y, z );
   //  // Initialize derivatives for f
-  df->finiteDiffInit( ); 
+  df->finiteDiffInit(); 
   //  df2->derivFDInit( 4 );
   // Take derivatives of f
   cout << "Taking derivatives" << endl;
@@ -121,13 +93,14 @@ int main ( int argc, char *argv[])
   Field *test = new Field( *f );
 
   dims_local = test->getDimsLocal();
+  int *dims_operation = test->getDimsOperation();
 
   index=0;
   for (int i=0; i<dims_local[0]; i++) {
     for (int j=0; j<dims_local[1]; j++) {
       for (int k=0; k<dims_local[2]; k++) {
-	if( test->getMpiTopology()->coords[0] == 1 && 
-	    test->getMpiTopology()->coords[1] == 1 ) {
+	if( test->getMpiTopology()->coords[0] == 0 && 
+	    test->getMpiTopology()->coords[1] == 0 ) {
 	  test->data_local[index++] = 0.0;
 	} else {
 	  test->data_local[index++] = 1.0;
@@ -140,10 +113,15 @@ int main ( int argc, char *argv[])
   df->ddx( *test );
 
   double sum_test=0.0;
-  if( test->getMpiTopology()->coords[0] == 1 && 
-      test->getMpiTopology()->coords[1] == 1 ) {
+  if( test->getMpiTopology()->coords[0] == 0 && 
+      test->getMpiTopology()->coords[1] == 0 ) {
+
+    cout << "center rank : " << test->getMpiTopology()->rank << endl;
+    cout << "dims_local : " << dims_local[0] << " " << dims_local[1] << " " << dims_local[2] << endl;
+    cout << "dims_operation : " << dims_operation[0] << " " << dims_operation[1] << " " << dims_operation[2] << endl;
 
     index=0;
+    sum_test=0.0;
     for (int i=0; i<dims_local[0]; i++) {
       for (int j=0; j<dims_local[1]; j++) {
 	for (int k=0; k<dims_local[2]; k++) {
@@ -153,9 +131,12 @@ int main ( int argc, char *argv[])
     }
 
     // sum test should equal the number of rind points
-    cout << "sum_test, # rind points : " << (long)sum_test << " " << 2*( test->getSizeRind(0) + test->getSizeRind(1) + test->getSizeRind(2) ) << endl;
+    cout << "sum_test, # rind points : " << (long)sum_test << " ";
+    cout << test->getSizeRind(0,-1) + test->getSizeRind(0,1) + test->getSizeRind(1,-1) + test->getSizeRind(1,1) << endl;
 
   }
+
+  MPI_Barrier(test->getMpiTopology()->comm);
 
   
  //  df->add( *df, *df2 );
