@@ -120,6 +120,7 @@ namespace pturb_fields {
     void packRindBuffer( int dim, int location, double *rind_buffer );
     void unpackRindBuffer( int dim, int location, double *rind_buffer );
     void synchronize();
+    void synchronizeDimension(int coord_dim);
 
     void dndxn( void (FiniteDiff::*dd)(int, int, double *, int, double *), Field &a );
     void dndyn( void (FiniteDiff::*dd)(int, int, double *, int, double *), Field &a );
