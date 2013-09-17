@@ -2,7 +2,7 @@
 //#include <stdlib.h>
 #include <stdlib.h>
 
-#include "field.hpp"
+#include "turb_db.hpp"
 
 #define NX 32
 #define NY 32
@@ -21,9 +21,13 @@ int main ( int argc, char *argv[])
 
   int ndim=3;
   int dims[]={ NX, NY, NZ }; 
+  int db_field_offset[] = {0, 0, 0};
   int periodic[] = {1, 1, 0};
 
-  Field *f = new Field( dims, FIELD_DECOMP_PENCIL, periodic, 2 );
+  TurbDB *f = new TurbDB( string("db_conf_file"), dims );
+
+  f->dbFieldInit( db_field_offset, dims, FIELD_DECOMP_PENCIL, periodic, 2 );
+
   Field *g = new Field( *f ); // Make a copy of f
 
   int rank = f->getMpiTopology()->rank;

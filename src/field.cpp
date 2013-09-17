@@ -16,10 +16,10 @@ namespace pturb_fields {
 /********************************************************************/
 Field::Field(const int *dims, FieldDecomp_t field_decomp, const int *periodic,
 		int operator_order)
-		/********************************************************************/
-		{
-	cout << "Initializing Field" << endl;
+/********************************************************************/
+{
 	FieldInit(dims, field_decomp, periodic, operator_order);
+	cout << this->mpi_topology_->rank << " Initializing Field" << endl;
 }
 
 /********************************************************************/
@@ -979,7 +979,7 @@ void Field::synchronize()
 
 	// x pass
 	if (this->field_decomp_ == FIELD_DECOMP_SLAB
-	    || this->field_decomp_ == FIELD_DECOMP_PENCIL) {
+			|| this->field_decomp_ == FIELD_DECOMP_PENCIL) {
 
 		this->synchronizeDimension(0);
 	}
@@ -1012,15 +1012,15 @@ void Field::synchronizeDimension(int dim)
 	 */
 	// Recv next
 	MPI_Irecv(next_buffer, next_buffer_size, MPI_DOUBLE,
-		  mpi_topology->neighbor_next[dim], 1, mpi_topology->comm,
-		  &next_request);
+			mpi_topology->neighbor_next[dim], 1, mpi_topology->comm,
+			&next_request);
 
 	// Send prev
 	// Packs the buffer at the lower indicies
 	this->packRindBuffer(dim, -1, prev_buffer);
 	MPI_Isend(prev_buffer, prev_buffer_size, MPI_DOUBLE,
-		  mpi_topology->neighbor_prev[dim], 1, mpi_topology->comm, 
-		  &prev_request);
+			mpi_topology->neighbor_prev[dim], 1, mpi_topology->comm,
+			&prev_request);
 
 	MPI_Wait(&prev_request, &status);
 	MPI_Wait(&next_request, &status);
@@ -1031,15 +1031,14 @@ void Field::synchronizeDimension(int dim)
 	 */
 	// Recv prev
 	MPI_Irecv(prev_buffer, prev_buffer_size, MPI_DOUBLE,
-		  mpi_topology->neighbor_prev[dim], 2, mpi_topology->comm,
-		  &prev_request);
-	       
+			mpi_topology->neighbor_prev[dim], 2, mpi_topology->comm,
+			&prev_request);
+
 	// Send next
 	this->packRindBuffer(dim, 1, next_buffer);
 	MPI_Isend(next_buffer, next_buffer_size, MPI_DOUBLE,
-		  mpi_topology->neighbor_next[dim], 2, mpi_topology->comm, 
-		  &next_request);
-
+			mpi_topology->neighbor_next[dim], 2, mpi_topology->comm,
+			&next_request);
 
 	MPI_Wait(&next_request, &status);
 	MPI_Wait(&prev_request, &status);

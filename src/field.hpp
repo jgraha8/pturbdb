@@ -106,7 +106,7 @@ namespace pturb_fields {
     void d2dyz( Field &a );
     
    
-  private:
+  protected:
 
     void FieldInit( const int *dims, FieldDecomp_t field_decomp, const int *periodic, int operator_order );
 
