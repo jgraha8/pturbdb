@@ -2,7 +2,7 @@
 //#include <stdlib.h>
 #include <stdlib.h>
 
-#include "turb_db.hpp"
+#include "turbdb_field.hpp"
 
 #define NX 32
 #define NY 32
@@ -24,7 +24,7 @@ int main ( int argc, char *argv[])
   int db_field_offset[] = {0, 0, 0};
   int periodic[] = {1, 1, 0};
 
-  TurbDB *f = new TurbDB( string("db_conf_file"), dims );
+  TurbDBField *f = new TurbDBField( string("db_conf_file"), dims );
 
   f->dbFieldInit( db_field_offset, dims, FIELD_DECOMP_PENCIL, periodic, 2 );
 

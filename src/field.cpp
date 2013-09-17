@@ -16,8 +16,8 @@ namespace pturb_fields {
 /********************************************************************/
 Field::Field(const int *dims, FieldDecomp_t field_decomp, const int *periodic,
 		int operator_order)
-/********************************************************************/
-{
+		/********************************************************************/
+		{
 	FieldInit(dims, field_decomp, periodic, operator_order);
 	cout << this->mpi_topology_->rank << " Initializing Field" << endl;
 }
@@ -64,8 +64,8 @@ Field::~Field(void)
 /********************************************************************/
 void Field::FieldInit(const int *dims, FieldDecomp_t field_decomp,
 		const int *periodic, int operator_order)
-		/********************************************************************/
-		{
+/********************************************************************/
+{
 
 	// Set the global dimensions
 	memcpy(this->dims_, dims, sizeof(*this->dims_) * FIELD_NDIMS);
