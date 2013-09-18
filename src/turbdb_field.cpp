@@ -3,6 +3,7 @@
 #include <cstdio>
 #include <cstdlib>
 #include "turbdb_field.hpp"
+#include "esio/esio.h"
 
 using namespace std;
 
@@ -19,6 +20,7 @@ TurbDBField::TurbDBField(const string &db_conf_file, const int *db_dims) {
 }
 
 TurbDBField::TurbDBField(TurbDBField &turbdb_field) {
+
 	this->db_conf_file_ = turbdb_field.getDBConfFile();
 	memcpy(this->db_dims_, turbdb_field.getDBDims(),
 			sizeof(this->db_dims_[0]) * FIELD_NDIMS);
@@ -52,6 +54,10 @@ vector<string> &TurbDBField::getDBFileNames() {
 	return this->db_file_names_;
 }
 
+/*
+ * Reads the database configuration file: reads the grid file name and the time
+ * step and field file names
+ */
 void TurbDBField::readDBConfFile() {
 
 	char db_field[80];
@@ -81,36 +87,64 @@ void TurbDBField::readDBConfFile() {
 	}
 
 	// set the time step
+	this->db_time_nsteps_ = this->db_time_.size() - 2; // Number of available time steps
 	this->db_time_step_ = this->db_time_.at(1) - this->db_time_.at(0);
+	this->db_time_min_ = this->db_time_.at(1); // The time at 0 at t = -dt
+	this->db_time_max_ = *(this->db_time_.end() - 2);
 
 }
 
 void TurbDBField::pchipInit() {
 
 	// Have to initialize the data for the calculation of the PCHIP interpolation
-	this->pchip_.stencil[0] = -1;
-	this->pchip_.stencil[1] = 0;
-	this->pchip_.stencil[2] = 1;
+	this->pchip_fd_.stencil[0] = -1;
+	this->pchip_fd_.stencil[1] = 0;
+	this->pchip_fd_.stencil[2] = 1;
 
-	this->pchip_.ds[0] = -this->db_time_step_;
-	this->pchip_.ds[1] = 0;
-	this->pchip_.ds[2] = this->db_time_step_;
+	this->pchip_fd_.ds[0] = -this->db_time_step_;
+	this->pchip_fd_.ds[1] = 0;
+	this->pchip_fd_.ds[2] = this->db_time_step_;
 
 	// Compute the coefficients
-	autofd_stencil_coefs_c(3, this->pchip_.stencil, this->pchip_.ds, 1,
-			this->pchip_.coef);
+	autofd_stencil_coefs_c(3, this->pchip_fd_.stencil, this->pchip_fd_.ds, 1,
+			this->pchip_fd_.coefs);
 }
+/*
+ * Computes/evaluates the 4 Hermite basis functions used in PCHIP
+ * interpolation. The value tau is normalized time within the interval
+ *  the interpolation is performed.
+ */
+void TurbDBField::pchipComputeBasis(double tau, double hermite_basis[4]) {
 
-void TurbDBField::pchipComputeBasis( double tau, double hermite_coef[4] ) {
+	double c1 = 1.0 - tau;
+	double c2 = pow(c1, 2);
+	double c3 = pow(tau, 2);
 
-	double c1 = 1.0-tau;
-	double c2 = pow(c1,2);
-	double c3 = pow(tau,2);
+	hermite_basis[0] = (1.0 + 2.0 * tau) * c2;
+	hermite_basis[1] = tau * c2;
+	hermite_basis[2] = c3 * (3.0 - 2.0 * tau);
+	hermite_basis[3] = -c3 * c1;
+}
+/*
+ * Computes/evaluates the weights used in the PCHIP interpolation. The weights
+ * w are applied as:
+ *
+ *   p(t) = \sum_i=0^3 w_i p_(n-1 + i)
+ *
+ * and the integer n determines the interval the interpolation is performed over.
+ * The discrete values p_j is the known field
+ */
+void TurbDBField::pchipComputeWeights(double hermite_basis[4],
+		double pchip_weights[4]) {
 
-	hermite_coef[0] = (1.0+2.0*tau)*c2;
-	hermite_coef[1] = tau * c2;
-	hermite_coef[2] = c3*(3.0-2.0*tau);
-	hermite_coef[3] = -c3*c1;
+	pchip_weights[0] = hermite_basis[1] * this->pchip_fd_.coefs[0];
+	pchip_weights[1] = hermite_basis[0]
+			+ hermite_basis[1] * this->pchip_fd_.coefs[1]
+			+ hermite_basis[3] * this->pchip_fd_.coefs[0];
+	pchip_weights[2] = hermite_basis[2]
+			+ hermite_basis[1] * this->pchip_fd_.coefs[2]
+			+ hermite_basis[3] * this->pchip_fd_.coefs[1];
+	pchip_weights[3] = hermite_basis[3] * this->pchip_fd_.coefs[2];
 }
 
 /*
@@ -120,7 +154,7 @@ void TurbDBField::pchipComputeBasis( double tau, double hermite_coef[4] ) {
  */
 void TurbDBField::readDBGridLocal(double *x, double *y, double *z) {
 	// Master process reads the entire grid to a buffer
-	if( this->mpi_topology_->rank == 0 ) {
+	if (this->mpi_topology_->rank == 0) {
 
 	}
 	// The entire grid is broadcast to all processes
@@ -129,10 +163,66 @@ void TurbDBField::readDBGridLocal(double *x, double *y, double *z) {
 
 }
 void TurbDBField::readDBField(double time, const char *field_name) {
+
+	// Now compute which
+	if (time < this->db_time_min_ || time > this->db_time_max_) {
+		cerr << "time out of bounds" << endl;
+		exit(EXIT_FAILURE);
+	}
+
+	int cell_index = floor((time - this->db_time_min_) / this->db_time_step_) + 1;
+	// Make sure we don't pick the last point as the cell value; this only happens when time = db_time_max_
+	cell_index = fmin(cell_index, this->db_time_nsteps_ - 1);
+
+	double tau = (time - this->db_time_.at(cell_index)) / this->db_time_step_; // 0<= tau <= 1
+
+	// Compute the Hermite basis functions for the given normalized time.
+	double hermite_basis[4], pchip_weights[4];
+
+	this->pchipComputeBasis(tau, hermite_basis);
+	this->pchipComputeWeights(hermite_basis, pchip_weights);
+
 	// Create buffer the size of the operations domain
+	long data_buffer_size = this->getSizeOperation();
+	float data_buffer = new float[data_buffer_size];
 
+	int offset[3] = {
+		this->field_offset_[0] + this->offset_local_[0] + this->offset_operation_[1],
+		this->field_offset_[1] + this->offset_local_[1] + this->offset_operation_[2],
+		this->field_offset_[2] + this->offset_local_[2] + this->offset_operation_[3]
+		};
 
+	// We now evaluate the
+	for (int i = 0; i < 4; i++) {
+
+		// Open the database file
+		esio_file_open(h, this->db_file_names_.at(cell_index - 1 + i), 0); // Open read-only
+
+		esio_field_establish(h, this->db_dims_[0], offset[0],
+				this->dims_operation_[0], this->db_dims_[1], offset[1],
+				this->dims_operation_[1], this->db_dims_[2], offset[2],
+				this->dims_operation_[2]);
+
+		esio_field_readv_float(h, field_name, data_buffer, 0, 0, 0, 1);
+
+		esio_file_close (h);
+		esio_handle_finalize(h);
+
+		// Apply the appropriate weights to the input data
+		long j = 0;
+		while (j != data_buffer_size) data_buffer[j] = pchip_weights[i] * data_buffer[j++];
+
+		// We now modify the data_local field using the pchip_weights and the data read
+		if (i == 0) {
+			this->setDataOperation(data_buffer);
+		} else {
+			this->addDataOperation(data_buffer);
+		}
+
+	}
+
+	// Make sure we set the synchronized_ flag to false
+	this->synchronized_ = false;
 }
-
 
 }
