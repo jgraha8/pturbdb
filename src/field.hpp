@@ -82,7 +82,6 @@ namespace pturb_fields {
     long indexOperation( int i, int j, int k );
     long indexOperationToLocal( int i, int j, int k );
 
-    void setSynchronized( bool synchronized );
     void setGridLocal( double *x_local, double *y_local, double *z_local );
     void setDataOperation( const float *data_operation);
     void setDataOperation( const double *data_operation);
@@ -135,6 +134,8 @@ namespace pturb_fields {
     void dndyn( void (FiniteDiff::*dd)(int, int, double *, int, double *), Field &a );
     void dndzn( void (FiniteDiff::*dd)(int, int, double *, int, double *), Field &a );
    
+    // Getters/setters
+    void setSynchronized( bool synchronized ); // Making protected since it should only be set by base class or sub-classes.
 
   }; 
 
