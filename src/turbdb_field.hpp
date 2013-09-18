@@ -60,11 +60,13 @@ public:
 	int *getFieldOffset();
 
 	vector<double> &getDBTime();
+        double &getDBTimeMin();
+        double &getDBTimeMax();
 	vector<string> &getDBFileNames();
 
 	void dbFieldInit( const int *field_offset, const int *dims, FieldDecomp_t field_decomp,
 			const int *periodic, int operator_order );
-	void readDBGridLocal( double *x, double *y, double *z );
+        void readDBGridLocal(const char *field_names[3], double *x, double *y, double *z);
 	void readDBField(double time, const char *field_name);
 
 private:
@@ -73,6 +75,8 @@ private:
 	void pchipInit();
 	void pchipComputeBasis( double tau, double hermite_basis[4] );
 	void pchipComputeWeights( double hermite_basis[4], double pchip_weights[4] );
+
+        void syncDBGridLocal( int dim, double *grid_operation, double *grid ) {
 
 };
 }
