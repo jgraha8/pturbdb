@@ -235,6 +235,19 @@ int *Field::getDimsOperation()
 }
 
 /********************************************************************/
+int *Field::getOffsetLocal()
+/********************************************************************/
+{
+	return this->offset_local_;
+}
+/********************************************************************/
+int *Field::getOffsetOperation()
+/********************************************************************/
+{
+	return this->offset_operation_;
+}
+
+/********************************************************************/
 bool Field::getSynchronized()
 /********************************************************************/
 {
@@ -279,6 +292,11 @@ long Field::indexOperationToLocal(int i, int j, int k)
 
 	return ((long) this->dims_local_[1] * ii + jj) * (long) this->dims_local_[2]
 			+ kk;
+}
+
+void Field::setSynchronized( bool synchronized ) 
+{
+	this->synchronized_ = synchronized;
 }
 
 // Set the grid pointers for field

@@ -2,6 +2,8 @@
 #include <fstream>
 #include <cstdio>
 #include <cstdlib>
+#include <cstring>
+#include <cmath>
 #include "turbdb_field.hpp"
 #include "esio/esio.h"
 
@@ -154,7 +156,7 @@ void TurbDBField::pchipComputeWeights(double hermite_basis[4],
  */
 void TurbDBField::readDBGridLocal(double *x, double *y, double *z) {
 	// Master process reads the entire grid to a buffer
-	if (this->mpi_topology_->rank == 0) {
+	if (this->getMpiTopology()->rank == 0) {
 
 	}
 	// The entire grid is broadcast to all processes
@@ -183,25 +185,34 @@ void TurbDBField::readDBField(double time, const char *field_name) {
 	this->pchipComputeWeights(hermite_basis, pchip_weights);
 
 	// Create buffer the size of the operations domain
-	long data_buffer_size = this->getSizeOperation();
-	float data_buffer = new float[data_buffer_size];
+	const long data_buffer_size = this->getSizeOperation();
+	float *data_buffer = new float[data_buffer_size];
+
+	// Get the offset for the local and operation domains
+	const int *offset_local = this->getOffsetLocal();
+	const int *offset_operation = this->getOffsetOperation();
+	const int *dims_operation = this->getDimsOperation();
 
 	int offset[3] = {
-		this->field_offset_[0] + this->offset_local_[0] + this->offset_operation_[1],
-		this->field_offset_[1] + this->offset_local_[1] + this->offset_operation_[2],
-		this->field_offset_[2] + this->offset_local_[2] + this->offset_operation_[3]
+		this->field_offset_[0] + offset_local[0] + offset_operation[0],
+		this->field_offset_[1] + offset_local[1] + offset_operation[1],
+		this->field_offset_[2] + offset_local[2] + offset_operation[2]
 		};
 
 	// We now evaluate the
 	for (int i = 0; i < 4; i++) {
 
-		// Open the database file
-		esio_file_open(h, this->db_file_names_.at(cell_index - 1 + i), 0); // Open read-only
+		esio_handle h = esio_handle_initialize(this->getMpiTopology()->comm);
 
-		esio_field_establish(h, this->db_dims_[0], offset[0],
-				this->dims_operation_[0], this->db_dims_[1], offset[1],
-				this->dims_operation_[1], this->db_dims_[2], offset[2],
-				this->dims_operation_[2]);
+		// Open the database file
+		const char *db_file_name = this->db_file_names_.at(cell_index - 1 + i).c_str();
+		esio_file_open(h, db_file_name, 0); // Open read-only
+
+		esio_field_establish(h, 
+				     this->db_dims_[0], offset[0], dims_operation[0], 
+				     this->db_dims_[1], offset[1], dims_operation[1], 
+				     this->db_dims_[2], offset[2], dims_operation[2]
+				     );
 
 		esio_field_readv_float(h, field_name, data_buffer, 0, 0, 0, 1);
 
@@ -222,7 +233,7 @@ void TurbDBField::readDBField(double time, const char *field_name) {
 	}
 
 	// Make sure we set the synchronized_ flag to false
-	this->synchronized_ = false;
+	this->setSynchronized(false);
 }
 
 }

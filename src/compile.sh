@@ -5,9 +5,9 @@ SRCS=( derivative.cpp field.cpp turbdb_field.cpp mpi_topology.cpp speed3.cpp )
 # Generate the object list
 OBJS=$(for s in ${SRCS[@]}; do echo ${s%.*}.o; done)
 
-INCPATH="-I../../autofd"
-LIBPATH="-L../../autofd -L../../matsolv"
-LIBS="-lautofd -lmatsolv -lgfortran"
+INCPATH="-I../autofd -I${ESIO_ROOT}/include"
+LIBPATH="-L../autofd -L../matsolv -L${ESIO_ROOT}/lib -L${HDF5_ROOT}/lib"
+LIBS="-lautofd -lmatsolv -lgfortran -lesio -lhdf5_hl -lhdf5 -lz"
 
 CFLAGS="-O0 -Wall -g -DBOUNDS_CHECK -DVERBOSE"
 

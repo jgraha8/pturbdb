@@ -73,6 +73,8 @@ namespace pturb_fields {
     int *getDims();
     int *getDimsLocal();
     int *getDimsOperation();
+    int *getOffsetLocal();
+    int *getOffsetOperation();
     bool getSynchronized();
 
     long index( int i, int j, int k );
@@ -80,6 +82,7 @@ namespace pturb_fields {
     long indexOperation( int i, int j, int k );
     long indexOperationToLocal( int i, int j, int k );
 
+    void setSynchronized( bool synchronized );
     void setGridLocal( double *x_local, double *y_local, double *z_local );
     void setDataOperation( const float *data_operation);
     void setDataOperation( const double *data_operation);
