@@ -291,6 +291,103 @@ void Field::setGridLocal(double *x_local, double *y_local, double *z_local)
 	this->z_local_ = z_local;
 }
 
+/********************************************************************/
+void Field::setDataOperation( const float *data_operation)
+/********************************************************************/
+{
+	long index_local, index_operation;
+
+	index_operation=0;
+	for (int i = 0; i < this->dims_operation_[0]; i++) {
+		for (int j = 0; j < this->dims_operation_[1]; j++) {
+			for (int k = 0; k < this->dims_operation_[2]; k++) {
+				index_local = this->indexOperationToLocal(i, j, k);
+				this->data_local[index_local] = (double)data_operation[index_operation++];
+			}
+		}
+	}
+
+	// Set unsynchronized
+	this->synchronized_ = false;
+}
+/********************************************************************/
+void Field::setDataOperation( const double *data_operation)
+/********************************************************************/
+{
+	long index_local, index_operation;
+
+	index_operation=0;
+	for (int i = 0; i < this->dims_operation_[0]; i++) {
+		for (int j = 0; j < this->dims_operation_[1]; j++) {
+			for (int k = 0; k < this->dims_operation_[2]; k++) {
+				index_local = this->indexOperationToLocal(i, j, k);
+				this->data_local[index_local] = data_operation[index_operation++];
+			}
+		}
+	}
+
+	// Set unsynchronized
+	this->synchronized_ = false;
+}
+
+/********************************************************************/
+void Field::addDataOperation( const float *data_operation)
+/********************************************************************/
+{
+	long index_local, index_operation;
+
+	index_operation=0;
+	for (int i = 0; i < this->dims_operation_[0]; i++) {
+		for (int j = 0; j < this->dims_operation_[1]; j++) {
+			for (int k = 0; k < this->dims_operation_[2]; k++) {
+				index_local = this->indexOperationToLocal(i, j, k);
+				this->data_local[index_local] += (double)data_operation[index_operation++];
+			}
+		}
+	}
+
+	// Set unsynchronized
+	this->synchronized_ = false;
+}
+/********************************************************************/
+void Field::addDataOperation( const double *data_operation)
+/********************************************************************/
+{
+	long index_local, index_operation;
+
+	index_operation=0;
+	for (int i = 0; i < this->dims_operation_[0]; i++) {
+		for (int j = 0; j < this->dims_operation_[1]; j++) {
+			for (int k = 0; k < this->dims_operation_[2]; k++) {
+				index_local = this->indexOperationToLocal(i, j, k);
+				this->data_local[index_local] += data_operation[index_operation++];
+			}
+		}
+	}
+
+	// Set unsynchronized
+	this->synchronized_ = false;
+}
+
+/********************************************************************/
+void Field::mulDataOperation( double scalar)
+/********************************************************************/
+{
+	long index_local;
+
+	for (int i = 0; i < this->dims_operation_[0]; i++) {
+		for (int j = 0; j < this->dims_operation_[1]; j++) {
+			for (int k = 0; k < this->dims_operation_[2]; k++) {
+				index_local = this->indexOperationToLocal(i, j, k);
+				this->data_local[index_local] *= scalar;
+			}
+		}
+	}
+
+	// Set unsynchronized
+	this->synchronized_ = false;
+}
+
 //////////////////////////////////////////////////////////////////////
 /// OPERATORS
 //////////////////////////////////////////////////////////////////////

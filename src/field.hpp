@@ -81,6 +81,8 @@ namespace pturb_fields {
     long indexOperationToLocal( int i, int j, int k );
 
     void setGridLocal( double *x_local, double *y_local, double *z_local );
+    void setDataOperation( const float *data_operation);
+    void setDataOperation( const double *data_operation);
 
     // Assignment operator
     Field &operator=( const Field &a );
@@ -105,6 +107,10 @@ namespace pturb_fields {
     void d2dxz( Field &a );
     void d2dyz( Field &a );
     
+    void addDataOperation( const float *data_operation);
+    void addDataOperation( const double *data_operation);
+    void mulDataOperation( double scalar);
+
    
   protected:
 
