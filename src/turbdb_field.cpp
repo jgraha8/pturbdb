@@ -192,13 +192,21 @@ void TurbDBField::readDBGridLocal(const char *field_names[3], double *x,
 	esio_line_read_double(h, field_names[0], x_operation, 0);
 	// Read y
 	esio_line_establish(h, this->db_dims_[1], offset[1], dims_operation[1]);
-	esio_line_read_double(h, field_names[1], x_operation, 0);
+	esio_line_read_double(h, field_names[1], y_operation, 0);
 	// Read z
 	esio_line_establish(h, this->db_dims_[2], offset[2], dims_operation[2]);
 	esio_line_read_double(h, field_names[2], z_operation, 0);
 
 	esio_file_close(h);
 	esio_handle_finalize(h);
+
+	// First set the interior values of grid from grid_operation
+	for (long i = 0; i < dims_operation[0]; i++)
+	    x[offset_operation[0] + i] = x_operation[i];
+	for (long i = 0; i < dims_operation[1]; i++)
+	    y[offset_operation[1] + i] = y_operation[i];
+	for (long i = 0; i < dims_operation[2]; i++)
+	    z[offset_operation[2] + i] = z_operation[i];
 
 	if (this->getFieldDecomp() == FIELD_DECOMP_SLAB
 			|| this->getFieldDecomp() == FIELD_DECOMP_PENCIL) {
@@ -209,6 +217,12 @@ void TurbDBField::readDBGridLocal(const char *field_names[3], double *x,
 		this->syncDBGridLocal(1, y_operation, y);
 	}
 
+	// Next piece if we have periodic domain and we are a boundary
+	// process, we have to manually set the rind grid values
+	this->setDBPeriodicGridLocal( 0, x_operation, x);
+	this->setDBPeriodicGridLocal( 1, y_operation, y);
+	this->setDBPeriodicGridLocal( 2, z_operation, z);
+
 }
 
 /*
@@ -218,7 +232,7 @@ void TurbDBField::readDBGridLocal(const char *field_names[3], double *x,
  * periphery of the domain when using periodic boundary conditions,
  * they are set manually assuming a uniform grid distribution.
  */
-void TurbDBField::syncDBGridLocal(int dim, double *grid_operation,
+void TurbDBField::syncDBGridLocal(int dim, const double *grid_operation,
 		double *grid) {
 
 	// Copy the correct portions to the appropriate array
@@ -237,10 +251,6 @@ void TurbDBField::syncDBGridLocal(int dim, double *grid_operation,
 	int *offset_operation = this->getOffsetOperation();
 	int *dims_local = this->getDimsLocal();
 
-	// First set the interior values of grid from grid_operation
-	for (long i = 0; i < dims_operation[dim]; i++)
-		grid[offset_operation[dim] + i] = grid_operation[i];
-
 	/*
 	 * First handshakes
 	 */
@@ -251,8 +261,10 @@ void TurbDBField::syncDBGridLocal(int dim, double *grid_operation,
 
 	// Send prev
 	// Packs the buffer at the lower indicies
-	for (long i = 0; i < rind_size; i++)
-		prev_buffer[i] = grid_operation[i];
+	if( this->hasRind(dim,-1) ) {
+	        for (long i = 0; i < rind_size; i++)
+		        prev_buffer[i] = grid_operation[i];
+	}
 
 	MPI_Isend(prev_buffer, rind_size, MPI_DOUBLE,
 			mpi_topology->neighbor_prev[dim], 1, mpi_topology->comm,
@@ -261,8 +273,11 @@ void TurbDBField::syncDBGridLocal(int dim, double *grid_operation,
 	MPI_Wait(&prev_request, &status);
 	MPI_Wait(&next_request, &status);
 
-	for (long i = 0; i < rind_size; i++)
-		grid[dims_local[dim] - rind_size + i] = next_buffer[i];
+	// Only unpack the data if it has a rind
+	if( this->hasRind( dim, 1 ) ) {
+	        for (long i = 0; i < rind_size; i++)
+		        grid[dims_local[dim] - rind_size + i] = next_buffer[i];
+	}
 
 	/*
 	 * Second handshakes
@@ -273,8 +288,10 @@ void TurbDBField::syncDBGridLocal(int dim, double *grid_operation,
 			&prev_request);
 
 	// Send next
-	for (long i = 0; i < rind_size; i++)
-		prev_buffer[i] = grid_operation[dims_operation[dim] - rind_size + i];
+	if( this->hasRind( dim, 1 ) ) {
+	        for (long i = 0; i < rind_size; i++)
+		        next_buffer[i] = grid_operation[dims_operation[dim] - rind_size + i];
+	}
 
 	MPI_Isend(next_buffer, rind_size, MPI_DOUBLE,
 			mpi_topology->neighbor_next[dim], 2, mpi_topology->comm,
@@ -283,14 +300,26 @@ void TurbDBField::syncDBGridLocal(int dim, double *grid_operation,
 	MPI_Wait(&next_request, &status);
 	MPI_Wait(&prev_request, &status);
 
-	for (long i = 0; i < rind_size; i++)
-		grid[i] = prev_buffer[i];
+	// Only unpack the data if it has a rind
+	if( this->hasRind( dim, -1 ) ) {
+	        for (long i = 0; i < rind_size; i++)
+		        grid[i] = prev_buffer[i];
+	}
 
 	delete[] prev_buffer;
 	delete[] next_buffer;
+}
 
-	// Next piece if we have periodic domain and we are a boundary
-	// process, we have to manually set the rind grid values
+  void TurbDBField::setDBPeriodicGridLocal( int dim, const double *grid_operation, double *grid ) {
+
+	int *dims_local = this->getDimsLocal();
+	int *dims_operation = this->getDimsOperation();
+
+        int *offset_operation = this->getOffsetOperation();
+
+	MpiTopology_t *mpi_topology = this->getMpiTopology();
+	int rind_size = this->getRindSize();
+
 	if (this->getFieldPeriodic()[dim] == 1) {
 		// Assuming uniform grid spacing when we have a periodic direction
 		double ds = grid_operation[1] - grid_operation[0];
@@ -307,7 +336,9 @@ void TurbDBField::syncDBGridLocal(int dim, double *grid_operation,
 
 		}
 	}
-}
+
+
+  }
 
 void TurbDBField::readDBField(double time, const char *field_name) {
 

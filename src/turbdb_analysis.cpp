@@ -8,7 +8,7 @@
 #define DB_NY 512
 #define DB_NX 2048
 
-#define FIELD_NZ 1536
+#define FIELD_NZ 32
 #define FIELD_NY 64
 #define FIELD_NX 2048
 
@@ -24,7 +24,7 @@ int main(int argc, char *argv[]) {
 	int db_dims[] = { DB_NZ, DB_NY, DB_NX };
 	int db_field_offset[] = { 0, 0, 0 };
 	int field_dims[] = { FIELD_NZ, FIELD_NY, FIELD_NX };
-	int periodic[] = { 0, 0, 0 };
+	int periodic[] = { 0, 0, 1 };
 
 	TurbDBField *u = new TurbDBField("turbdb.conf", db_dims);
 
@@ -67,11 +67,12 @@ int main(int argc, char *argv[]) {
 	// Print the grid to stdout
 	for (int n = 0; n < nproc; n++) {
 		if (n == rank) {
-			for (long i = 0; i < dims_local[0]; i++) {
-				cout << "rank, i, x[i]" << rank << " " << i << " " << x[i]
+			for (long i = 0; i < dims_local[2]; i++) {
+				cout << "rank, i, z[i] " << rank << " " << i << " " << z[i]
 						<< endl;
 			}
 		}
+		MPI_Barrier(u->getMpiTopology()->comm);
 	}
 
 	//  int *dims_local = f->getDimsLocal();

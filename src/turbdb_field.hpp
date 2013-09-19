@@ -76,7 +76,8 @@ private:
 	void pchipComputeBasis( double tau, double hermite_basis[4] );
 	void pchipComputeWeights( double hermite_basis[4], double pchip_weights[4] );
 
-        void syncDBGridLocal( int dim, double *grid_operation, double *grid );
+        void syncDBGridLocal( int dim, const double *grid_operation, double *grid );
+        void setDBPeriodicGridLocal( int dim, const double *grid_operation, double *grid );
 
 };
 }
