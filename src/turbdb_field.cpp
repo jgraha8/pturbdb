@@ -29,6 +29,7 @@ TurbDBField::TurbDBField(TurbDBField &turbdb_field) {
 
 	// Read the DB conf file
 	this->readDBConfFile();
+	
 }
 
 void TurbDBField::dbFieldInit(const int *field_offset, const int *dims,
@@ -222,6 +223,9 @@ void TurbDBField::readDBGridLocal(const char *field_names[3], double *x,
 	this->setDBPeriodicGridLocal( 0, x_operation, x);
 	this->setDBPeriodicGridLocal( 1, y_operation, y);
 	this->setDBPeriodicGridLocal( 2, z_operation, z);
+
+	// Set the local grid for the field; only sets the pointers
+	this->setGridLocal( x, y, z );
 
 }
 

@@ -8,9 +8,13 @@
 #define DB_NY 512
 #define DB_NX 2048
 
-#define FIELD_NZ 32
+//#define FIELD_NZ 1536
+//#define FIELD_NY 64
+//#define FIELD_NX 2048
+
+#define FIELD_NZ 128
 #define FIELD_NY 64
-#define FIELD_NX 2048
+#define FIELD_NX 128
 
 using namespace std;
 using namespace pturb_fields;
@@ -24,7 +28,7 @@ int main(int argc, char *argv[]) {
 	int db_dims[] = { DB_NZ, DB_NY, DB_NX };
 	int db_field_offset[] = { 0, 0, 0 };
 	int field_dims[] = { FIELD_NZ, FIELD_NY, FIELD_NX };
-	int periodic[] = { 0, 0, 1 };
+	int periodic[] = { 0, 0, 0 };
 
 	TurbDBField *u = new TurbDBField("turbdb.conf", db_dims);
 
@@ -75,103 +79,86 @@ int main(int argc, char *argv[]) {
 		MPI_Barrier(u->getMpiTopology()->comm);
 	}
 
-	//  int *dims_local = f->getDimsLocal();
+	// Read the middle time
+	double middle_time = 0.5*( u->getDBTimeMax() + u->getDBTimeMin() );
 
-	//  long index=0;
-	//  for (int i=0; i<dims_local[0]; i++) {
-	//    for (int j=0; j<dims_local[1]; j++) {
-	// 	for (int k=0; k<dims_local[2]; k++) {
-	// 	    f->data_local[index++] = (double)i*j + k;
-	// 	}
-	//    }
-	//  }
+	TurbDBField *v = new TurbDBField( *u );
+	TurbDBField *w = new TurbDBField( *u );
 
-	//  double *x = new double[*dims_local];
-	//  double *y = new double[*(dims_local+1)];
-	//  double *z = new double[*(dims_local+2)];
+	v->dbFieldInit(db_field_offset, field_dims, FIELD_DECOMP_PENCIL, periodic, 4);
+	w->dbFieldInit(db_field_offset, field_dims, FIELD_DECOMP_PENCIL, periodic, 4);
 
-	//  for (int i=0; i<dims_local[0]; i++ ) x[i] = (double)i;
-	//  for (int j=0; j<dims_local[1]; j++ ) y[j] = (double)j;
-	//  for (int k=0; k<dims_local[2]; k++ ) z[k] = (double)k;
-
-	//  // Assign the grid pointers; needed for finite differencing
-	//  f->setGridLocal( x, y, z );
+	// Assign the grid pointers; needed for finite differencing
+	// u was set on the readDBGridLocal call
+	v->setGridLocal( x, y, z );
+	w->setGridLocal( x, y, z );
 
 	//  // Initialize derivatives for f
-	//  f->finiteDiffInit();
+	u->finiteDiffInit();
+	v->finiteDiffInit();
+	w->finiteDiffInit();
 
-	//  Field *df = new Field( *f ); // Make a copy of f
-	//  //  MPIField *df2 = new MPIField( *f ); // Make a copy of
+	// Read u from the DB
+	u->readDBField( middle_time, "u" );
+	// Read u from the DB
+	v->readDBField( middle_time, "v" );
+	// Read u from the DB
+	w->readDBField( middle_time, "w" );
 
-	//  //  // Assign the grid pointers; needed for finite differencing
-	//  df->setGridLocal( x, y, z );
-	//  //  df2->assignGrid( x, y, z );
-	//  //  // Initialize derivatives for f
-	//  df->finiteDiffInit();
-	//  //  df2->derivFDInit( 4 );
-	//  // Take derivatives of f
-	//  cout << "Taking derivatives" << endl;
-	//  df->ddx( *f );
-	//  *f+=*f;
-	//  df->ddy( *f );
-	//  *f-=*f;
-	//  df->ddz( *f );
-	//  df->d2dx2( *f );
-	//  if( f->getSynchronized() == false ) cout << "something bad" << endl;
-	//  df->d2dy2( *f );
-	//  df->d2dz2( *f );
-	//  df->d2dxy( *f );
-	//  df->d2dxz( *f );
-	//  df->d2dyz( *f );
+	Field *dudx = new Field( field_dims, FIELD_DECOMP_PENCIL, periodic, 4 );
+	Field *dudy = new Field( *dudx );
+	Field *dudz = new Field( *dudz );
 
-	//  // Test synchronization
-	//  Field *test = new Field( *f );
+	Field *dvdx = new Field( *dudx );
+	Field *dvdy = new Field( *dudx );
+	Field *dvdz = new Field( *dudz );
 
-	//  dims_local = test->getDimsLocal();
-	//  int *dims_operation = test->getDimsOperation();
+	Field *dwdx = new Field( *dudx );
+	Field *dwdy = new Field( *dudz );
+	Field *dwdz = new Field( *dudx );
 
-	//  index=0;
-	//  for (int i=0; i<dims_local[0]; i++) {
-	//    for (int j=0; j<dims_local[1]; j++) {
-	//      for (int k=0; k<dims_local[2]; k++) {
-	// 	if( test->getMpiTopology()->coords[0] == 1 &&
-	// 	    test->getMpiTopology()->coords[1] == 1 ) {
-	// 	  test->data_local[index++] = 0.0;
-	// 	} else {
-	// 	  test->data_local[index++] = 1.0;
-	// 	}
-	//      }
-	//    }
-	//  }
+	dudx->setGridLocal( x, y, z );
+	dudy->setGridLocal( x, y, z );
+	dudz->setGridLocal( x, y, z );
 
-	//  //  test->synchronize();
-	//  df->ddx( *test );
+	dvdx->setGridLocal( x, y, z );
+	dvdy->setGridLocal( x, y, z );
+	dvdz->setGridLocal( x, y, z );
 
-	//  double sum_test=0.0;
-	//  if( test->getMpiTopology()->coords[0] == 1 &&
-	//      test->getMpiTopology()->coords[1] == 1 ) {
+	dwdx->setGridLocal( x, y, z );
+	dwdy->setGridLocal( x, y, z );
+	dwdz->setGridLocal( x, y, z );
 
-	//    cout << "center rank : " << test->getMpiTopology()->rank << endl;
-	//    cout << "dims_local : " << dims_local[0] << " " << dims_local[1] << " " << dims_local[2] << endl;
-	//    cout << "dims_operation : " << dims_operation[0] << " " << dims_operation[1] << " " << dims_operation[2] << endl;
+	dudx->finiteDiffInit();
+	dudy->finiteDiffInit();
+	dudz->finiteDiffInit();
 
-	//    index=0;
-	//    sum_test=0.0;
-	//    for (int i=0; i<dims_local[0]; i++) {
-	//      for (int j=0; j<dims_local[1]; j++) {
-	// 	for (int k=0; k<dims_local[2]; k++) {
-	// 	  sum_test += test->data_local[index++];
-	// 	}
-	//      }
-	//    }
+	dvdx->finiteDiffInit();
+	dvdy->finiteDiffInit();
+	dvdz->finiteDiffInit();
 
-	//    // sum test should equal the number of rind points
-	//    cout << "sum_test, # rind points : " << (long)sum_test << " ";
-	//    cout << test->getSizeRind(0,-1) + test->getSizeRind(0,1) + test->getSizeRind(1,-1) + test->getSizeRind(1,1) << endl;
+	dwdx->finiteDiffInit();
+	dwdy->finiteDiffInit();
+	dwdz->finiteDiffInit();
 
-	//  }
+	dudx->ddx( *u );
+	dudy->ddy( *u );
+	dudz->ddz( *u );
 
-	//  MPI_Barrier(test->getMpiTopology()->comm);
+	dvdx->ddx( *v );
+	dvdy->ddy( *v );
+	dvdz->ddz( *v );
+
+	dwdx->ddx( *w );
+	dwdy->ddy( *w );
+	dwdz->ddz( *w );
+
+	//Field *Q = new Field( *dudx );
+	
+
+	// Compute the Q-criterion
+	
+	MPI_Barrier(test->getMpiTopology()->comm);
 
 	// //  df->add( *df, *df2 );
 
