@@ -247,6 +247,10 @@ int *Field::getOffsetOperation()
 	return this->offset_operation_;
 }
 
+int &Field::getRindSize() 
+{
+	return this->rind_size_;
+}
 /********************************************************************/
 bool Field::getSynchronized()
 /********************************************************************/

@@ -75,6 +75,7 @@ namespace pturb_fields {
     int *getDimsOperation();
     int *getOffsetLocal();
     int *getOffsetOperation();
+    int &getRindSize();
     bool getSynchronized();
 
     long index( int i, int j, int k );
