@@ -53,10 +53,10 @@ vector<double> &TurbDBField::getDBTime() {
 	return this->db_time_;
 }
 double &TurbDBField::getDBTimeMin() {
-  return this->db_time_min_;
+	return this->db_time_min_;
 }
 double &TurbDBField::getDBTimeMax() {
-  return this->db_time_max_;
+	return this->db_time_max_;
 }
 vector<string> &TurbDBField::getDBFileNames() {
 	return this->db_file_names_;
@@ -160,7 +160,8 @@ void TurbDBField::pchipComputeWeights(double hermite_basis[4],
  * local domain. Each process will read the entire grid file and then copy
  * the relevant portion the appropriate array.
  */
-  void TurbDBField::readDBGridLocal(const char *field_names[3], double *x, double *y, double *z) {
+void TurbDBField::readDBGridLocal(const char *field_names[3], double *x,
+		double *y, double *z) {
 
 	// Get the offset for the local domain
 	const int *offset_local = this->getOffsetLocal();
@@ -169,11 +170,10 @@ void TurbDBField::pchipComputeWeights(double hermite_basis[4],
 	const int *offset_operation = this->getOffsetOperation();
 	const int *dims_operation = this->getDimsOperation();
 
-	int offset[3] = {
-	  this->field_offset_[0] + offset_local[0] + offset_operation[0],
-	  this->field_offset_[1] + offset_local[1] + offset_operation[1],
-	  this->field_offset_[2] + offset_local[2] + offset_operation[2]
-	};   
+	int offset[3] = { this->field_offset_[0] + offset_local[0]
+			+ offset_operation[0], this->field_offset_[1] + offset_local[1]
+			+ offset_operation[1], this->field_offset_[2] + offset_local[2]
+			+ offset_operation[2] };
 
 	// Need buffers to store the grid for the operation domain
 	double *x_operation = new double[dims_operation[0]];
@@ -188,28 +188,28 @@ void TurbDBField::pchipComputeWeights(double hermite_basis[4],
 	esio_file_open(h, db_grid_file_name, 0); // Open read-only
 
 	// Read x
-	esio_line_establish(h, this->db_dims_[0], offset[0], dims_operation[0] );
+	esio_line_establish(h, this->db_dims_[0], offset[0], dims_operation[0]);
 	esio_line_read_double(h, field_names[0], x_operation, 0);
 	// Read y
-	esio_line_establish(h, this->db_dims_[1], offset[1], dims_operation[1] );
+	esio_line_establish(h, this->db_dims_[1], offset[1], dims_operation[1]);
 	esio_line_read_double(h, field_names[1], x_operation, 0);
 	// Read z
-	esio_line_establish(h, this->db_dims_[2], offset[2], dims_operation[2] );
+	esio_line_establish(h, this->db_dims_[2], offset[2], dims_operation[2]);
 	esio_line_read_double(h, field_names[2], z_operation, 0);
 
-	esio_file_close (h);
+	esio_file_close(h);
 	esio_handle_finalize(h);
 
 	if (this->getFieldDecomp() == FIELD_DECOMP_SLAB
-	    || this->getFieldDecomp() == FIELD_DECOMP_PENCIL) {
-	  this->syncDBGridLocal( 0, x_operation, x );
+			|| this->getFieldDecomp() == FIELD_DECOMP_PENCIL) {
+		this->syncDBGridLocal(0, x_operation, x);
 	}
 
 	if (this->getFieldDecomp() == FIELD_DECOMP_PENCIL) {
-	  this->syncDBGridLocal( 1, y_operation, y );
+		this->syncDBGridLocal(1, y_operation, y);
 	}
 
-  }
+}
 
 /*
  * Synchronizes and updates the grid for the local domain. The grid
@@ -218,169 +218,167 @@ void TurbDBField::pchipComputeWeights(double hermite_basis[4],
  * periphery of the domain when using periodic boundary conditions,
  * they are set manually assuming a uniform grid distribution.
  */
-  void TurbDBField::syncDBGridLocal( int dim, double *grid_operation, double *grid ) {
+void TurbDBField::syncDBGridLocal(int dim, double *grid_operation,
+		double *grid) {
 
-  
-    // Copy the correct portions to the appropriate array
+	// Copy the correct portions to the appropriate array
 
-    // Must synchronize the grid data
-    MPI_Request prev_request, next_request;
-    MPI_Status status;
+	// Must synchronize the grid data
+	MPI_Request prev_request, next_request;
+	MPI_Status status;
 
-    MpiTopology_t *mpi_topology = this->getMpiTopology();
+	MpiTopology_t *mpi_topology = this->getMpiTopology();
 
+	const long rind_size = this->getRindSize();
+	double *prev_buffer = new double[rind_size];
+	double *next_buffer = new double[rind_size];
 
-    const long rind_size = this->getRindSize();
-    double *prev_buffer = new double[rind_size];
-    double *next_buffer = new double[rind_size];
+	int *dims_operation = this->getDimsOperation();
+	int *offset_operation = this->getOffsetOperation();
+	int *dims_local = this->getDimsLocal();
 
-    int *dims_operation = this->getDimsOperation();
-    int *offset_operation = this->getOffsetOperation();
-    int *dims_local = this->getDimsLocal();
+	// First set the interior values of grid from grid_operation
+	for (long i = 0; i < dims_operation[dim]; i++)
+		grid[offset_operation[dim] + i] = grid_operation[i];
 
-    // First set the interior values of grid from grid_operation
-    for( long i=0; i<dims_operation[dim]; i++ ) 
-      grid[offset_operation[dim]+i] = grid_operation[i];
-    
+	/*
+	 * First handshakes
+	 */
+	// Recv next
+	MPI_Irecv(next_buffer, rind_size, MPI_DOUBLE,
+			mpi_topology->neighbor_next[dim], 1, mpi_topology->comm,
+			&next_request);
 
-    /*
-     * First handshakes
-     */
-    // Recv next
-    MPI_Irecv(next_buffer, rind_size, MPI_DOUBLE,
-	      mpi_topology->neighbor_next[dim], 1, mpi_topology->comm,
-	      &next_request);
+	// Send prev
+	// Packs the buffer at the lower indicies
+	for (long i = 0; i < rind_size; i++)
+		prev_buffer[i] = grid_operation[i];
 
-    // Send prev
-    // Packs the buffer at the lower indicies
-    for(long i=0; i<rind_size; i++) 
-      prev_buffer[i] = grid_operation[i];
+	MPI_Isend(prev_buffer, rind_size, MPI_DOUBLE,
+			mpi_topology->neighbor_prev[dim], 1, mpi_topology->comm,
+			&prev_request);
 
-    MPI_Isend(prev_buffer, rind_size, MPI_DOUBLE,
-	      mpi_topology->neighbor_prev[dim], 1, mpi_topology->comm,
-	      &prev_request);
+	MPI_Wait(&prev_request, &status);
+	MPI_Wait(&next_request, &status);
 
-    MPI_Wait(&prev_request, &status);
-    MPI_Wait(&next_request, &status);
+	for (long i = 0; i < rind_size; i++)
+		grid[dims_local[dim] - rind_size + i] = next_buffer[i];
 
-    for(long i=0; i<rind_size; i++) 
-      grid[dims_local[dim]-rind_size+i] = next_buffer[i];
+	/*
+	 * Second handshakes
+	 */
+	// Recv prev
+	MPI_Irecv(prev_buffer, rind_size, MPI_DOUBLE,
+			mpi_topology->neighbor_prev[dim], 2, mpi_topology->comm,
+			&prev_request);
 
-    /*
-     * Second handshakes
-     */
-    // Recv prev
-    MPI_Irecv(prev_buffer, rind_size, MPI_DOUBLE,
-	      mpi_topology->neighbor_prev[dim], 2, mpi_topology->comm,
-	      &prev_request);
+	// Send next
+	for (long i = 0; i < rind_size; i++)
+		prev_buffer[i] = grid_operation[dims_operation[dim] - rind_size + i];
 
-    // Send next
-    for(long i=0; i<rind_size; i++) 
-      prev_buffer[i] = grid_operation[dims_operation[dim] - rind_size + i];
+	MPI_Isend(next_buffer, rind_size, MPI_DOUBLE,
+			mpi_topology->neighbor_next[dim], 2, mpi_topology->comm,
+			&next_request);
 
-    MPI_Isend(next_buffer, rind_size, MPI_DOUBLE,
-	      mpi_topology->neighbor_next[dim], 2, mpi_topology->comm,
-	      &next_request);
+	MPI_Wait(&next_request, &status);
+	MPI_Wait(&prev_request, &status);
 
-    MPI_Wait(&next_request, &status);
-    MPI_Wait(&prev_request, &status);
+	for (long i = 0; i < rind_size; i++)
+		grid[i] = prev_buffer[i];
 
-    for(long i=0; i<rind_size; i++) 
-      grid[i] = prev_buffer[i];
+	delete[] prev_buffer;
+	delete[] next_buffer;
 
-    delete[] prev_buffer;
-    delete[] next_buffer;
+	// Next piece if we have periodic domain and we are a boundary
+	// process, we have to manually set the rind grid values
+	if (this->getFieldPeriodic()[dim] == 1) {
+		// Assuming uniform grid spacing when we have a periodic direction
+		double ds = grid_operation[1] - grid_operation[0];
 
-    // Next piece if we have periodic domain and we are a boundary
-    // process, we have to manually set the rind grid values
-    if( this->getFieldPeriodic()[dim] == 1 ) {
-      // Assuming uniform grid spacing when we have a periodic direction
-      double ds = grid_operation[1] - grid_operation[0];
+		if (mpi_topology->coords[dim] == 0) {
+			for (long i = 0; i < rind_size; i++)
+				grid[i] = grid_operation[0] - (rind_size - i) * ds;
 
-      if( mpi_topology->coords[dim] == 0 ) {
-	for( long i=0; i<rind_size; i++ )
-	  grid[i] = grid_operation[0] - (rind_size-i)*ds;
-	
-      }
-      if( mpi_topology->coords[dim] == mpi_topology->dims[dim] - 1 ) {
-	for( long i=0; i<rind_size; i++ )
-	  grid[dims_local[dim] - rind_size + i] = grid_operation[dims_operation[dim]-1] + (i+1)*ds;
-       
-      }
-    }
-  }
+		}
+		if (mpi_topology->coords[dim] == mpi_topology->dims[dim] - 1) {
+			for (long i = 0; i < rind_size; i++)
+				grid[dims_local[dim] - rind_size + i] =
+						grid_operation[dims_operation[dim] - 1] + (i + 1) * ds;
 
-  void TurbDBField::readDBField(double time, const char *field_name) {
+		}
+	}
+}
 
-    // Now compute which
-    if (time < this->db_time_min_ || time > this->db_time_max_) {
-      cerr << "time out of bounds" << endl;
-      exit(EXIT_FAILURE);
-    }
+void TurbDBField::readDBField(double time, const char *field_name) {
 
-    int cell_index = floor((time - this->db_time_min_) / this->db_time_step_) + 1;
-    // Make sure we don't pick the last point as the cell value; this only happens when time = db_time_max_
-    cell_index = fmin(cell_index, this->db_time_nsteps_ - 1);
+	// Now compute which
+	if (time < this->db_time_min_ || time > this->db_time_max_) {
+		cerr << "time out of bounds" << endl;
+		exit(EXIT_FAILURE);
+	}
 
-    double tau = (time - this->db_time_.at(cell_index)) / this->db_time_step_; // 0<= tau <= 1
+	int cell_index = floor((time - this->db_time_min_) / this->db_time_step_)
+			+ 1;
+	// Make sure we don't pick the last point as the cell value; this only happens when time = db_time_max_
+	cell_index = fmin(cell_index, this->db_time_nsteps_ - 1);
 
-    // Compute the Hermite basis functions for the given normalized time.
-    double hermite_basis[4], pchip_weights[4];
+	double tau = (time - this->db_time_.at(cell_index)) / this->db_time_step_; // 0<= tau <= 1
 
-    this->pchipComputeBasis(tau, hermite_basis);
-    this->pchipComputeWeights(hermite_basis, pchip_weights);
+	// Compute the Hermite basis functions for the given normalized time.
+	double hermite_basis[4], pchip_weights[4];
 
-    // Create buffer the size of the operations domain
-    const long data_buffer_size = this->getSizeOperation();
-    float *data_buffer = new float[data_buffer_size];
+	this->pchipComputeBasis(tau, hermite_basis);
+	this->pchipComputeWeights(hermite_basis, pchip_weights);
 
-    // Get the offset for the local and operation domains
-    const int *offset_local = this->getOffsetLocal();
-    const int *offset_operation = this->getOffsetOperation();
-    const int *dims_operation = this->getDimsOperation();
+	// Create buffer the size of the operations domain
+	const long data_buffer_size = this->getSizeOperation();
+	float *data_buffer = new float[data_buffer_size];
 
-    int offset[3] = {
-      this->field_offset_[0] + offset_local[0] + offset_operation[0],
-      this->field_offset_[1] + offset_local[1] + offset_operation[1],
-      this->field_offset_[2] + offset_local[2] + offset_operation[2]
-    };
+	// Get the offset for the local and operation domains
+	const int *offset_local = this->getOffsetLocal();
+	const int *offset_operation = this->getOffsetOperation();
+	const int *dims_operation = this->getDimsOperation();
 
-    // We now evaluate the
-    for (int i = 0; i < 4; i++) {
+	int offset[3] = { this->field_offset_[0] + offset_local[0]
+			+ offset_operation[0], this->field_offset_[1] + offset_local[1]
+			+ offset_operation[1], this->field_offset_[2] + offset_local[2]
+			+ offset_operation[2] };
 
-      esio_handle h = esio_handle_initialize(this->getMpiTopology()->comm);
+	// We now evaluate the
+	for (int i = 0; i < 4; i++) {
 
-      // Open the database file
-      const char *db_file_name = this->db_file_names_.at(cell_index - 1 + i).c_str();
-      esio_file_open(h, db_file_name, 0); // Open read-only
+		esio_handle h = esio_handle_initialize(this->getMpiTopology()->comm);
 
-      esio_field_establish(h, 
-			   this->db_dims_[0], offset[0], dims_operation[0], 
-			   this->db_dims_[1], offset[1], dims_operation[1], 
-			   this->db_dims_[2], offset[2], dims_operation[2]
-			   );
+		// Open the database file
+		const char *db_file_name =
+				this->db_file_names_.at(cell_index - 1 + i).c_str();
+		esio_file_open(h, db_file_name, 0); // Open read-only
 
-      esio_field_read_float(h, field_name, data_buffer, 0, 0, 0);
+		esio_field_establish(h, this->db_dims_[0], offset[0], dims_operation[0],
+				this->db_dims_[1], offset[1], dims_operation[1],
+				this->db_dims_[2], offset[2], dims_operation[2]);
 
-      esio_file_close (h);
-      esio_handle_finalize(h);
+		esio_field_read_float(h, field_name, data_buffer, 0, 0, 0);
 
-      // Apply the appropriate weights to the input data
-      long j = 0;
-      while (j != data_buffer_size) 
-	data_buffer[j] = pchip_weights[i] * data_buffer[j++];
+		esio_file_close(h);
+		esio_handle_finalize(h);
 
-      // We now modify the data_local field using the pchip_weights and the data read
-      if (i == 0) {
-	this->setDataOperation(data_buffer);
-      } else {
-	this->addDataOperation(data_buffer);
-      }
+		// Apply the appropriate weights to the input data
+		long j = 0;
+		while (j != data_buffer_size)
+			data_buffer[j] = pchip_weights[i] * data_buffer[j++];
 
-    }
+		// We now modify the data_local field using the pchip_weights and the data read
+		if (i == 0) {
+			this->setDataOperation(data_buffer);
+		} else {
+			this->addDataOperation(data_buffer);
+		}
 
-    // Make sure we set the synchronized_ flag to false
-    this->setSynchronized(false);
-  }
+	}
+
+	// Make sure we set the synchronized_ flag to false
+	this->setSynchronized(false);
+}
 
 }
