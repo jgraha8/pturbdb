@@ -158,7 +158,7 @@ int main(int argc, char *argv[]) {
 
 	// Compute the Q-criterion
 	
-	MPI_Barrier(test->getMpiTopology()->comm);
+	MPI_Barrier(u->getMpiTopology()->comm);
 
 	// //  df->add( *df, *df2 );
 
