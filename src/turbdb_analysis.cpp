@@ -8,13 +8,13 @@
 #define DB_NY 512
 #define DB_NX 2048
 
-//#define FIELD_NZ 1536
-//#define FIELD_NY 64
-//#define FIELD_NX 2048
+#define FIELD_NZ 8
+#define FIELD_NY 8
+#define FIELD_NX 8
 
-#define FIELD_NZ 128
-#define FIELD_NY 64
-#define FIELD_NX 128
+//#define FIELD_NZ 128
+//#define FIELD_NY 64
+//#define FIELD_NX 128
 
 using namespace std;
 using namespace pturb_fields;
@@ -32,7 +32,7 @@ int main(int argc, char *argv[]) {
 
 	TurbDBField *u = new TurbDBField("turbdb.conf", db_dims);
 
-	u->dbFieldInit(db_field_offset, field_dims, FIELD_DECOMP_PENCIL, periodic,
+	u->dbFieldInit(db_field_offset, field_dims, FIELD_DECOMP_SLAB, periodic,
 			4);
 
 	int rank = u->getMpiTopology()->rank;
@@ -60,6 +60,7 @@ int main(int argc, char *argv[]) {
 	const char *grid_field_names[] = { "z", "y", "x" };
 
 	int *dims_local = u->getDimsLocal();
+	int *dims_operation = u->getDimsOperation();
 
 	double *x = new double[dims_local[0]];
 	double *y = new double[dims_local[1]];
@@ -68,16 +69,16 @@ int main(int argc, char *argv[]) {
 	u->readDBGridLocal(grid_field_names, x, y, z);
 
 	MPI_Barrier(u->getMpiTopology()->comm);
-	// Print the grid to stdout
-	for (int n = 0; n < nproc; n++) {
-		if (n == rank) {
-			for (long i = 0; i < dims_local[2]; i++) {
-				cout << "rank, i, z[i] " << rank << " " << i << " " << z[i]
-						<< endl;
-			}
-		}
-		MPI_Barrier(u->getMpiTopology()->comm);
-	}
+	// // Print the grid to stdout
+	// for (int n = 0; n < nproc; n++) {
+	// 	if (n == rank) {
+	// 		for (long i = 0; i < dims_local[2]; i++) {
+	// 			cout << "rank, i, z[i] " << rank << " " << i << " " << z[i]
+	// 					<< endl;
+	// 		}
+	// 	}
+	// 	MPI_Barrier(u->getMpiTopology()->comm);
+	// }
 
 	// Read the middle time
 	double middle_time = 0.5*( u->getDBTimeMax() + u->getDBTimeMin() );
@@ -85,8 +86,8 @@ int main(int argc, char *argv[]) {
 	TurbDBField *v = new TurbDBField( *u );
 	TurbDBField *w = new TurbDBField( *u );
 
-	v->dbFieldInit(db_field_offset, field_dims, FIELD_DECOMP_PENCIL, periodic, 4);
-	w->dbFieldInit(db_field_offset, field_dims, FIELD_DECOMP_PENCIL, periodic, 4);
+	v->dbFieldInit(db_field_offset, field_dims, FIELD_DECOMP_SLAB, periodic, 4);
+	w->dbFieldInit(db_field_offset, field_dims, FIELD_DECOMP_SLAB, periodic, 4);
 
 	// Assign the grid pointers; needed for finite differencing
 	// u was set on the readDBGridLocal call
@@ -105,16 +106,33 @@ int main(int argc, char *argv[]) {
 	// Read u from the DB
 	w->readDBField( middle_time, "w" );
 
-	Field *dudx = new Field( field_dims, FIELD_DECOMP_PENCIL, periodic, 4 );
+	// // Print the grid to stdout
+	for (int n = 0; n < nproc; n++) {
+		if (n == rank) {
+		  for (long i=0; i<dims_operation[0]; i++ ) {
+		    for (long j=0; j<2; j++ ) {
+		      for(long k=0; k<dims_operation[2]; k++ ) {
+			long index = u->indexOperationToLocal(i,j,k);
+			cout << "rank, i,j,k, index, u[index] " << rank << " " << i << " " << j << " " << k << " " 
+			     << index << " " << u->data_local[index] << endl;
+		      }
+		    }
+		  }
+		}
+		MPI_Barrier(u->getMpiTopology()->comm);
+	}
+
+
+	Field *dudx = new Field( field_dims, FIELD_DECOMP_SLAB, periodic, 4 );
 	Field *dudy = new Field( *dudx );
-	Field *dudz = new Field( *dudz );
+	Field *dudz = new Field( *dudx );
 
 	Field *dvdx = new Field( *dudx );
 	Field *dvdy = new Field( *dudx );
-	Field *dvdz = new Field( *dudz );
+	Field *dvdz = new Field( *dudx );
 
 	Field *dwdx = new Field( *dudx );
-	Field *dwdy = new Field( *dudz );
+	Field *dwdy = new Field( *dudx );
 	Field *dwdz = new Field( *dudx );
 
 	dudx->setGridLocal( x, y, z );
@@ -140,15 +158,22 @@ int main(int argc, char *argv[]) {
 	dwdx->finiteDiffInit();
 	dwdy->finiteDiffInit();
 	dwdz->finiteDiffInit();
+	
+	MPI_Barrier(u->getMpiTopology()->comm);
+	if( u->getMpiTopology()->rank == 0 ) cout << "Computing u derivatives" << endl;
 
 	dudx->ddx( *u );
 	dudy->ddy( *u );
 	dudz->ddz( *u );
 
+	MPI_Barrier(u->getMpiTopology()->comm);
+	if( u->getMpiTopology()->rank == 0 ) cout << "Computing v derivatives" << endl;
 	dvdx->ddx( *v );
 	dvdy->ddy( *v );
 	dvdz->ddz( *v );
 
+	MPI_Barrier(u->getMpiTopology()->comm);
+	if( u->getMpiTopology()->rank == 0 ) cout << "Computing w derivatives" << endl;
 	dwdx->ddx( *w );
 	dwdy->ddy( *w );
 	dwdz->ddz( *w );
