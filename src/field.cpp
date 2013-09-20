@@ -2,6 +2,7 @@
 #include <cstdlib>
 #include <cstring>
 #include <cmath>
+#include <cstdio>
 #include "field.hpp"
 
 using namespace std;
@@ -290,10 +291,21 @@ long Field::indexOperation(int i, int j, int k)
 long Field::indexOperationToLocal(int i, int j, int k)
 /********************************************************************/
 {
-	static const long ii = (long) i + (long) this->offset_operation_[0];
-	static const long jj = (long) j + (long) this->offset_operation_[1];
-	static const long kk = (long) k + (long) this->offset_operation_[2];
+	const long ii = (long) i + (long) this->offset_operation_[0];
+	const long jj = (long) j + (long) this->offset_operation_[1];
+	const long kk = (long) k + (long) this->offset_operation_[2];
 
+#ifdef DEBUG
+	for( int n=0; n<this->mpi_topology_->nproc; n++ ) {
+	  if( n == this->mpi_topology_->rank ) {
+	    printf("%d: Field::indexOperationToLocal\n", n);
+	    printf("  i, j, k = %d, %d, %d\n", i,j,k);
+	    printf("  (long)i, (long)j, (long)k = %ld, %ld, %ld\n", (long)i,(long)j,(long)k);
+	    printf("  ii, jj, kk = %ld, %ld, %ld\n", ii,jj,kk);
+	  }
+	  MPI_Barrier(this->mpi_topology_->comm);
+	}
+#endif
 	return ((long) this->dims_local_[1] * ii + jj) * (long) this->dims_local_[2]
 			+ kk;
 }
@@ -324,7 +336,8 @@ void Field::setDataOperation( const float *data_operation)
 		for (int j = 0; j < this->dims_operation_[1]; j++) {
 			for (int k = 0; k < this->dims_operation_[2]; k++) {
 				index_local = this->indexOperationToLocal(i, j, k);
-				this->data_local[index_local] = (double)data_operation[index_operation++];
+				this->data_local[index_local] = (double)data_operation[index_operation];
+				++index_operation;
 			}
 		}
 	}
@@ -983,7 +996,6 @@ void Field::assignMpiTopology()
 /********************************************************************/
 {
 
-	//static const int mpi_coord_ndims = FIELD_NDIMS;
 	int mpi_decomp_ndims;
 
 	// Determine the MPI coordinate dimensions
@@ -1010,6 +1022,18 @@ void Field::assignMpiTopology()
 			mpi_topology_dims, this->periodic_);
 
 	delete[] mpi_topology_dims;
+
+#ifdef VERBOSE
+	for(int n=0; n<this->mpi_topology_->nproc; n++) {
+	  if( n == this->mpi_topology_->rank ) {
+	    printf("%d: Field::assignMpiTopology\n",this->mpi_topology_->rank);
+	    printf("    coords: %d, %d\n",this->mpi_topology_->coords[0], this->mpi_topology_->coords[1]);
+	    printf("    neighbor_prev: %d, %d\n",this->mpi_topology_->neighbor_prev[0], this->mpi_topology_->neighbor_prev[1]);
+	    printf("    neighbor_next: %d, %d\n",this->mpi_topology_->neighbor_next[0], this->mpi_topology_->neighbor_next[1]);
+	  }
+	  MPI_Barrier(this->mpi_topology_->comm);
+	}
+#endif
 
 }
 
@@ -1093,7 +1117,8 @@ void Field::synchronize()
 {
 
 #ifdef VERBOSE
-	cout << this->mpi_topology_->rank << ": Synchronizing field" << endl;
+        printf("%d: Field::synchronize\n",this->mpi_topology_->rank);
+	printf("%d:     field_decomp = %d\n", this->mpi_topology_->rank, this->field_decomp_);
 #endif
 
 	// x pass
@@ -1126,42 +1151,70 @@ void Field::synchronizeDimension(int dim)
 	double *prev_buffer = this->createRindBuffer(dim, -1);
 	double *next_buffer = this->createRindBuffer(dim, 1);
 
+#ifdef VERBOSE
+	printf("%d: Field::synchronizeDimension: has rind next = %d\n", mpi_topology->rank, this->hasRind(dim,1));
+	printf("%d: Field::synchronizeDimension: has rind prev = %d\n", mpi_topology->rank, this->hasRind(dim,-1));                                           
+#endif 
 	/*
 	 * First handshakes
 	 */
 	// Recv next
-	MPI_Irecv(next_buffer, next_buffer_size, MPI_DOUBLE,
-			mpi_topology->neighbor_next[dim], 1, mpi_topology->comm,
-			&next_request);
+	if( this->hasRind(dim,1) ) {
+#ifdef VERBOSE
+	  printf("%d: Field::synchronizeDimension: receiving from next = %d\n", mpi_topology->rank, mpi_topology->neighbor_next[dim]);
+#endif
+	  MPI_Irecv(next_buffer, next_buffer_size, MPI_DOUBLE,
+		    mpi_topology->neighbor_next[dim], 1, mpi_topology->comm,
+		    &next_request);
+	}
 
 	// Send prev
-	// Packs the buffer at the lower indicies
-	this->packRindBuffer(dim, -1, prev_buffer);
-	MPI_Isend(prev_buffer, prev_buffer_size, MPI_DOUBLE,
-			mpi_topology->neighbor_prev[dim], 1, mpi_topology->comm,
-			&prev_request);
+	if( this->hasRind(dim,-1) ) {
 
-	MPI_Wait(&prev_request, &status);
-	MPI_Wait(&next_request, &status);
-	this->unpackRindBuffer(dim, 1, next_buffer);
+	  // Packs the buffer at the lower indicies
+	  this->packRindBuffer(dim, -1, prev_buffer);
+#ifdef VERBOSE
+	  printf("%d: Field::synchronizeDimension: sending to prev = %d\n", mpi_topology->rank, mpi_topology->neighbor_prev[dim]);
+#endif
+	  MPI_Isend(prev_buffer, prev_buffer_size, MPI_DOUBLE,
+		    mpi_topology->neighbor_prev[dim], 1, mpi_topology->comm,
+		    &prev_request);
+	  MPI_Wait(&prev_request, &status);
+	}
+
+	if( this->hasRind(dim,1) ) {
+	  printf("%d: Field::synchronizeDimension: waiting to receive from next\n", mpi_topology->rank);
+	  MPI_Wait(&next_request, &status);
+	  this->unpackRindBuffer(dim, 1, next_buffer);
+	}
 
 	/*
 	 * Second handshakes
 	 */
-	// Recv prev
-	MPI_Irecv(prev_buffer, prev_buffer_size, MPI_DOUBLE,
-			mpi_topology->neighbor_prev[dim], 2, mpi_topology->comm,
-			&prev_request);
+	if( this->hasRind(dim,-1) ) {
+	  // Recv prev
+	  printf("%d: Field::synchronizeDimension: receiving from prev = %d\n", mpi_topology->rank, mpi_topology->neighbor_prev[dim]);
+	  MPI_Irecv(prev_buffer, prev_buffer_size, MPI_DOUBLE,
+		    mpi_topology->neighbor_prev[dim], 2, mpi_topology->comm,
+		    &prev_request);
+	}
 
-	// Send next
-	this->packRindBuffer(dim, 1, next_buffer);
-	MPI_Isend(next_buffer, next_buffer_size, MPI_DOUBLE,
-			mpi_topology->neighbor_next[dim], 2, mpi_topology->comm,
-			&next_request);
+	if( this->hasRind(dim,1) ) {
+	  // Send next
+	  this->packRindBuffer(dim, 1, next_buffer);
+	  printf("%d: Field::synchronizeDimension: sending to next\n", mpi_topology->rank);
+	  MPI_Isend(next_buffer, next_buffer_size, MPI_DOUBLE,
+		    mpi_topology->neighbor_next[dim], 2, mpi_topology->comm,
+		    &next_request);
+	  MPI_Wait(&next_request, &status);
+	}
 
-	MPI_Wait(&next_request, &status);
-	MPI_Wait(&prev_request, &status);
-	this->unpackRindBuffer(dim, -1, prev_buffer);
+	
+	if( this->hasRind(dim,-1) ) {
+	  printf("%d: Field::synchronizeDimension: receiving from prev\n", mpi_topology->rank);
+	  MPI_Wait(&prev_request, &status);
+	  this->unpackRindBuffer(dim, -1, prev_buffer);
+	}
 
 	delete[] prev_buffer;
 	delete[] next_buffer;
@@ -1255,8 +1308,9 @@ void Field::packRindBuffer(int dim, int location, double *rind_buffer)
 	for (int i = imin; i <= imax; i++) {
 		for (int j = jmin; j <= jmax; j++) {
 			for (int k = kmin; k <= kmax; k++) {
-				rind_buffer[index++] =
+				rind_buffer[index] =
 						this->data_local[this->indexOperationToLocal(i, j, k)];
+				index++;
 			}
 		}
 	}
@@ -1273,8 +1327,6 @@ void Field::packRindBuffer(int dim, int location, double *rind_buffer)
 		error = 1;
 
 	}
-
-	MPI_Barrier(this->mpi_topology_->comm);
 
 	if (error == 1)
 		exit(EXIT_FAILURE);
@@ -1375,8 +1427,6 @@ void Field::unpackRindBuffer(int dim, int location, double *rind_buffer)
 		error = 1;
 
 	}
-
-	MPI_Barrier(this->mpi_topology_->comm);
 
 	if (error == 1)
 		exit(EXIT_FAILURE);
