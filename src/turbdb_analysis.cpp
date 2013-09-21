@@ -24,7 +24,6 @@ int main(int argc, char *argv[]) {
 
 	MPI_Init(&argc, &argv);
 
-	int ndim = 3;
 	int db_dims[] = { DB_NZ, DB_NY, DB_NX };
 	int db_field_offset[] = { 0, 0, 0 };
 	int field_dims[] = { FIELD_NZ, FIELD_NY, FIELD_NX };
@@ -70,7 +69,7 @@ int main(int argc, char *argv[]) {
 
 	if( u->getXLocal() == NULL ) {
 		cout << "Grid not set as expected" << endl;
-		int ierr;
+		int ierr=0;
 		MPI_Abort( u->getMpiTopology()->comm, ierr);
 	}
 		

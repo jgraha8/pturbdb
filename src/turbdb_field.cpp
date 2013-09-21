@@ -77,17 +77,17 @@ void TurbDBField::dbFieldInit(const int *field_offset, const int *dims,
 /*
  * Data member getters
  */
-string          TurbDBField::getDBConfFile()     { return this->db_conf_file_;      }
-int            *TurbDBField::getDBDims()         { return this->db_dims_;           }
-int            *TurbDBField::getFieldOffset()    { return this->field_offset_;      }
-vector<double> &TurbDBField::getDBTime()         { return this->db_time_;           }
-vector<string> &TurbDBField::getDBFileNames()    { return this->db_file_names_;     }
-string          TurbDBField::getDBGridFileName() { return this->db_grid_file_name_; }
-int             TurbDBField::getDBTimeNsteps()   { return this->db_time_nsteps_;    }
-double          TurbDBField::getDBTimeStep()     { return this->db_time_step_;      }
-double          TurbDBField::getDBTimeMin()      { return this->db_time_min_;       }
-double          TurbDBField::getDBTimeMax()      { return this->db_time_max_;       }
-pchip_fd_t     *TurbDBField::getPCHIPFD()        { return this->pchip_fd_;          }
+string                   TurbDBField::getDBConfFile()     { return this->db_conf_file_;      }
+int                     *TurbDBField::getDBDims()         { return this->db_dims_;           }
+int                     *TurbDBField::getFieldOffset()    { return this->field_offset_;      }
+vector<double>          &TurbDBField::getDBTime()         { return this->db_time_;           }
+vector<string>          &TurbDBField::getDBFileNames()    { return this->db_file_names_;     }
+string                   TurbDBField::getDBGridFileName() { return this->db_grid_file_name_; }
+int                      TurbDBField::getDBTimeNsteps()   { return this->db_time_nsteps_;    }
+double                   TurbDBField::getDBTimeStep()     { return this->db_time_step_;      }
+double                   TurbDBField::getDBTimeMin()      { return this->db_time_min_;       }
+double                   TurbDBField::getDBTimeMax()      { return this->db_time_max_;       }
+TurbDBField::pchip_fd_t *TurbDBField::getPCHIPFD()        { return this->pchip_fd_;          }
 
 /*
  * Reads the database configuration file: reads the grid file name and the time
@@ -195,7 +195,6 @@ void TurbDBField::readDBGridLocal(const char *field_names[3], double *x,
 
 	// Get the offset for the local domain
 	const int *offset_local = this->getOffsetLocal();
-	const int *dims_local = this->getDimsLocal();
 
 	const int *offset_operation = this->getOffsetOperation();
 	const int *dims_operation = this->getDimsOperation();
@@ -281,7 +280,6 @@ void TurbDBField::syncDBGridLocal(int dim, const double *grid_operation,
 	double *next_buffer = new double[rind_size];
 
 	int *dims_operation = this->getDimsOperation();
-	int *offset_operation = this->getOffsetOperation();
 	int *dims_local = this->getDimsLocal();
 
 	/*
@@ -347,8 +345,6 @@ void TurbDBField::setDBPeriodicGridLocal( int dim, const double *grid_operation,
 
 	int *dims_local = this->getDimsLocal();
 	int *dims_operation = this->getDimsOperation();
-
-        int *offset_operation = this->getOffsetOperation();
 
 	MpiTopology_t *mpi_topology = this->getMpiTopology();
 	int rind_size = this->getRindSize();
@@ -429,8 +425,10 @@ void TurbDBField::readDBField(double time, const char *field_name) {
 
 		// Apply the appropriate weights to the input data
 		long j = 0;
-		while (j != data_buffer_size)
-			data_buffer[j] = pchip_weights[i] * data_buffer[j++];
+		while (j != data_buffer_size) {
+			data_buffer[j] = pchip_weights[i] * data_buffer[j];
+			j++;
+		}
 
 		// We now modify the data_local field using the pchip_weights and the data read
 		if (i == 0) {
