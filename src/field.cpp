@@ -14,18 +14,14 @@ namespace pturb_fields {
 ////////////////////////////////////////////////////////////////////////////////
 
 // Field class member functions
-/********************************************************************/
 Field::Field(const int *dims, FieldDecomp_t field_decomp, const int *periodic,
-		int operator_order)
-		/********************************************************************/
-		{
+	     int operator_order)
+{
 	FieldInit(dims, field_decomp, periodic, operator_order);
 	cout << this->mpi_topology_->rank << " Initializing Field" << endl;
 }
 
-/********************************************************************/
 Field::Field(Field &g)
-/********************************************************************/
 {
 	cout << "Copy Constructor Initializing Field" << endl;
 
@@ -42,9 +38,7 @@ Field::Field(Field &g)
 /// DECONSTRUCTORS
 ////////////////////////////////////////////////////////////////////////////////
 
-/********************************************************************/
 Field::~Field(void)
-/********************************************************************/
 {
 	cout << "Field deconstructor" << endl;
 	delete[] this->data_local;
@@ -751,11 +745,12 @@ void Field::d2dyz(Field &a)
 /// DERIVATIVES (PRIVATE)
 //////////////////////////////////////////////////////////////////////
 
-/********************************************************************/
-void Field::dndxn(void (FiniteDiff::*dd)(int, int, double *, int, double *),
-		Field &a)
-		/********************************************************************/
-		{
+void Field::dndxn(void (FiniteDiff::*dd)(int, int, double *, int, double *), Field &a)
+{
+
+#ifdef VERBOSE
+	printf("%d: Field::dndxn: entering\n", this->mpi_topology_->rank);
+#endif
 
 	// Create buffer to store x-data
 	const int nx_local = this->dims_local_[0];
@@ -787,11 +782,9 @@ void Field::dndxn(void (FiniteDiff::*dd)(int, int, double *, int, double *),
 		for (int k = 0; k < nz; k++) {
 			// Pack buffer; need the entire buffer; have to manually apply operation offsets
 			for (int i = 0; i < nx_local; i++)
-				ax[i] =
-						a.data_local[a.indexLocal(i, j + y_offset, k + z_offset)];
+				ax[i] = a.data_local[a.indexLocal(i, j + y_offset, k + z_offset)];
 			// Compute the derivative using the FiniteDiff class
-			(this->finite_diff_->*dd)(x_offset, nx_local, ax, nx_operation,
-					dax);
+			(this->finite_diff_->*dd)(x_offset, nx_local, ax, nx_operation,	dax);
 			// Unpack buffer
 			for (int i = 0; i < nx_operation; i++)
 				this->data_local[this->indexOperationToLocal(i, j, k)] = dax[i];
@@ -804,13 +797,19 @@ void Field::dndxn(void (FiniteDiff::*dd)(int, int, double *, int, double *),
 	delete[] ax;
 	delete[] dax;
 
+#ifdef VERBOSE
+	printf("%d: Field::dndxn: entering\n", this->mpi_topology_->rank);
+#endif
+
 }
 
-/********************************************************************/
 void Field::dndyn(void (FiniteDiff::*dd)(int, int, double *, int, double *),
-		Field &a)
-		/********************************************************************/
-		{
+		  Field &a)
+{
+
+#ifdef VERBOSE
+	printf("%d: Field::dndyn: entering\n", this->mpi_topology_->rank);
+#endif
 
 	// Create buffer to store x-data
 	const int nx = this->dims_operation_[0];
@@ -842,11 +841,9 @@ void Field::dndyn(void (FiniteDiff::*dd)(int, int, double *, int, double *),
 		for (int k = 0; k < nz; k++) {
 			// Pack buffer
 			for (int j = 0; j < ny_local; j++)
-				ay[j] =
-						a.data_local[a.indexLocal(i + x_offset, j, k + z_offset)];
+				ay[j] = a.data_local[a.indexLocal(i + x_offset, j, k + z_offset)];
 			// Compute the derivative using the FiniteDiff class
-			(this->finite_diff_->*dd)(y_offset, ny_local, ay, ny_operation,
-					day);
+			(this->finite_diff_->*dd)(y_offset, ny_local, ay, ny_operation,	day);
 			// Unpack buffer
 			for (int j = 0; j < ny_operation; j++)
 				this->data_local[this->indexOperationToLocal(i, j, k)] = day[j];
@@ -859,13 +856,19 @@ void Field::dndyn(void (FiniteDiff::*dd)(int, int, double *, int, double *),
 	delete[] ay;
 	delete[] day;
 
+#ifdef VERBOSE
+	printf("%d: Field::dndyn: entering\n", this->mpi_topology_->rank);
+#endif
+
 }
 
-/********************************************************************/
 void Field::dndzn(void (FiniteDiff::*dd)(int, int, double *, int, double *),
-		Field &a)
-		/********************************************************************/
-		{
+		  Field &a)
+{
+
+#ifdef VERBOSE
+	printf("%d: Field::dndzn: entering\n", this->mpi_topology_->rank);
+#endif
 
 	// Create buffer to store x-data
 	const int nx = this->dims_operation_[0];
@@ -891,17 +894,15 @@ void Field::dndzn(void (FiniteDiff::*dd)(int, int, double *, int, double *),
 
 	// Make sure the fields are synchronized; the state should be the same across all processes
 	if (a.getSynchronized() == false)
-		a.synchronize();
+	a.synchronize();
 
 	for (int i = 0; i < nx; i++) {
 		for (int j = 0; j < ny; j++) {
 			// Pack buffer
 			for (int k = 0; k < nz_local; k++)
-				az[k] =
-						a.data_local[a.indexLocal(i + x_offset, j + y_offset, k)];
+				az[k] = a.data_local[a.indexLocal(i + x_offset, j + y_offset, k)];
 			// Compute the derivative using the FiniteDiff class
-			(this->finite_diff_->*dd)(z_offset, nz_local, az, nz_operation,
-					daz);
+			(this->finite_diff_->*dd)(z_offset, nz_local, az, nz_operation,	daz);
 			// Unpack buffer
 			for (int k = 0; k < nz_operation; k++)
 				this->data_local[this->indexOperationToLocal(i, j, k)] = daz[k];
@@ -913,6 +914,10 @@ void Field::dndzn(void (FiniteDiff::*dd)(int, int, double *, int, double *),
 
 	delete[] az;
 	delete[] daz;
+
+#ifdef VERBOSE
+	printf("%d: Field::dndzn: exiting\n", this->mpi_topology_->rank);
+#endif
 
 }
 
@@ -950,10 +955,7 @@ int *Field::computeMpiTopologyDims(int nproc, int mpi_decomp_ndims)
 
 	} else if (mpi_decomp_ndims == 2) {
 
-		int M = std::min(
-				(int) ceil(
-						sqrt(nproc * (double) this->dims_[0] / this->dims_[1])),
-				nproc);
+		int M = std::min( (int) ceil( sqrt(nproc * (double) this->dims_[0] / this->dims_[1])), nproc);
 		int N = nproc / M;
 
 		while (1) {
@@ -973,9 +975,7 @@ int *Field::computeMpiTopologyDims(int nproc, int mpi_decomp_ndims)
 
 	} else {
 
-		std::cout
-				<< "Currently only MPI topologies up to 2 dimensions are supported"
-				<< std::endl;
+		std::cout << "Currently only MPI topologies up to 2 dimensions are supported" << std::endl;
 		exit(EXIT_FAILURE);
 
 	}
@@ -1004,8 +1004,7 @@ void Field::assignMpiTopology()
 	} else if (this->field_decomp_ == FIELD_DECOMP_PENCIL) {
 		mpi_decomp_ndims = 2;
 	} else {
-		cout << "only slab or pencil decompositions currently supported"
-				<< endl;
+		cout << "only slab or pencil decompositions currently supported" << endl;
 		exit(EXIT_FAILURE);
 	}
 
@@ -1014,12 +1013,10 @@ void Field::assignMpiTopology()
 	// Get the total number of procs
 	MPI_Comm_size(MPI_COMM_WORLD, &nproc);
 
-	int *mpi_topology_dims = this->computeMpiTopologyDims(nproc,
-			mpi_decomp_ndims);
+	int *mpi_topology_dims = this->computeMpiTopologyDims(nproc, mpi_decomp_ndims);
 
 	// Create the MPI topology struct; this contains all the comm, rank, nproc, neighbors, etc.
-	this->mpi_topology_ = MpiTopologyNew(MPI_COMM_WORLD, FIELD_NDIMS,
-			mpi_topology_dims, this->periodic_);
+	this->mpi_topology_ = MpiTopologyNew(MPI_COMM_WORLD, FIELD_NDIMS, mpi_topology_dims, this->periodic_);
 
 	delete[] mpi_topology_dims;
 
@@ -1047,13 +1044,10 @@ void Field::assignDimsAndOffsets()
 
 	// Initialize the local/operation dimensions and offset
 	memcpy(this->dims_local_, this->dims_, sizeof(*this->dims_) * FIELD_NDIMS);
-	memcpy(this->offset_local_, zero3,
-			sizeof(*this->offset_local_) * FIELD_NDIMS);
+	memcpy(this->offset_local_, zero3, sizeof(*this->offset_local_) * FIELD_NDIMS);
 
-	memcpy(this->dims_operation_, this->dims_,
-			sizeof(*this->dims_) * FIELD_NDIMS);
-	memcpy(this->offset_operation_, zero3,
-			sizeof(*this->offset_local_) * FIELD_NDIMS);
+	memcpy(this->dims_operation_, this->dims_, sizeof(*this->dims_) * FIELD_NDIMS);
+	memcpy(this->offset_operation_, zero3, sizeof(*this->offset_local_) * FIELD_NDIMS);
 
 	delete[] zero3;
 
@@ -1068,16 +1062,13 @@ void Field::assignDimsAndOffsets()
 
 		// Check that the rind size is not larger than the size of the smallest dimension
 		if (d < this->rind_size_) {
-			cout
-					<< "Domain decomposition too fine to support derivatives of order "
-					<< this->operator_order_ << endl;
+			cout << "Domain decomposition too fine to support derivatives of order " << this->operator_order_ << endl;
 			exit(EXIT_FAILURE);
 		}
 
 		this->dims_local_[n] = d + s; // Local domain size without rind data
 		// Offset of the local domain with respect to the global domain
-		this->offset_local_[n] = this->mpi_topology_->coords[n] * d
-				+ std::min(this->mpi_topology_->coords[n], p);
+		this->offset_local_[n] = this->mpi_topology_->coords[n] * d + std::min(this->mpi_topology_->coords[n], p);
 
 		// The operation domain is the local domain without rind data
 		this->dims_operation_[n] = this->dims_local_[n];
@@ -1122,9 +1113,8 @@ void Field::synchronize()
 #endif
 
 	// x pass
-	if (this->field_decomp_ == FIELD_DECOMP_SLAB
-			|| this->field_decomp_ == FIELD_DECOMP_PENCIL) {
-
+	if (this->field_decomp_ == FIELD_DECOMP_SLAB || 
+	    this->field_decomp_ == FIELD_DECOMP_PENCIL) {
 		this->synchronizeDimension(0);
 	}
 
@@ -1161,59 +1151,67 @@ void Field::synchronizeDimension(int dim)
 	// Recv next
 	if( this->hasRind(dim,1) ) {
 #ifdef VERBOSE
-	  printf("%d: Field::synchronizeDimension: receiving from next = %d\n", mpi_topology->rank, mpi_topology->neighbor_next[dim]);
+		printf("%d: Field::synchronizeDimension: receiving from next = %d\n", mpi_topology->rank, mpi_topology->neighbor_next[dim]);
 #endif
-	  MPI_Irecv(next_buffer, next_buffer_size, MPI_DOUBLE,
-		    mpi_topology->neighbor_next[dim], 1, mpi_topology->comm,
-		    &next_request);
+		MPI_Irecv(next_buffer, next_buffer_size, MPI_DOUBLE,
+			  mpi_topology->neighbor_next[dim], 1, mpi_topology->comm,
+			  &next_request);
 	}
 
 	// Send prev
 	if( this->hasRind(dim,-1) ) {
 
-	  // Packs the buffer at the lower indicies
-	  this->packRindBuffer(dim, -1, prev_buffer);
+		// Packs the buffer at the lower indicies
+		this->packRindBuffer(dim, -1, prev_buffer);
 #ifdef VERBOSE
-	  printf("%d: Field::synchronizeDimension: sending to prev = %d\n", mpi_topology->rank, mpi_topology->neighbor_prev[dim]);
+		printf("%d: Field::synchronizeDimension: sending to prev = %d\n", mpi_topology->rank, mpi_topology->neighbor_prev[dim]);
 #endif
-	  MPI_Isend(prev_buffer, prev_buffer_size, MPI_DOUBLE,
-		    mpi_topology->neighbor_prev[dim], 1, mpi_topology->comm,
-		    &prev_request);
-	  MPI_Wait(&prev_request, &status);
+		MPI_Isend(prev_buffer, prev_buffer_size, MPI_DOUBLE,
+			  mpi_topology->neighbor_prev[dim], 1, mpi_topology->comm,
+			  &prev_request);
+		MPI_Wait(&prev_request, &status);
 	}
 
 	if( this->hasRind(dim,1) ) {
-	  printf("%d: Field::synchronizeDimension: waiting to receive from next\n", mpi_topology->rank);
-	  MPI_Wait(&next_request, &status);
-	  this->unpackRindBuffer(dim, 1, next_buffer);
+#ifdef VERBOSE
+		printf("%d: Field::synchronizeDimension: waiting to receive from next\n", mpi_topology->rank);
+#endif
+		MPI_Wait(&next_request, &status);
+		this->unpackRindBuffer(dim, 1, next_buffer);
 	}
 
 	/*
 	 * Second handshakes
 	 */
 	if( this->hasRind(dim,-1) ) {
-	  // Recv prev
-	  printf("%d: Field::synchronizeDimension: receiving from prev = %d\n", mpi_topology->rank, mpi_topology->neighbor_prev[dim]);
-	  MPI_Irecv(prev_buffer, prev_buffer_size, MPI_DOUBLE,
-		    mpi_topology->neighbor_prev[dim], 2, mpi_topology->comm,
-		    &prev_request);
+		// Recv prev
+#ifdef VERBOSE
+		printf("%d: Field::synchronizeDimension: receiving from prev = %d\n", mpi_topology->rank, mpi_topology->neighbor_prev[dim]);
+#endif
+		MPI_Irecv(prev_buffer, prev_buffer_size, MPI_DOUBLE,
+			  mpi_topology->neighbor_prev[dim], 2, mpi_topology->comm,
+			  &prev_request);
 	}
 
 	if( this->hasRind(dim,1) ) {
-	  // Send next
-	  this->packRindBuffer(dim, 1, next_buffer);
-	  printf("%d: Field::synchronizeDimension: sending to next\n", mpi_topology->rank);
-	  MPI_Isend(next_buffer, next_buffer_size, MPI_DOUBLE,
-		    mpi_topology->neighbor_next[dim], 2, mpi_topology->comm,
-		    &next_request);
-	  MPI_Wait(&next_request, &status);
+		// Send next
+		this->packRindBuffer(dim, 1, next_buffer);
+#ifdef VERBOSE
+		printf("%d: Field::synchronizeDimension: sending to next\n", mpi_topology->rank);
+#endif
+		MPI_Isend(next_buffer, next_buffer_size, MPI_DOUBLE,
+			  mpi_topology->neighbor_next[dim], 2, mpi_topology->comm,
+			  &next_request);
+		MPI_Wait(&next_request, &status);
 	}
 
 	
 	if( this->hasRind(dim,-1) ) {
-	  printf("%d: Field::synchronizeDimension: receiving from prev\n", mpi_topology->rank);
-	  MPI_Wait(&prev_request, &status);
-	  this->unpackRindBuffer(dim, -1, prev_buffer);
+#ifdef VERBOSE
+		printf("%d: Field::synchronizeDimension: receiving from prev\n", mpi_topology->rank);
+#endif
+		MPI_Wait(&prev_request, &status);
+		this->unpackRindBuffer(dim, -1, prev_buffer);
 	}
 
 	delete[] prev_buffer;
@@ -1245,6 +1243,9 @@ void Field::packRindBuffer(int dim, int location, double *rind_buffer)
 /********************************************************************/
 {
 
+#ifdef VERBOSE
+	printf("%d: Field::packRindBuffer: entering\n", this->mpi_topology_->rank);
+#endif
 	int imin, imax;
 	int jmin, jmax;
 	int kmin, kmax;
@@ -1299,8 +1300,8 @@ void Field::packRindBuffer(int dim, int location, double *rind_buffer)
 
 	} else {
 		std::cout
-				<< "Field::packRindBuffer: unable to pack buffer: incorrect dimension specified"
-				<< std::endl;
+			<< "Field::packRindBuffer: unable to pack buffer: incorrect dimension specified"
+			<< std::endl;
 		exit(EXIT_FAILURE);
 	}
 
@@ -1309,7 +1310,7 @@ void Field::packRindBuffer(int dim, int location, double *rind_buffer)
 		for (int j = jmin; j <= jmax; j++) {
 			for (int k = kmin; k <= kmax; k++) {
 				rind_buffer[index] =
-						this->data_local[this->indexOperationToLocal(i, j, k)];
+					this->data_local[this->indexOperationToLocal(i, j, k)];
 				index++;
 			}
 		}
@@ -1319,17 +1320,21 @@ void Field::packRindBuffer(int dim, int location, double *rind_buffer)
 	// Perform sanity check
 	if (index != this->getSizeRind(dim, location)) {
 		std::cout
-				<< "Field::packRindBuffer: mismatch in expected rind buffer size"
-				<< std::endl;
+			<< "Field::packRindBuffer: mismatch in expected rind buffer size"
+			<< std::endl;
 		std::cout << "dim, location : " << dim << " " << location << std::endl;
 		std::cout << "index, getSizeRind() : " << index << " "
-				<< this->getSizeRind(dim, location) << std::endl;
+			  << this->getSizeRind(dim, location) << std::endl;
 		error = 1;
 
 	}
 
 	if (error == 1)
 		exit(EXIT_FAILURE);
+
+#ifdef VERBOSE
+	printf("%d: Field::packRindBuffer: exiting\n", this->mpi_topology_->rank);
+#endif
 
 }
 
@@ -1348,6 +1353,10 @@ void Field::packRindBuffer(int dim, int location, double *rind_buffer)
 void Field::unpackRindBuffer(int dim, int location, double *rind_buffer)
 /********************************************************************/
 {
+
+#ifdef VERBOSE
+	printf("%d: Field::unpackRindBuffer: entering\n", this->mpi_topology_->rank);
+#endif
 
 	int istart, isize;
 	int jstart, jsize;
@@ -1430,6 +1439,10 @@ void Field::unpackRindBuffer(int dim, int location, double *rind_buffer)
 
 	if (error == 1)
 		exit(EXIT_FAILURE);
+
+#ifdef VERBOSE
+	printf("%d: Field::unpackRindBuffer: exiting\n", this->mpi_topology_->rank);
+#endif
 
 }
 
