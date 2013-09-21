@@ -12,6 +12,7 @@ using namespace std;
 namespace pturb_fields {
 
 TurbDBField::TurbDBField(const string &db_conf_file, const int *db_dims) {
+
 	// Set private variables
 	this->db_conf_file_ = db_conf_file;
 	memcpy(this->db_dims_, db_dims, sizeof(db_dims[0]) * FIELD_NDIMS);
