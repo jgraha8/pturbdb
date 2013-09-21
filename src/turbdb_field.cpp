@@ -19,8 +19,8 @@ TurbDBField::TurbDBField(const string &db_conf_file, const int *db_dims) {
 	// Read the DB conf file
 	this->readDBConfFile();
 
-	// Set pointers to null
-	this->pchip_fd_ = NULL;
+	// Initialize the PCHIP finite difference struct
+	this->pchipInit();
 
 }
 
@@ -35,6 +35,10 @@ TurbDBField::TurbDBField( TurbDBField &g )
 TurbDBField::TurbDBField( TurbDBField &g, bool copy_field_data )
 {
 	this->TurbDBFieldCopy( g, copy_field_data );
+}
+
+TurbDBField::~TurbDBField() {
+	delete this->pchip_fd_;
 }
 
 /*
@@ -80,8 +84,8 @@ void TurbDBField::dbFieldInit(const int *field_offset, const int *dims,
 string                   TurbDBField::getDBConfFile()     { return this->db_conf_file_;      }
 int                     *TurbDBField::getDBDims()         { return this->db_dims_;           }
 int                     *TurbDBField::getFieldOffset()    { return this->field_offset_;      }
-vector<double>          &TurbDBField::getDBTime()         { return this->db_time_;           }
-vector<string>          &TurbDBField::getDBFileNames()    { return this->db_file_names_;     }
+vector<double>           TurbDBField::getDBTime()         { return this->db_time_;           }
+vector<string>           TurbDBField::getDBFileNames()    { return this->db_file_names_;     }
 string                   TurbDBField::getDBGridFileName() { return this->db_grid_file_name_; }
 int                      TurbDBField::getDBTimeNsteps()   { return this->db_time_nsteps_;    }
 double                   TurbDBField::getDBTimeStep()     { return this->db_time_step_;      }
@@ -175,6 +179,12 @@ void TurbDBField::pchipComputeBasis(double tau, double hermite_basis[4]) {
 void TurbDBField::pchipComputeWeights(double hermite_basis[4],
 				      double pchip_weights[4]) {
 
+	if( this->pchip_fd_ == NULL ) {
+		cout << "TurbDBField: PCHIP finite difference struct not allocated" << endl;
+		int ierr=0;
+		MPI_Abort(this->getMpiTopology()->comm, ierr);
+	}
+	
 	pchip_weights[0] = hermite_basis[1] * this->pchip_fd_->coefs[0];
 	pchip_weights[1] = hermite_basis[0]
 		+ hermite_basis[1] * this->pchip_fd_->coefs[1]
@@ -254,6 +264,8 @@ void TurbDBField::readDBGridLocal(const char *field_names[3], double *x,
 
 	// Set the local grid for the field; only sets the pointers
 	this->setGridLocal( x, y, z );
+	// Now initialize the finite difference class
+	this->finiteDiffInit();
 
 }
 

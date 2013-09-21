@@ -53,16 +53,16 @@ public:
 	TurbDBField( TurbDBField &g, bool copy_field_data ); // Copy constructor
 
 	// Deconstructors
-	~TurbDBField() {};
+	~TurbDBField();
 
 	// Getters and setters
 	string  getDBConfFile();
 	int    *getDBDims();
 	int    *getFieldOffset();
 
-	vector<double> &getDBTime();
-	vector<string> &getDBFileNames();
-	string          getDBGridFileName();
+	vector<double> getDBTime();
+	vector<string> getDBFileNames();
+	string         getDBGridFileName();
 
 	int             getDBTimeNsteps();
 	double          getDBTimeStep();
