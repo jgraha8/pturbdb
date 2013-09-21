@@ -31,7 +31,7 @@ int main(int argc, char *argv[]) {
 
 	TurbDBField *u = new TurbDBField("turbdb.conf", db_dims);
 
-	u->dbFieldInit(db_field_offset, field_dims, FIELD_DECOMP_SLAB, periodic, 4);
+	u->dbFieldInit(db_field_offset, field_dims, FIELD_DECOMP_PENCIL, periodic, 4);
 
 	int rank = u->getMpiTopology()->rank;
 	int nproc = u->getMpiTopology()->nproc;
@@ -100,52 +100,61 @@ int main(int argc, char *argv[]) {
 	w->readDBField( middle_time, "w" );
 
 	// // Print the grid to stdout
-	for (int n = 0; n < nproc; n++) {
-		if (n == rank) {
-		  for (long i=0; i<dims_operation[0]; i++ ) {
-		    for (long j=0; j<2; j++ ) {
-		      for(long k=0; k<dims_operation[2]; k++ ) {
-			long index = u->indexOperationToLocal(i,j,k);
-			cout << "rank, i,j,k, index, u[index] " << rank << " " << i << " " << j << " " << k << " " 
-			     << index << " " << u->data_local[index] << endl;
-		      }
-		    }
-		  }
-		}
-		MPI_Barrier(u->getMpiTopology()->comm);
-	}
+	// for (int n = 0; n < nproc; n++) {
+	// 	if (n == rank) {
+	// 	  for (long i=0; i<dims_operation[0]; i++ ) {
+	// 	    for (long j=0; j<2; j++ ) {
+	// 	      for(long k=0; k<dims_operation[2]; k++ ) {
+	// 		long index = u->indexOperationToLocal(i,j,k);
+	// 		cout << "rank, i,j,k, index, u[index] " << rank << " " << i << " " << j << " " << k << " " 
+	// 		     << index << " " << u->data_local[index] << endl;
+	// 	      }
+	// 	    }
+	// 	  }
+	// 	}
+	// 	MPI_Barrier(u->getMpiTopology()->comm);
+	// }
 
 
 	Field *dudx = new Field( field_dims, FIELD_DECOMP_SLAB, periodic, 4 );
+	// Set the grid and initialize finite differences
+	dudx->setGridLocal( x, y, z );
+	dudx->finiteDiffInit();
+
 	Field *dudy = new Field( *dudx );
 	Field *dudz = new Field( *dudx );
 
-	Field *dvdx = new Field( *dudx );
-	Field *dvdy = new Field( *dudx );
-	Field *dvdz = new Field( *dudx );
+	// Field *dvdx = new Field( *dudx );
+	// Field *dvdy = new Field( *dudx );
+	// Field *dvdz = new Field( *dudx );
 
-	Field *dwdx = new Field( *dudx );
-	Field *dwdy = new Field( *dudx );
-	Field *dwdz = new Field( *dudx );
+	// Field *dwdx = new Field( *dudx );
+	// Field *dwdy = new Field( *dudx );
+	// Field *dwdz = new Field( *dudx );
 
 	MPI_Barrier(u->getMpiTopology()->comm);
 	if( u->getMpiTopology()->rank == 0 ) cout << "Computing u derivatives" << endl;
 
 	dudx->ddx( *u );
+	MPI_Barrier(u->getMpiTopology()->comm);
+
 	dudy->ddy( *u );
-	dudz->ddz( *u );
+	//MPI_Barrier(u->getMpiTopology()->comm);
+	//dudz->ddz( *u );
 
 	MPI_Barrier(u->getMpiTopology()->comm);
+
+	if( false) {
 	if( u->getMpiTopology()->rank == 0 ) cout << "Computing v derivatives" << endl;
-	dvdx->ddx( *v );
-	dvdy->ddy( *v );
-	dvdz->ddz( *v );
+	// dvdx->ddx( *v );
+	// dvdy->ddy( *v );
+	// dvdz->ddz( *v );
 
 	MPI_Barrier(u->getMpiTopology()->comm);
 	if( u->getMpiTopology()->rank == 0 ) cout << "Computing w derivatives" << endl;
-	dwdx->ddx( *w );
-	dwdy->ddy( *w );
-	dwdz->ddz( *w );
+	// dwdx->ddx( *w );
+	// dwdy->ddy( *w );
+	// dwdz->ddz( *w );
 
 	//Field *Q = new Field( *dudx );
 	
@@ -165,6 +174,8 @@ int main(int argc, char *argv[]) {
 	// //  f->sub(*f,*g);
 	// //  f->mul(*f,*g);
 	// //  f->div(*f,*g);
+	
+}
 
 	if (rank == 0) {
 		wtime = MPI_Wtime();
@@ -188,6 +199,7 @@ int main(int argc, char *argv[]) {
 	}
 
 	MPI_Barrier(u->getMpiTopology()->comm);
+
 	// Terminate MPI.
 	MPI_Finalize();
 
