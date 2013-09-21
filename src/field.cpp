@@ -477,6 +477,17 @@ Field& Field::operator=(const Field &a)
 }
 
 /********************************************************************/
+Field& Field::operator=(double c)
+/********************************************************************/
+{
+	std::fill_n( this->data_local, this->getSizeLocal(), c );
+
+	// Set unsynchronized
+	this->synchronized_ = false;
+	return *this;
+}
+
+/********************************************************************/
 Field& Field::operator+=(const Field &a)
 /********************************************************************/
 {
@@ -488,6 +499,26 @@ Field& Field::operator+=(const Field &a)
 			for (int k = 0; k < this->dims_operation_[2]; k++) {
 				index = this->indexOperationToLocal(i, j, k);
 				this->data_local[index] += a.data_local[index];
+			}
+		}
+	}
+
+	// Set unsynchronized
+	this->synchronized_ = false;
+
+	return *this;
+}
+
+Field& Field::operator+=(double c)
+{
+
+	long index;
+
+	for (int i = 0; i < this->dims_operation_[0]; i++) {
+		for (int j = 0; j < this->dims_operation_[1]; j++) {
+			for (int k = 0; k < this->dims_operation_[2]; k++) {
+				index = this->indexOperationToLocal(i, j, k);
+				this->data_local[index] += c;
 			}
 		}
 	}
@@ -520,6 +551,26 @@ Field& Field::operator-=(const Field &a)
 	return *this;
 }
 
+Field& Field::operator-=(double c)
+{
+
+	long index;
+
+	for (int i = 0; i < this->dims_operation_[0]; i++) {
+		for (int j = 0; j < this->dims_operation_[1]; j++) {
+			for (int k = 0; k < this->dims_operation_[2]; k++) {
+				index = this->indexOperationToLocal(i, j, k);
+				this->data_local[index] -= c;
+			}
+		}
+	}
+
+	// Set unsynchronized
+	this->synchronized_ = false;
+
+	return *this;
+}
+
 /********************************************************************/
 Field& Field::operator*=(const Field &a)
 /********************************************************************/
@@ -531,6 +582,25 @@ Field& Field::operator*=(const Field &a)
 			for (int k = 0; k < this->dims_operation_[2]; k++) {
 				index = this->indexOperationToLocal(i, j, k);
 				this->data_local[index] *= a.data_local[index];
+			}
+		}
+	}
+
+	// Set unsynchronized
+	this->synchronized_ = false;
+
+	return *this;
+}
+
+Field& Field::operator*=(double c)
+{
+	long index;
+
+	for (int i = 0; i < this->dims_operation_[0]; i++) {
+		for (int j = 0; j < this->dims_operation_[1]; j++) {
+			for (int k = 0; k < this->dims_operation_[2]; k++) {
+				index = this->indexOperationToLocal(i, j, k);
+				this->data_local[index] *= c;
 			}
 		}
 	}
@@ -563,12 +633,32 @@ Field& Field::operator/=(const Field &a)
 	return *this;
 }
 
+Field& Field::operator/=(double c)
+{
+
+	long index;
+
+	for (int i = 0; i < this->dims_operation_[0]; i++) {
+		for (int j = 0; j < this->dims_operation_[1]; j++) {
+			for (int k = 0; k < this->dims_operation_[2]; k++) {
+				index = this->indexOperationToLocal(i, j, k);
+				this->data_local[index] /= c;
+			}
+		}
+	}
+
+	// Set unsynchronized
+	this->synchronized_ = false;
+
+	return *this;
+}
+
 //////////////////////////////////////////////////////////////////////
 /// MEMBER FUNCTIONS
 //////////////////////////////////////////////////////////////////////
 
 /********************************************************************/
-void Field::add(Field &a, Field &b)
+Field &Field::add(Field &a, Field &b)
 /********************************************************************/
 {
 
@@ -594,11 +684,11 @@ void Field::add(Field &a, Field &b)
 
 	// Set unsynchronized
 	this->synchronized_ = false;
-
+	return *this;
 }
 
 /********************************************************************/
-void Field::sub(Field &a, Field &b)
+Field &Field::sub(Field &a, Field &b)
 /********************************************************************/
 {
 
@@ -624,11 +714,11 @@ void Field::sub(Field &a, Field &b)
 
 	// Set unsynchronized
 	this->synchronized_ = false;
-
+	return *this;
 }
 
 /********************************************************************/
-void Field::mul(Field &a, Field &b)
+Field &Field::mul(Field &a, Field &b)
 /********************************************************************/
 {
 
@@ -654,11 +744,11 @@ void Field::mul(Field &a, Field &b)
 
 	// Set unsynchronized
 	this->synchronized_ = false;
-
+	return *this;
 }
 
 /********************************************************************/
-void Field::div(Field &a, Field &b)
+Field &Field::div(Field &a, Field &b)
 /********************************************************************/
 {
 
@@ -684,7 +774,7 @@ void Field::div(Field &a, Field &b)
 
 	// Set unsynchronized
 	this->synchronized_ = false;
-
+	return *this;
 }
 
 //////////////////////////////////////////////////////////////////////

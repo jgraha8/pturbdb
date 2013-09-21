@@ -94,15 +94,20 @@ public:
 
 	// Assignment operator
 	Field &operator=( const Field &a );
+	Field &operator=( double c );
 	Field &operator+=( const Field &a );
+	Field &operator+=( double c );
 	Field &operator-=( const Field &a );
+	Field &operator-=( double c );
 	Field &operator*=( const Field &a );
+	Field &operator*=( double c ) ;
 	Field &operator/=( const Field &a );
+	Field &operator/=( double c );
 
-	void add( Field &a, Field &b );
-	void sub( Field &a, Field &b );
-	void mul( Field &a, Field &b );
-	void div( Field &a, Field &b );
+	Field &add( Field &a, Field &b );
+	Field &sub( Field &a, Field &b );
+	Field &mul( Field &a, Field &b );
+	Field &div( Field &a, Field &b );
 
 	void ddx( Field &a );
 	void ddy( Field &a );

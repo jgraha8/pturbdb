@@ -99,23 +99,6 @@ int main(int argc, char *argv[]) {
 	// Read u from the DB
 	w->readDBField( middle_time, "w" );
 
-	// // Print the grid to stdout
-	// for (int n = 0; n < nproc; n++) {
-	// 	if (n == rank) {
-	// 	  for (long i=0; i<dims_operation[0]; i++ ) {
-	// 	    for (long j=0; j<2; j++ ) {
-	// 	      for(long k=0; k<dims_operation[2]; k++ ) {
-	// 		long index = u->indexOperationToLocal(i,j,k);
-	// 		cout << "rank, i,j,k, index, u[index] " << rank << " " << i << " " << j << " " << k << " " 
-	// 		     << index << " " << u->data_local[index] << endl;
-	// 	      }
-	// 	    }
-	// 	  }
-	// 	}
-	// 	MPI_Barrier(u->getMpiTopology()->comm);
-	// }
-
-
 	Field *dudx = new Field( field_dims, FIELD_DECOMP_SLAB, periodic, 4 );
 	// Set the grid and initialize finite differences
 	dudx->setGridLocal( x, y, z );
@@ -132,17 +115,11 @@ int main(int argc, char *argv[]) {
 	Field *dwdy = new Field( *dudx );
 	Field *dwdz = new Field( *dudx );
 
-	MPI_Barrier(u->getMpiTopology()->comm);
 	if( u->getMpiTopology()->rank == 0 ) cout << "Computing u derivatives" << endl;
 
 	dudx->ddx( *u );
-	MPI_Barrier(u->getMpiTopology()->comm);
-
 	dudy->ddy( *u );
-	MPI_Barrier(u->getMpiTopology()->comm);
-	
 	dudz->ddz( *u );
-	MPI_Barrier(u->getMpiTopology()->comm);
 
 	if( u->getMpiTopology()->rank == 0 ) cout << "Computing v derivatives" << endl;
 
@@ -150,13 +127,49 @@ int main(int argc, char *argv[]) {
 	dvdy->ddy( *v );
 	dvdz->ddz( *v );
 
-	MPI_Barrier(u->getMpiTopology()->comm);
 	if( u->getMpiTopology()->rank == 0 ) cout << "Computing w derivatives" << endl;
+
 	dwdx->ddx( *w );
 	dwdy->ddy( *w );
 	dwdz->ddz( *w );
 
 	Field *Q = new Field( *dudx, false );
+	Field *S11 = new Field( *dudx );
+	Field *S12 = new Field( *dudy );
+	Field *S13 = new Field( *dudz );
+	Field *S22 = new Field( *dvdy );
+	Field *S23 = new Field( *dvdz );
+	Field *S33 = new Field( *dwdz );
+
+	Field *O12 = new Field( *dudy );
+	Field *O13 = new Field( *dudz );
+	Field *O23 = new Field( *dvdz );
+
+	(*S12 += (*dvdx))*=0.5;
+	(*S13 += (*dwdx))*=0.5;
+	(*S23 += (*dwdy))*=0.5;
+
+	(*O12 -= (*dvdx))*=0.5;
+	(*O13 -= (*dwdx))*=0.5;
+	(*O23 -= (*dwdy))*=0.5;
+
+	Field *TrS = new Field( *S11, false );
+	Field *TrO = new Field( *S11, false );
+
+	// Here using Q as a buffer. The multiplication takes place and is stored in Q. We then add it to TrS.
+	TrO->mul( *S12, *S12);
+	*TrO += Q->mul( *S13, *S13 );
+	*TrO += Q->mul( *S23, *S23 );
+	*TrO *= -2.0; // Multiply the result by -2.0
+
+	TrS->mul( *S11, *S11 );
+	*TrS += Q->mul( *S22, *S22 );
+	*TrS += Q->mul( *S33, *S33 );
+	*TrS -= *TrO; // Subtract the trace of the antisymmetric component; they have the same parts
+
+	// Q then only retains 1/2 of the diagonal of the symmetric component
+	Q->sub( *TrO, *TrS ) *= 0.5;
+
 	
 
 	// Compute the Q-criterion
