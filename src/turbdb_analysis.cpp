@@ -25,9 +25,9 @@ int main(int argc, char *argv[]) {
 	MPI_Init(&argc, &argv);
 
 	int db_dims[] = { DB_NZ, DB_NY, DB_NX };
-	int db_field_offset[] = { 0, 0, 0 };
+	int db_field_offset[] = { 345, 127, 789 };
 	int field_dims[] = { FIELD_NZ, FIELD_NY, FIELD_NX };
-	int periodic[] = { 1, 1, 1 };
+	int periodic[] = { 0, 0, 0 };
 
 	TurbDBField *u = new TurbDBField("turbdb.conf", db_dims);
 
