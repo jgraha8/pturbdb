@@ -1320,7 +1320,6 @@ void Field::synchronizeDimension(int dim)
 		MPI_Isend(prev_buffer, prev_buffer_size, MPI_DOUBLE,
 			  mpi_topology->neighbor_prev[dim], 1, mpi_topology->comm,
 			  &prev_request);
-		MPI_Wait(&prev_request, &status);
 	}
 
 	if( this->hasRind( dim, 1 ) ) {
@@ -1329,6 +1328,10 @@ void Field::synchronizeDimension(int dim)
 #endif
 		MPI_Wait(&next_request, &status);
 		this->unpackRindBuffer(dim, 1, next_buffer);
+	}
+
+	if( this->hasRind( dim, -1 ) ) {
+		MPI_Wait(&prev_request, &status);
 	}
 
 	/*
@@ -1353,7 +1356,6 @@ void Field::synchronizeDimension(int dim)
 		MPI_Isend(next_buffer, next_buffer_size, MPI_DOUBLE,
 			  mpi_topology->neighbor_next[dim], 2, mpi_topology->comm,
 			  &next_request);
-		MPI_Wait(&next_request, &status);
 	}
 	
 	if( this->hasRind(dim, -1) ) {
@@ -1362,6 +1364,10 @@ void Field::synchronizeDimension(int dim)
 #endif
 		MPI_Wait(&prev_request, &status);
 		this->unpackRindBuffer(dim, -1, prev_buffer);
+	}
+
+	if( this->hasRind(dim, 1) ) {
+		MPI_Wait(&next_request, &status);
 	}
 
 	if( prev_buffer != NULL ) delete[] prev_buffer;

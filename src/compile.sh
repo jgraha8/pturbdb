@@ -9,7 +9,7 @@ INCPATH="-I../autofd -I${ESIO_ROOT}/include"
 LIBPATH="-L../autofd -L../matsolv -L${ESIO_ROOT}/lib -L${HDF5_ROOT}/lib"
 LIBS="-lautofd -lmatsolv -lgfortran -lesio -lhdf5_hl -lhdf5 -lz"
 
-CFLAGS="-O0 -Wall -g -DBOUNDS_CHECK -DVERBOSE"
+CFLAGS="-O0 -Wall -g -DBOUNDS_CHECK"
 
 for s in ${SRCS[@]}
 do

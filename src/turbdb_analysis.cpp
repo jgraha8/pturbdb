@@ -8,9 +8,9 @@
 #define DB_NY 512
 #define DB_NX 2048
 
-#define FIELD_NZ 16
-#define FIELD_NY 16
-#define FIELD_NX 16
+#define FIELD_NZ 256
+#define FIELD_NY 256
+#define FIELD_NX 256
 
 //#define FIELD_NZ 128
 //#define FIELD_NY 64
@@ -27,7 +27,7 @@ int main(int argc, char *argv[]) {
 	int db_dims[] = { DB_NZ, DB_NY, DB_NX };
 	int db_field_offset[] = { 0, 0, 0 };
 	int field_dims[] = { FIELD_NZ, FIELD_NY, FIELD_NX };
-	int periodic[] = { 0, 0, 0 };
+	int periodic[] = { 1, 1, 1 };
 
 	TurbDBField *u = new TurbDBField("turbdb.conf", db_dims);
 
@@ -124,13 +124,13 @@ int main(int argc, char *argv[]) {
 	Field *dudy = new Field( *dudx );
 	Field *dudz = new Field( *dudx );
 
-	// Field *dvdx = new Field( *dudx );
-	// Field *dvdy = new Field( *dudx );
-	// Field *dvdz = new Field( *dudx );
+	Field *dvdx = new Field( *dudx );
+	Field *dvdy = new Field( *dudx );
+	Field *dvdz = new Field( *dudx );
 
-	// Field *dwdx = new Field( *dudx );
-	// Field *dwdy = new Field( *dudx );
-	// Field *dwdz = new Field( *dudx );
+	Field *dwdx = new Field( *dudx );
+	Field *dwdy = new Field( *dudx );
+	Field *dwdz = new Field( *dudx );
 
 	MPI_Barrier(u->getMpiTopology()->comm);
 	if( u->getMpiTopology()->rank == 0 ) cout << "Computing u derivatives" << endl;
@@ -139,24 +139,24 @@ int main(int argc, char *argv[]) {
 	MPI_Barrier(u->getMpiTopology()->comm);
 
 	dudy->ddy( *u );
-	//MPI_Barrier(u->getMpiTopology()->comm);
-	//dudz->ddz( *u );
-
+	MPI_Barrier(u->getMpiTopology()->comm);
+	
+	dudz->ddz( *u );
 	MPI_Barrier(u->getMpiTopology()->comm);
 
-	if( false) {
 	if( u->getMpiTopology()->rank == 0 ) cout << "Computing v derivatives" << endl;
-	// dvdx->ddx( *v );
-	// dvdy->ddy( *v );
-	// dvdz->ddz( *v );
+
+	dvdx->ddx( *v );
+	dvdy->ddy( *v );
+	dvdz->ddz( *v );
 
 	MPI_Barrier(u->getMpiTopology()->comm);
 	if( u->getMpiTopology()->rank == 0 ) cout << "Computing w derivatives" << endl;
-	// dwdx->ddx( *w );
-	// dwdy->ddy( *w );
-	// dwdz->ddz( *w );
+	dwdx->ddx( *w );
+	dwdy->ddy( *w );
+	dwdz->ddz( *w );
 
-	//Field *Q = new Field( *dudx );
+	Field *Q = new Field( *dudx, false );
 	
 
 	// Compute the Q-criterion
@@ -175,8 +175,6 @@ int main(int argc, char *argv[]) {
 	// //  f->mul(*f,*g);
 	// //  f->div(*f,*g);
 	
-}
-
 	if (rank == 0) {
 		wtime = MPI_Wtime();
 
