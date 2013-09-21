@@ -8,9 +8,9 @@
 #define DB_NY 512
 #define DB_NX 2048
 
-#define FIELD_NZ 8
-#define FIELD_NY 8
-#define FIELD_NX 8
+#define FIELD_NZ 16
+#define FIELD_NY 16
+#define FIELD_NX 16
 
 //#define FIELD_NZ 128
 //#define FIELD_NY 64
@@ -32,8 +32,7 @@ int main(int argc, char *argv[]) {
 
 	TurbDBField *u = new TurbDBField("turbdb.conf", db_dims);
 
-	u->dbFieldInit(db_field_offset, field_dims, FIELD_DECOMP_SLAB, periodic,
-			4);
+	u->dbFieldInit(db_field_offset, field_dims, FIELD_DECOMP_SLAB, periodic, 4);
 
 	int rank = u->getMpiTopology()->rank;
 	int nproc = u->getMpiTopology()->nproc;
@@ -66,7 +65,15 @@ int main(int argc, char *argv[]) {
 	double *y = new double[dims_local[1]];
 	double *z = new double[dims_local[2]];
 
+	// This sets the grid
 	u->readDBGridLocal(grid_field_names, x, y, z);
+
+	if( u->getXLocal() == NULL ) {
+		cout << "Grid not set as expected" << endl;
+		int ierr;
+		MPI_Abort( u->getMpiTopology()->comm, ierr);
+	}
+		
 
 	MPI_Barrier(u->getMpiTopology()->comm);
 	// // Print the grid to stdout
@@ -83,21 +90,8 @@ int main(int argc, char *argv[]) {
 	// Read the middle time
 	double middle_time = 0.5*( u->getDBTimeMax() + u->getDBTimeMin() );
 
-	TurbDBField *v = new TurbDBField( *u );
-	TurbDBField *w = new TurbDBField( *u );
-
-	v->dbFieldInit(db_field_offset, field_dims, FIELD_DECOMP_SLAB, periodic, 4);
-	w->dbFieldInit(db_field_offset, field_dims, FIELD_DECOMP_SLAB, periodic, 4);
-
-	// Assign the grid pointers; needed for finite differencing
-	// u was set on the readDBGridLocal call
-	v->setGridLocal( x, y, z );
-	w->setGridLocal( x, y, z );
-
-	//  // Initialize derivatives for f
-	u->finiteDiffInit();
-	v->finiteDiffInit();
-	w->finiteDiffInit();
+	TurbDBField *v = new TurbDBField( *u, false ); // Do not copy u field data
+	TurbDBField *w = new TurbDBField( *u, false ); // Do not copy u field data
 
 	// Read u from the DB
 	u->readDBField( middle_time, "u" );
@@ -135,30 +129,6 @@ int main(int argc, char *argv[]) {
 	Field *dwdy = new Field( *dudx );
 	Field *dwdz = new Field( *dudx );
 
-	dudx->setGridLocal( x, y, z );
-	dudy->setGridLocal( x, y, z );
-	dudz->setGridLocal( x, y, z );
-
-	dvdx->setGridLocal( x, y, z );
-	dvdy->setGridLocal( x, y, z );
-	dvdz->setGridLocal( x, y, z );
-
-	dwdx->setGridLocal( x, y, z );
-	dwdy->setGridLocal( x, y, z );
-	dwdz->setGridLocal( x, y, z );
-
-	dudx->finiteDiffInit();
-	dudy->finiteDiffInit();
-	dudz->finiteDiffInit();
-
-	dvdx->finiteDiffInit();
-	dvdy->finiteDiffInit();
-	dvdz->finiteDiffInit();
-
-	dwdx->finiteDiffInit();
-	dwdy->finiteDiffInit();
-	dwdz->finiteDiffInit();
-	
 	MPI_Barrier(u->getMpiTopology()->comm);
 	if( u->getMpiTopology()->rank == 0 ) cout << "Computing u derivatives" << endl;
 

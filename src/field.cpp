@@ -18,19 +18,32 @@ Field::Field(const int *dims, FieldDecomp_t field_decomp, const int *periodic,
 	     int operator_order)
 {
 	FieldInit(dims, field_decomp, periodic, operator_order);
-	cout << this->mpi_topology_->rank << " Initializing Field" << endl;
+
+#ifdef VERBOSE
+	printf("%d: Field::Field: constructed field\n", this->getMpiTopology()->rank);
+#endif
+
+}
+
+Field::Field(Field &g, bool copy_data_local)
+{
+
+	this->FieldCopy( g, copy_data_local );
+
+#ifdef VERBOSE
+	printf("%d: Field::Field: constructed field from copy\n", this->getMpiTopology()->rank);
+#endif
+
 }
 
 Field::Field(Field &g)
 {
-	cout << "Copy Constructor Initializing Field" << endl;
 
-	FieldInit(g.getDims(), g.getFieldDecomp(), g.getFieldPeriodic(),
-			g.getOperatorOrder());
+	this->FieldCopy( g, true );
 
-	// Copy the field data from g to this->data
-	memcpy(this->data_local, g.data_local,
-			sizeof(*this->data_local) * this->getSizeLocal());
+#ifdef VERBOSE
+	printf("%d: Field::Field: constructed field from copy\n", this->getMpiTopology()->rank);
+#endif
 
 }
 
@@ -58,7 +71,7 @@ Field::~Field(void)
 //   data
 /********************************************************************/
 void Field::FieldInit(const int *dims, FieldDecomp_t field_decomp,
-		const int *periodic, int operator_order)
+		      const int *periodic, int operator_order)
 /********************************************************************/
 {
 
@@ -88,6 +101,62 @@ void Field::FieldInit(const int *dims, FieldDecomp_t field_decomp,
 	// Initalize state variables
 	this->synchronized_ = false;
 
+#ifdef VERBOSE
+	for( int n=0; n<this->mpi_topology_->nproc; n++) {
+		if( n == this->mpi_topology_->rank ) {
+			printf("%d: Field::FieldInit\n", n);
+			printf("    dims             = %d, %d\n", dims_[0], dims_[1]);
+			printf("    dims_local       = %d, %d\n", dims_local_[0], dims_local_[1]);
+			printf("    dims_operation   = %d, %d\n", dims_operation_[0], dims_operation_[1]);
+			printf("    offset_local     = %d, %d\n", offset_local_[0], offset_local_[1]);
+			printf("    offset_operation = %d, %d\n", offset_operation_[0], offset_operation_[1]);
+			printf("    periodic         = %d, %d\n", periodic_[0], periodic_[1]);
+			printf("    operator_order   = %d\n", operator_order_);
+			printf("    rind_size        = %d\n", rind_size_);
+		}
+		MPI_Barrier(this->mpi_topology_->comm);
+	}
+#endif
+
+}
+
+void Field::FieldCopy( Field &g, bool copy_data_local )
+{
+
+	// We will make a copy of the input field
+	// Copy dimension data
+	memcpy(this->dims_,             g.getDims(),            sizeof(this->dims_[0])*FIELD_NDIMS);
+	memcpy(this->dims_local_,       g.getDimsLocal(),       sizeof(this->dims_local_[0])*FIELD_NDIMS);
+	memcpy(this->dims_operation_,   g.getDimsOperation(),   sizeof(this->dims_operation_[0])*FIELD_NDIMS);
+
+	// Copy offsets
+	memcpy(this->offset_local_,     g.getOffsetLocal(),     sizeof(this->offset_local_[0])*FIELD_NDIMS);
+	memcpy(this->offset_operation_, g.getOffsetOperation(), sizeof(this->offset_operation_[0])*FIELD_NDIMS);
+    
+	// Copy periodic data
+	memcpy(this->periodic_,         g.getFieldPeriodic(),   sizeof(this->periodic_[0])*FIELD_NDIMS);
+
+	// Copy scalars
+	this->operator_order_ = g.getOperatorOrder();
+	this->field_decomp_   = g.getFieldDecomp();
+
+	// Copy pointers
+	this->mpi_topology_   = g.getMpiTopology();
+	this->finite_diff_    = g.getFiniteDiff();
+
+	this->x_local_        = g.getXLocal();
+	this->y_local_        = g.getYLocal();
+	this->z_local_        = g.getZLocal();
+
+	// Copy synchronization state
+	this->synchronized_   = g.getSynchronized();
+ 
+	// Allocate and copy the data on the local domain
+	this->data_local = new double[this->getSizeLocal()];
+
+	if( copy_data_local )
+		memcpy(this->data_local, g.data_local, sizeof(*this->data_local) * this->getSizeLocal());
+
 }
 
 //
@@ -105,17 +174,17 @@ void Field::finiteDiffInit()
 	}
 
 	if (this->x_local_ == NULL || this->y_local_ == NULL
-			|| this->z_local_ == NULL) {
+	    || this->z_local_ == NULL) {
 		cout
-				<< "finite difference class instance requires setGridLocal be called first"
-				<< endl;
+			<< "finite difference class instance requires setGridLocal be called first"
+			<< endl;
 		exit(EXIT_FAILURE);
 	}
 
 	// First initialize the fd class instance
 	this->finite_diff_ = new FiniteDiff(this->dims_local_[0], this->x_local_,
-			this->dims_local_[1], this->y_local_, this->dims_local_[2],
-			this->z_local_, this->operator_order_);
+					    this->dims_local_[1], this->y_local_, this->dims_local_[2],
+					    this->z_local_, this->operator_order_);
 
 }
 
@@ -166,92 +235,46 @@ long Field::getSizeRind(int dim, int location)
 
 	if (dim == 0) {
 		return (long) this->rind_size_ * (long) this->dims_operation_[1]
-				* (long) this->dims_operation_[2];
+			* (long) this->dims_operation_[2];
 	} else if (dim == 1) {
 		return (long) this->dims_operation_[0] * (long) this->rind_size_
-				* (long) this->dims_operation_[2];
+			* (long) this->dims_operation_[2];
 	} else if (dim == 2) {
 		return (long) this->dims_operation_[0] * (long) this->dims_operation_[1]
-				* (long) this->rind_size_;
+			* (long) this->rind_size_;
 	} else {
 		cout << "Field::getSizeRind: incorrect dimension number specified"
-				<< endl;
+		     << endl;
 		exit(EXIT_FAILURE);
 	}
 }
 
-/********************************************************************/
-MpiTopology_t *Field::getMpiTopology()
-/********************************************************************/
-{
-	return this->mpi_topology_;
-}
 
-/********************************************************************/
-FieldDecomp_t Field::getFieldDecomp()
-/********************************************************************/
-{
-	return this->field_decomp_;
-}
+/*
+ * Getters for data members
+ */
+FieldDecomp_t Field::getFieldDecomp()  { return this->field_decomp_;     };
+MpiTopology_t *Field::getMpiTopology() { return this->mpi_topology_;     };
+FiniteDiff *Field::getFiniteDiff()     { return this->finite_diff_;      };
+double *Field::getXLocal()             { return this->x_local_;          };
+double *Field::getYLocal()             { return this->y_local_;          };
+double *Field::getZLocal()             { return this->z_local_;          };
 
-/********************************************************************/
-int *Field::getFieldPeriodic()
-/********************************************************************/
-{
-	return this->periodic_;
-}
+int *Field::getFieldPeriodic()         { return this->periodic_;         };
 
-/********************************************************************/
-int Field::getOperatorOrder()
-/********************************************************************/
-{
-	return this->operator_order_;
-}
+int Field::getOperatorOrder()          { return this->operator_order_;   };
 
-/********************************************************************/
-int *Field::getDims()
-/********************************************************************/
-{
-	return this->dims_;
-}
+int *Field::getDims()                  { return this->dims_;             };
+int *Field::getDimsLocal()             { return this->dims_local_;       };    
+int *Field::getDimsOperation()         { return this->dims_operation_;   };
 
-/********************************************************************/
-int *Field::getDimsLocal()
-/********************************************************************/
-{
-	return this->dims_local_;
-}
+int *Field::getOffsetLocal()           { return this->offset_local_;     };
+int *Field::getOffsetOperation()       { return this->offset_operation_; };
 
-/********************************************************************/
-int *Field::getDimsOperation()
-/********************************************************************/
-{
-	return this->dims_operation_;
-}
+int Field::getRindSize()               { return this->rind_size_;        };
 
-/********************************************************************/
-int *Field::getOffsetLocal()
-/********************************************************************/
-{
-	return this->offset_local_;
-}
-/********************************************************************/
-int *Field::getOffsetOperation()
-/********************************************************************/
-{
-	return this->offset_operation_;
-}
+bool Field::getSynchronized()          { return this->synchronized_;     };
 
-int &Field::getRindSize() 
-{
-	return this->rind_size_;
-}
-/********************************************************************/
-bool Field::getSynchronized()
-/********************************************************************/
-{
-	return this->synchronized_;
-}
 
 // Array index for 3D indexing
 /********************************************************************/
@@ -259,7 +282,7 @@ long Field::index(int i, int j, int k)
 /********************************************************************/
 {
 	return ((long) this->dims_[1] * (long) i + (long) j) * (long) this->dims_[2]
-			+ (long) k;
+		+ (long) k;
 }
 
 // Array index for 3D indexing
@@ -268,7 +291,7 @@ long Field::indexLocal(int i, int j, int k)
 /********************************************************************/
 {
 	return ((long) this->dims_local_[1] * (long) i + (long) j)
-			* (long) this->dims_local_[2] + (long) k;
+		* (long) this->dims_local_[2] + (long) k;
 }
 
 // Array index for 3D indexing
@@ -277,7 +300,7 @@ long Field::indexOperation(int i, int j, int k)
 /********************************************************************/
 {
 	return ((long) this->dims_operation_[1] * (long) i + (long) j)
-			* (long) this->dims_operation_[2] + (long) k;
+		* (long) this->dims_operation_[2] + (long) k;
 }
 
 // Array index for 3D indexing
@@ -291,17 +314,17 @@ long Field::indexOperationToLocal(int i, int j, int k)
 
 #ifdef DEBUG
 	for( int n=0; n<this->mpi_topology_->nproc; n++ ) {
-	  if( n == this->mpi_topology_->rank ) {
-	    printf("%d: Field::indexOperationToLocal\n", n);
-	    printf("  i, j, k = %d, %d, %d\n", i,j,k);
-	    printf("  (long)i, (long)j, (long)k = %ld, %ld, %ld\n", (long)i,(long)j,(long)k);
-	    printf("  ii, jj, kk = %ld, %ld, %ld\n", ii,jj,kk);
-	  }
-	  MPI_Barrier(this->mpi_topology_->comm);
+		if( n == this->mpi_topology_->rank ) {
+			printf("%d: Field::indexOperationToLocal\n", n);
+			printf("  i, j, k = %d, %d, %d\n", i,j,k);
+			printf("  (long)i, (long)j, (long)k = %ld, %ld, %ld\n", (long)i,(long)j,(long)k);
+			printf("  ii, jj, kk = %ld, %ld, %ld\n", ii,jj,kk);
+		}
+		MPI_Barrier(this->mpi_topology_->comm);
 	}
 #endif
 	return ((long) this->dims_local_[1] * ii + jj) * (long) this->dims_local_[2]
-			+ kk;
+		+ kk;
 }
 
 void Field::setSynchronized( bool synchronized ) 
@@ -429,7 +452,7 @@ Field& Field::operator=(const Field &a)
 	if (this != &a) {
 		// Copy the field data
 		memcpy(this->data_local, a.data_local,
-				sizeof(*this->data_local) * this->getSizeLocal());
+		       sizeof(*this->data_local) * this->getSizeLocal());
 	}
 	// Set unsynchronized
 	this->synchronized_ = false;
@@ -547,7 +570,7 @@ void Field::add(Field &a, Field &b)
 			for (int k = 0; k < this->dims_operation_[2]; k++) {
 				index = this->indexOperationToLocal(i, j, k);
 				this->data_local[index] = a.data_local[index]
-						+ b.data_local[index];
+					+ b.data_local[index];
 			}
 		}
 	}
@@ -577,7 +600,7 @@ void Field::sub(Field &a, Field &b)
 			for (int k = 0; k < this->dims_operation_[2]; k++) {
 				index = this->indexOperationToLocal(i, j, k);
 				this->data_local[index] = a.data_local[index]
-						- b.data_local[index];
+					- b.data_local[index];
 			}
 		}
 	}
@@ -607,7 +630,7 @@ void Field::mul(Field &a, Field &b)
 			for (int k = 0; k < this->dims_operation_[2]; k++) {
 				index = this->indexOperationToLocal(i, j, k);
 				this->data_local[index] = a.data_local[index]
-						* b.data_local[index];
+					* b.data_local[index];
 			}
 		}
 	}
@@ -637,7 +660,7 @@ void Field::div(Field &a, Field &b)
 			for (int k = 0; k < this->dims_operation_[2]; k++) {
 				index = this->indexOperationToLocal(i, j, k);
 				this->data_local[index] = a.data_local[index]
-						/ b.data_local[index];
+					/ b.data_local[index];
 			}
 		}
 	}
@@ -894,7 +917,7 @@ void Field::dndzn(void (FiniteDiff::*dd)(int, int, double *, int, double *),
 
 	// Make sure the fields are synchronized; the state should be the same across all processes
 	if (a.getSynchronized() == false)
-	a.synchronize();
+		a.synchronize();
 
 	for (int i = 0; i < nx; i++) {
 		for (int j = 0; j < ny; j++) {
@@ -1022,13 +1045,13 @@ void Field::assignMpiTopology()
 
 #ifdef VERBOSE
 	for(int n=0; n<this->mpi_topology_->nproc; n++) {
-	  if( n == this->mpi_topology_->rank ) {
-	    printf("%d: Field::assignMpiTopology\n",this->mpi_topology_->rank);
-	    printf("    coords: %d, %d\n",this->mpi_topology_->coords[0], this->mpi_topology_->coords[1]);
-	    printf("    neighbor_prev: %d, %d\n",this->mpi_topology_->neighbor_prev[0], this->mpi_topology_->neighbor_prev[1]);
-	    printf("    neighbor_next: %d, %d\n",this->mpi_topology_->neighbor_next[0], this->mpi_topology_->neighbor_next[1]);
-	  }
-	  MPI_Barrier(this->mpi_topology_->comm);
+		if( n == this->mpi_topology_->rank ) {
+			printf("%d: Field::assignMpiTopology\n",this->mpi_topology_->rank);
+			printf("    coords: %d, %d\n",this->mpi_topology_->coords[0], this->mpi_topology_->coords[1]);
+			printf("    neighbor_prev: %d, %d\n",this->mpi_topology_->neighbor_prev[0], this->mpi_topology_->neighbor_prev[1]);
+			printf("    neighbor_next: %d, %d\n",this->mpi_topology_->neighbor_next[0], this->mpi_topology_->neighbor_next[1]);
+		}
+		MPI_Barrier(this->mpi_topology_->comm);
 	}
 #endif
 
@@ -1406,8 +1429,8 @@ void Field::unpackRindBuffer(int dim, int location, double *rind_buffer)
 
 	} else {
 		std::cout
-				<< "Field::unpackRindBuffer: unable to pack buffer: incorrect dimension specified"
-				<< std::endl;
+			<< "Field::unpackRindBuffer: unable to pack buffer: incorrect dimension specified"
+			<< std::endl;
 		exit(EXIT_FAILURE);
 	}
 
@@ -1416,7 +1439,7 @@ void Field::unpackRindBuffer(int dim, int location, double *rind_buffer)
 		for (int j = jstart; j < jstart + jsize; j++) {
 			for (int k = kstart; k < kstart + ksize; k++) {
 				this->data_local[this->indexLocal(i, j, k)] =
-						rind_buffer[index++];
+					rind_buffer[index++];
 			}
 		}
 	}
@@ -1425,14 +1448,14 @@ void Field::unpackRindBuffer(int dim, int location, double *rind_buffer)
 	// Perform sanity check
 	if (index != this->getSizeRind(dim, location)) {
 		std::cout
-				<< "Field::unpackRindBuffer: mismatch in expected rind buffer size"
-				<< std::endl;
+			<< "Field::unpackRindBuffer: mismatch in expected rind buffer size"
+			<< std::endl;
 		std::cout << "dim, location : " << dim << " " << location << std::endl;
 		std::cout << "imin, imax : " << istart << " " << isize << std::endl;
 		std::cout << "jmin, jmax : " << jstart << " " << jsize << std::endl;
 		std::cout << "kmin, kmax : " << kstart << " " << ksize << std::endl;
 		std::cout << "index, getSizeRind() : " << index << " "
-				<< this->getSizeRind(dim, location) << std::endl;
+			  << this->getSizeRind(dim, location) << std::endl;
 		error = 1;
 
 	}

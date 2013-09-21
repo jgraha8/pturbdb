@@ -24,53 +24,60 @@ class TurbDBField: public Field // Be sure to call the empty constructor
 private:
 
 	string db_conf_file_;
-	int db_dims_[FIELD_NDIMS];
-	int field_offset_[FIELD_NDIMS];
+	int    db_dims_[FIELD_NDIMS];
+	int    field_offset_[FIELD_NDIMS];
 
 	vector<double> db_time_;
 	vector<string> db_file_names_;
-	string db_grid_file_name_;
+	string         db_grid_file_name_;
 
-	int db_time_nsteps_;
+	int    db_time_nsteps_;
 	double db_time_step_; // Assuming constant time step
 	double db_time_min_;
 	double db_time_max_;
 
 	typedef struct {
-	    int stencil[PCHIP_FD_STENCIL_SIZE];
-	    autofd_real_t ds[PCHIP_FD_STENCIL_SIZE];
-	    autofd_real_t coefs[PCHIP_FD_STENCIL_SIZE];  // Coefficients
+		int stencil[PCHIP_FD_STENCIL_SIZE];
+		autofd_real_t ds[PCHIP_FD_STENCIL_SIZE];
+		autofd_real_t coefs[PCHIP_FD_STENCIL_SIZE];  // Coefficients
 	} pchip_fd_t;
 
-	pchip_fd_t pchip_fd_;
+	pchip_fd_t *pchip_fd_;
 
 
 public:
 	// Constructors
 	TurbDBField() {};
 	TurbDBField( const string &db_conf_file, const int *db_dims );
-	TurbDBField( TurbDBField &turbdb_field ); // Copy constructor
+	TurbDBField( TurbDBField &g); // Copy constructor
+	TurbDBField( TurbDBField &g, bool copy_field_data ); // Copy constructor
 
 	// Deconstructors
 	~TurbDBField() {};
 
 	// Getters and setters
-	string &getDBConfFile();
-	int *getDBDims();
-	int *getFieldOffset();
+	string  getDBConfFile();
+	int    *getDBDims();
+	int    *getFieldOffset();
 
 	vector<double> &getDBTime();
-        double &getDBTimeMin();
-        double &getDBTimeMax();
 	vector<string> &getDBFileNames();
+	string          getDBGridFileName();
+
+	int             getDBTimeNsteps();
+	double          getDBTimeStep();
+        double          getDBTimeMin();
+        double          getDBTimeMax();
+	pchip_fd_t     *getPCHIPFD();
 
 	void dbFieldInit( const int *field_offset, const int *dims, FieldDecomp_t field_decomp,
-			const int *periodic, int operator_order );
+			  const int *periodic, int operator_order );
         void readDBGridLocal(const char *field_names[3], double *x, double *y, double *z);
 	void readDBField(double time, const char *field_name);
 
 private:
 
+	void TurbDBFieldCopy( TurbDBField &g, bool copy_field_data );
 	void readDBConfFile();
 	void pchipInit();
 	void pchipComputeBasis( double tau, double hermite_basis[4] );
@@ -78,7 +85,7 @@ private:
 
         void syncDBGridLocal( int dim, const double *grid_operation, double *grid );
         void setDBPeriodicGridLocal( int dim, const double *grid_operation, double *grid );
-
+	
 };
 }
 
