@@ -259,7 +259,7 @@ void FiniteDiff::ddx( int offset, int na, double *a, int nda, double *da )
 		printf("FiniteDiff::fdOp: received null finite difference struct\n");
 	}
 
-	//this->fdOp( this->fd_ddx, offset, na, a, nda, da );
+	this->fdOp( this->fd_ddx, offset, na, a, nda, da );
 #ifdef VERBOSE
 	printf("FiniteDiff::ddx: exiting\n");
 #endif
