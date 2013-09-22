@@ -109,7 +109,11 @@ PTurbDBField::pchip_fd_t *PTurbDBField::getPCHIPFD()       { return this->pchip_
  * Reads the database configuration file: reads the grid file name and the time
  * step and field file names
  */
-void PTurbDBField::readDBConfFile() {
+/********************************************************************/
+void PTurbDBField::readDBConfFile() 
+/********************************************************************/
+{
+
 
 	char db_field[80];
 	double time;
@@ -212,8 +216,11 @@ void PTurbDBField::pchipComputeWeights(double hermite_basis[4],
  * local domain. Each process will read the entire grid file and then copy
  * the relevant portion the appropriate array.
  */
+/********************************************************************/
 void PTurbDBField::readDBGridLocal(const char *field_names[3], double *x,
-				  double *y, double *z) {
+				  double *y, double *z)
+/********************************************************************/
+{
 
 	// Get the offset for the local domain
 	const int *offset_local = this->getOffsetLocal();
@@ -365,7 +372,10 @@ void PTurbDBField::syncDBGridLocal(int dim, const double *grid_operation,
 	delete[] next_buffer;
 }
 
-void PTurbDBField::setDBPeriodicGridLocal( int dim, const double *grid_operation, double *grid ) {
+/********************************************************************/
+void PTurbDBField::setDBPeriodicGridLocal( int dim, const double *grid_operation, double *grid )
+/********************************************************************/
+{
 
 	int *dims_local = this->getDimsLocal();
 	int *dims_operation = this->getDimsOperation();
@@ -393,7 +403,10 @@ void PTurbDBField::setDBPeriodicGridLocal( int dim, const double *grid_operation
 
 }
 
-void PTurbDBField::readDBField(double time, const char *field_name) {
+/********************************************************************/
+void PTurbDBField::readDBField(double time, const char *field_name)
+/********************************************************************/
+{
 
 	// Now compute which
 	if (time < this->db_time_min_ || time > this->db_time_max_) {
