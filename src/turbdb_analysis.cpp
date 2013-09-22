@@ -1,16 +1,16 @@
 #include <iostream>
 //#include <stdlib.h>
 #include <stdlib.h>
-
+#include "esio/esio.h"
 #include "pturbdb_field.hpp"
 
 #define DB_NZ 1536
 #define DB_NY 512
 #define DB_NX 2048
 
-#define FIELD_NZ 64
-#define FIELD_NY 64
-#define FIELD_NX 64
+#define FIELD_NZ 384
+#define FIELD_NY 256
+#define FIELD_NX 512
 
 //#define FIELD_NZ 128
 //#define FIELD_NY 64
@@ -25,7 +25,7 @@ int main(int argc, char *argv[]) {
 	MPI_Init(&argc, &argv);
 
 	int db_dims[] = { DB_NZ, DB_NY, DB_NX };
-	int db_field_offset[] = { 345, 127, 789 };
+	int db_field_offset[] = { 0, 0, 0 };
 	int field_dims[] = { FIELD_NZ, FIELD_NY, FIELD_NX };
 	int periodic[] = { 0, 0, 0 };
 
@@ -59,6 +59,8 @@ int main(int argc, char *argv[]) {
 
 	int *dims_local = u->getDimsLocal();
 	int *dims_operation = u->getDimsOperation();
+	int *offset_local = u->getOffsetLocal();
+	int *offset_operation = u->getOffsetOperation();
 
 	double *x = new double[dims_local[0]];
 	double *y = new double[dims_local[1]];
@@ -77,13 +79,6 @@ int main(int argc, char *argv[]) {
 		MPI_Abort( u->getMpiTopology()->comm, ierr);
 	}
 
-	// Read the operation grid
-      	u->getXOperation( x_operation );
-	u->getYOperation( y_operation );
-	u->getZOperation( z_operation );
-
-		
-
 	MPI_Barrier(u->getMpiTopology()->comm);
 
 	// Read the middle time
@@ -99,10 +94,15 @@ int main(int argc, char *argv[]) {
 	// Read u from the DB
 	w->readDBField( middle_time/2, "w" );
 
-	PField *dudx = new PField( field_dims, FIELD_DECOMP_SLAB, periodic, 4 );
+	PField *dudx = new PField( field_dims, FIELD_DECOMP_PENCIL, periodic, 4 );
 	// Set the grid and initialize finite differences
 	dudx->setGridLocal( x, y, z );
 	dudx->finiteDiffInit();
+
+	// Read the operation grid
+      	dudx->getXOperation( x_operation );
+	dudx->getYOperation( y_operation );
+	dudx->getZOperation( z_operation );
 
 	PField *dudy = new PField( *dudx );
 	PField *dudz = new PField( *dudx );
@@ -177,15 +177,87 @@ int main(int argc, char *argv[]) {
 	// Q then only retains 1/2 of the diagonal of the symmetric component
 	Q->sub( *TrO, *TrS ) *= 0.5;
 
-	double *Q_data = new double[Q->getSizeOperation()];
-
-	Q->getDataOperation( Q_data );
-	// Now set the data
-	*Q = Q_data;
+	double *t_data = new double[u->getSizeOperation()];
 
 	// Compute the Q-criterion
 	
 	MPI_Barrier(u->getMpiTopology()->comm);
+
+	if( u->getMpiTopology()->rank == 0 ) cout << "Writing output" << endl;
+
+	// Output data
+	esio_handle h = esio_handle_initialize(u->getMpiTopology()->comm);
+
+	// Open the database file
+	esio_file_create(h, "/datascope/tdbchannel/analysis/q.h5", 1); // Open read-only
+
+	esio_field_establish(h, field_dims[0], offset_local[0]+offset_operation[0], dims_operation[0],
+			        field_dims[1], offset_local[1]+offset_operation[1], dims_operation[1],
+			        field_dims[2], offset_local[2]+offset_operation[2], dims_operation[2]);
+
+	if( u->getMpiTopology()->rank == 0 ) cout << "Writing grid" << endl;
+	
+	double *x_full = new double[u->getSizeOperation()];
+	double *y_full = new double[u->getSizeOperation()];
+	double *z_full = new double[u->getSizeOperation()];
+	long index=0;
+	for(int i=0; i<dims_operation[0]; i++) {
+		for (int j=0; j<dims_operation[1]; j++) {
+			for(int k=0; k<dims_operation[2]; k++) {
+				x_full[index] = x_operation[i];
+				y_full[index] = y_operation[j];
+				z_full[index] = z_operation[k];
+				index++;
+			}
+		}
+	}
+	esio_field_write_double(h, grid_field_names[0], x_full, 0, 0, 0, "z");
+	esio_field_write_double(h, grid_field_names[1], y_full, 0, 0, 0, "y");
+	esio_field_write_double(h, grid_field_names[2], z_full, 0, 0, 0, "x");
+
+	if( u->getMpiTopology()->rank == 0 ) cout << "Writing fields" << endl;
+	u->getDataOperation(t_data);
+	esio_field_write_double(h, "u", t_data, 0, 0, 0, "u");
+
+	v->getDataOperation(t_data);
+	esio_field_write_double(h, "v", t_data, 0, 0, 0, "v");
+
+	w->getDataOperation(t_data);
+	esio_field_write_double(h, "w", t_data, 0, 0, 0, "w");
+
+	Q->getDataOperation(t_data);
+	esio_field_write_double(h, "Q", t_data, 0, 0, 0, "Q");
+
+	dudx->getDataOperation(t_data);
+	esio_field_write_double(h, "dudx", t_data, 0, 0, 0, "dudx");
+
+	dudy->getDataOperation(t_data);
+	esio_field_write_double(h, "dudy", t_data, 0, 0, 0, "dudy");
+
+	dudz->getDataOperation(t_data);
+	esio_field_write_double(h, "dudz", t_data, 0, 0, 0, "dudz");
+
+	dvdx->getDataOperation(t_data);
+	esio_field_write_double(h, "dvdx", t_data, 0, 0, 0, "dvdx");
+
+	dvdy->getDataOperation(t_data);
+	esio_field_write_double(h, "dvdy", t_data, 0, 0, 0, "dvdy");
+
+	dvdz->getDataOperation(t_data);
+	esio_field_write_double(h, "dvdz", t_data, 0, 0, 0, "dvdz");
+
+	dwdx->getDataOperation(t_data);
+	esio_field_write_double(h, "dwdx", t_data, 0, 0, 0, "dwdx");
+
+	dwdy->getDataOperation(t_data);
+	esio_field_write_double(h, "dwdy", t_data, 0, 0, 0, "dwdy");
+
+	dwdz->getDataOperation(t_data);
+	esio_field_write_double(h, "dwdz", t_data, 0, 0, 0, "dwdz");
+	
+	esio_file_close(h);
+	esio_handle_finalize(h);
+
 
 	// //  df->add( *df, *df2 );
 
