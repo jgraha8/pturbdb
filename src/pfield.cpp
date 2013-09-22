@@ -1301,11 +1301,11 @@ void PField::dndxn(void (FiniteDiff::*dd)(int, int, double *, int, double *), PF
 				MPI_Barrier(this->mpi_topology_->comm);
 			}
 #endif
-			//(this->finite_diff_->*dd)(x_offset, nx_local, ax, nx_operation,	dax);
-			this->finite_diff_->ddx(x_offset, nx_local, ax, nx_operation,	dax);
+			(this->finite_diff_->*dd)(x_offset, nx_local, ax, nx_operation,	dax);
 			// Unpack buffer
 			for (int i = 0; i < nx_operation; i++)
 				this->data_local[this->indexOperationToLocal(i, j, k)] = dax[i];
+
 		}
 	}
 
