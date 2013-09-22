@@ -9,7 +9,7 @@
 #define NZ 32
 
 using namespace std;
-using namespace pturb_fields;
+using namespace pturbdb;
 
 int main ( int argc, char *argv[]) 
 {

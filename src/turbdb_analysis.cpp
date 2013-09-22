@@ -2,7 +2,7 @@
 //#include <stdlib.h>
 #include <stdlib.h>
 
-#include "turbdb_field.hpp"
+#include "pturbdb_field.hpp"
 
 #define DB_NZ 1536
 #define DB_NY 512
@@ -17,7 +17,7 @@
 //#define FIELD_NX 128
 
 using namespace std;
-using namespace pturb_fields;
+using namespace pturbdb;
 
 int main(int argc, char *argv[]) {
 	double wtime;
@@ -29,7 +29,7 @@ int main(int argc, char *argv[]) {
 	int field_dims[] = { FIELD_NZ, FIELD_NY, FIELD_NX };
 	int periodic[] = { 0, 0, 0 };
 
-	TurbDBField *u = new TurbDBField("turbdb.conf", db_dims);
+	PTurbDBField *u = new PTurbDBField("turbdb.conf", db_dims);
 
 	u->dbFieldInit(db_field_offset, field_dims, FIELD_DECOMP_PENCIL, periodic, 4);
 
@@ -89,8 +89,8 @@ int main(int argc, char *argv[]) {
 	// Read the middle time
 	double middle_time = 0.5*( u->getDBTimeMax() + u->getDBTimeMin() );
 
-	TurbDBField *v = new TurbDBField( *u, false ); // Do not copy u field data
-	TurbDBField *w = new TurbDBField( *u, false ); // Do not copy u field data
+	PTurbDBField *v = new PTurbDBField( *u, false ); // Do not copy u field data
+	PTurbDBField *w = new PTurbDBField( *u, false ); // Do not copy u field data
 
 	// Read u from the DB
 	u->readDBField( middle_time, "u" );
@@ -99,21 +99,21 @@ int main(int argc, char *argv[]) {
 	// Read u from the DB
 	w->readDBField( middle_time, "w" );
 
-	Field *dudx = new Field( field_dims, FIELD_DECOMP_SLAB, periodic, 4 );
+	PField *dudx = new PField( field_dims, FIELD_DECOMP_SLAB, periodic, 4 );
 	// Set the grid and initialize finite differences
 	dudx->setGridLocal( x, y, z );
 	dudx->finiteDiffInit();
 
-	Field *dudy = new Field( *dudx );
-	Field *dudz = new Field( *dudx );
+	PField *dudy = new PField( *dudx );
+	PField *dudz = new PField( *dudx );
 
-	Field *dvdx = new Field( *dudx );
-	Field *dvdy = new Field( *dudx );
-	Field *dvdz = new Field( *dudx );
+	PField *dvdx = new PField( *dudx );
+	PField *dvdy = new PField( *dudx );
+	PField *dvdz = new PField( *dudx );
 
-	Field *dwdx = new Field( *dudx );
-	Field *dwdy = new Field( *dudx );
-	Field *dwdz = new Field( *dudx );
+	PField *dwdx = new PField( *dudx );
+	PField *dwdy = new PField( *dudx );
+	PField *dwdz = new PField( *dudx );
 
 	if( u->getMpiTopology()->rank == 0 ) cout << "Computing u derivatives" << endl;
 
@@ -133,17 +133,17 @@ int main(int argc, char *argv[]) {
 	dwdy->ddy( *w );
 	dwdz->ddz( *w );
 
-	Field *Q = new Field( *dudx, false );
-	Field *S11 = new Field( *dudx );
-	Field *S12 = new Field( *dudy );
-	Field *S13 = new Field( *dudz );
-	Field *S22 = new Field( *dvdy );
-	Field *S23 = new Field( *dvdz );
-	Field *S33 = new Field( *dwdz );
+	PField *Q = new PField( *dudx, false );
+	PField *S11 = new PField( *dudx );
+	PField *S12 = new PField( *dudy );
+	PField *S13 = new PField( *dudz );
+	PField *S22 = new PField( *dvdy );
+	PField *S23 = new PField( *dvdz );
+	PField *S33 = new PField( *dwdz );
 
-	Field *O12 = new Field( *dudy );
-	Field *O13 = new Field( *dudz );
-	Field *O23 = new Field( *dvdz );
+	PField *O12 = new PField( *dudy );
+	PField *O13 = new PField( *dudz );
+	PField *O23 = new PField( *dvdz );
 
 	(*S12 += (*dvdx))*=0.5;
 	(*S13 += (*dwdx))*=0.5;
@@ -153,8 +153,8 @@ int main(int argc, char *argv[]) {
 	(*O13 -= (*dwdx))*=0.5;
 	(*O23 -= (*dwdy))*=0.5;
 
-	Field *TrS = new Field( *S11, false );
-	Field *TrO = new Field( *S11, false );
+	PField *TrS = new PField( *S11, false );
+	PField *TrO = new PField( *S11, false );
 
 	// Here using Q as a buffer. The multiplication takes place and is stored in Q. We then add it to TrS.
 	TrO->mul( *S12, *S12);

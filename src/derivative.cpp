@@ -6,7 +6,7 @@
 
 using namespace std;
 
-namespace pturb_fields {
+namespace pturbdb {
 
 FiniteDiff::FiniteDiff( int nx, double *x, int ny, double *y, int nz, double *z, int order ) 
 {

@@ -3,46 +3,46 @@
 #include <cstring>
 #include <cmath>
 #include <cstdio>
-#include "field.hpp"
+#include "pfield.hpp"
 
 using namespace std;
 
-namespace pturb_fields {
+namespace pturbdb {
 
 ////////////////////////////////////////////////////////////////////////////////
 /// CONSTRUCTORS
 ////////////////////////////////////////////////////////////////////////////////
 
-// Field class member functions
-Field::Field(const int *dims, FieldDecomp_t field_decomp, const int *periodic,
+// PField class member functions
+PField::PField(const int *dims, FieldDecomp_t field_decomp, const int *periodic,
 	     int operator_order)
 {
-	FieldInit(dims, field_decomp, periodic, operator_order);
+	PFieldInit(dims, field_decomp, periodic, operator_order);
 
 #ifdef VERBOSE
-	printf("%d: Field::Field: constructed field\n", this->getMpiTopology()->rank);
+	printf("%d: PField::PField: constructed field\n", this->getMpiTopology()->rank);
 #endif
 
 }
 
-Field::Field(Field &g, bool copy_data_local)
+PField::PField(PField &g, bool copy_data_local)
 {
 
-	this->FieldCopy( g, copy_data_local );
+	this->PFieldCopy( g, copy_data_local );
 
 #ifdef VERBOSE
-	printf("%d: Field::Field: constructed field from copy\n", this->getMpiTopology()->rank);
+	printf("%d: PField::PField: constructed field from copy\n", this->getMpiTopology()->rank);
 #endif
 
 }
 
-Field::Field(Field &g)
+PField::PField(PField &g)
 {
 
-	this->FieldCopy( g, true );
+	this->PFieldCopy( g, true );
 
 #ifdef VERBOSE
-	printf("%d: Field::Field: constructed field from copy\n", this->getMpiTopology()->rank);
+	printf("%d: PField::PField: constructed field from copy\n", this->getMpiTopology()->rank);
 #endif
 
 }
@@ -51,11 +51,11 @@ Field::Field(Field &g)
 /// DECONSTRUCTORS
 ////////////////////////////////////////////////////////////////////////////////
 
-Field::~Field(void)
+PField::~PField(void)
 {
 
 #ifdef VERBOSE
-	printf("%d: Field::~Field: deconstructed field\n", this->mpi_topology_->rank);
+	printf("%d: PField::~PField: deconstructed field\n", this->mpi_topology_->rank);
 #endif
 
        	delete[] this->data_local;
@@ -68,22 +68,22 @@ Field::~Field(void)
 /// INITIALIZERS
 ////////////////////////////////////////////////////////////////////////////////
 
-// Field class initializer
+// PField class initializer
 // Sets:
 //   ndims
 // Initilizes:
 //   dims
 //   data
 /********************************************************************/
-void Field::FieldInit(const int *dims, FieldDecomp_t field_decomp,
+void PField::PFieldInit(const int *dims, FieldDecomp_t field_decomp,
 		      const int *periodic, int operator_order)
 /********************************************************************/
 {
 
 	// Set the global dimensions
-	memcpy(this->dims_, dims, sizeof(*this->dims_) * FIELD_NDIMS);
+	memcpy(this->dims_, dims, sizeof(*this->dims_) * PFIELD_NDIMS);
 	this->field_decomp_ = field_decomp;
-	memcpy(this->periodic_, periodic, sizeof(*this->periodic_) * FIELD_NDIMS);
+	memcpy(this->periodic_, periodic, sizeof(*this->periodic_) * PFIELD_NDIMS);
 	this->operator_order_ = operator_order;
 	// Rind size to support finite differencing at interprocessor boundaries
 	this->rind_size_ = operator_order / 2 + operator_order % 2; // Second part adds 1 if odd operator order
@@ -109,7 +109,7 @@ void Field::FieldInit(const int *dims, FieldDecomp_t field_decomp,
 #ifdef VERBOSE
 	for( int n=0; n<this->mpi_topology_->nproc; n++) {
 		if( n == this->mpi_topology_->rank ) {
-			printf("%d: Field::FieldInit\n", n);
+			printf("%d: PField::PFieldInit\n", n);
 			printf("    dims             = %d, %d\n", dims_[0], dims_[1]);
 			printf("    dims_local       = %d, %d\n", dims_local_[0], dims_local_[1]);
 			printf("    dims_operation   = %d, %d\n", dims_operation_[0], dims_operation_[1]);
@@ -125,21 +125,21 @@ void Field::FieldInit(const int *dims, FieldDecomp_t field_decomp,
 
 }
 
-void Field::FieldCopy( Field &g, bool copy_data_local )
+void PField::PFieldCopy( PField &g, bool copy_data_local )
 {
 
 	// We will make a copy of the input field
 	// Copy dimension data
-	memcpy(this->dims_,             g.getDims(),            sizeof(this->dims_[0])*FIELD_NDIMS);
-	memcpy(this->dims_local_,       g.getDimsLocal(),       sizeof(this->dims_local_[0])*FIELD_NDIMS);
-	memcpy(this->dims_operation_,   g.getDimsOperation(),   sizeof(this->dims_operation_[0])*FIELD_NDIMS);
+	memcpy(this->dims_,             g.getDims(),            sizeof(this->dims_[0])*PFIELD_NDIMS);
+	memcpy(this->dims_local_,       g.getDimsLocal(),       sizeof(this->dims_local_[0])*PFIELD_NDIMS);
+	memcpy(this->dims_operation_,   g.getDimsOperation(),   sizeof(this->dims_operation_[0])*PFIELD_NDIMS);
 
 	// Copy offsets
-	memcpy(this->offset_local_,     g.getOffsetLocal(),     sizeof(this->offset_local_[0])*FIELD_NDIMS);
-	memcpy(this->offset_operation_, g.getOffsetOperation(), sizeof(this->offset_operation_[0])*FIELD_NDIMS);
+	memcpy(this->offset_local_,     g.getOffsetLocal(),     sizeof(this->offset_local_[0])*PFIELD_NDIMS);
+	memcpy(this->offset_operation_, g.getOffsetOperation(), sizeof(this->offset_operation_[0])*PFIELD_NDIMS);
     
 	// Copy periodic data
-	memcpy(this->periodic_,         g.getFieldPeriodic(),   sizeof(this->periodic_[0])*FIELD_NDIMS);
+	memcpy(this->periodic_,         g.getFieldPeriodic(),   sizeof(this->periodic_[0])*PFIELD_NDIMS);
 
 	// Copy scalars
 	this->operator_order_ = g.getOperatorOrder();
@@ -170,25 +170,25 @@ void Field::FieldCopy( Field &g, bool copy_data_local )
 // setGridLocal be called from the application before this can be called.
 //
 /********************************************************************/
-void Field::finiteDiffInit()
+void PField::finiteDiffInit()
 /********************************************************************/
 {
 
 
 #ifdef VERBOSE
-	printf("%d: Field::finiteDiffInit: entering\n", this->mpi_topology_->rank);
+	printf("%d: PField::finiteDiffInit: entering\n", this->mpi_topology_->rank);
 #endif
 
 	int ierr=0;
 
 	if (this->finite_diff_ != NULL) {
-		printf("%d: Field::finiteDiffInit: class instance fd already created\n", this->mpi_topology_->rank);
+		printf("%d: PField::finiteDiffInit: class instance fd already created\n", this->mpi_topology_->rank);
 		MPI_Abort(this->mpi_topology_->comm, ierr);
 	}
 
 	if (this->x_local_ == NULL || this->y_local_ == NULL
 	    || this->z_local_ == NULL) {
-		printf("%d: Field::finiteDiffInit: requires setGridLocal be called first\n", this->mpi_topology_->rank);
+		printf("%d: PField::finiteDiffInit: requires setGridLocal be called first\n", this->mpi_topology_->rank);
 		MPI_Abort(this->mpi_topology_->comm, ierr);
 	}
 
@@ -198,7 +198,7 @@ void Field::finiteDiffInit()
 					    this->z_local_, this->operator_order_);
 
 #ifdef VERBOSE
-	printf("%d: Field::finiteDiffInit: exiting\n", this->mpi_topology_->rank);
+	printf("%d: PField::finiteDiffInit: exiting\n", this->mpi_topology_->rank);
 #endif
 
 }
@@ -208,40 +208,40 @@ void Field::finiteDiffInit()
 //////////////////////////////////////////////////////////////////////
 
 /********************************************************************/
-long Field::getSize()
+long PField::getSize()
 /********************************************************************/
 {
 	long N = 1;
-	for (int n = 0; n < FIELD_NDIMS; n++) {
+	for (int n = 0; n < PFIELD_NDIMS; n++) {
 		N *= this->dims_[n];
 	}
 	return N;
 }
 
 /********************************************************************/
-long Field::getSizeLocal()
+long PField::getSizeLocal()
 /********************************************************************/
 {
 	long N = 1;
-	for (int n = 0; n < FIELD_NDIMS; n++) {
+	for (int n = 0; n < PFIELD_NDIMS; n++) {
 		N *= this->dims_local_[n];
 	}
 	return N;
 }
 
 /********************************************************************/
-long Field::getSizeOperation()
+long PField::getSizeOperation()
 /********************************************************************/
 {
 	long N = 1;
-	for (int n = 0; n < FIELD_NDIMS; n++) {
+	for (int n = 0; n < PFIELD_NDIMS; n++) {
 		N *= this->dims_operation_[n];
 	}
 	return N;
 }
 
 /********************************************************************/
-long Field::getSizeRind(int dim, int location)
+long PField::getSizeRind(int dim, int location)
 /********************************************************************/
 {
 	// If the dimension and location does not have a rind, return 0
@@ -258,7 +258,7 @@ long Field::getSizeRind(int dim, int location)
 		return (long) this->dims_operation_[0] * (long) this->dims_operation_[1]
 			* (long) this->rind_size_;
 	} else {
-		printf("%d: Field::getSizeRind: incorrect dimension number specified\n", 
+		printf("%d: PField::getSizeRind: incorrect dimension number specified\n", 
 		       this->mpi_topology_->rank);
 		int ierr=0;
 		MPI_Abort(this->mpi_topology_->comm, ierr);
@@ -270,32 +270,32 @@ long Field::getSizeRind(int dim, int location)
 /*
  * Getters for data members
  */
-FieldDecomp_t Field::getFieldDecomp()  { return this->field_decomp_;     };
-MpiTopology_t *Field::getMpiTopology() { return this->mpi_topology_;     };
-FiniteDiff *Field::getFiniteDiff()     { return this->finite_diff_;      };
-double *Field::getXLocal()             { return this->x_local_;          };
-double *Field::getYLocal()             { return this->y_local_;          };
-double *Field::getZLocal()             { return this->z_local_;          };
+FieldDecomp_t PField::getFieldDecomp()  { return this->field_decomp_;     };
+MpiTopology_t *PField::getMpiTopology() { return this->mpi_topology_;     };
+FiniteDiff *PField::getFiniteDiff()     { return this->finite_diff_;      };
+double *PField::getXLocal()             { return this->x_local_;          };
+double *PField::getYLocal()             { return this->y_local_;          };
+double *PField::getZLocal()             { return this->z_local_;          };
 
-int *Field::getFieldPeriodic()         { return this->periodic_;         };
+int *PField::getFieldPeriodic()         { return this->periodic_;         };
 
-int Field::getOperatorOrder()          { return this->operator_order_;   };
+int PField::getOperatorOrder()          { return this->operator_order_;   };
 
-int *Field::getDims()                  { return this->dims_;             };
-int *Field::getDimsLocal()             { return this->dims_local_;       };    
-int *Field::getDimsOperation()         { return this->dims_operation_;   };
+int *PField::getDims()                  { return this->dims_;             };
+int *PField::getDimsLocal()             { return this->dims_local_;       };    
+int *PField::getDimsOperation()         { return this->dims_operation_;   };
 
-int *Field::getOffsetLocal()           { return this->offset_local_;     };
-int *Field::getOffsetOperation()       { return this->offset_operation_; };
+int *PField::getOffsetLocal()           { return this->offset_local_;     };
+int *PField::getOffsetOperation()       { return this->offset_operation_; };
 
-int Field::getRindSize()               { return this->rind_size_;        };
+int PField::getRindSize()               { return this->rind_size_;        };
 
-bool Field::getSynchronized()          { return this->synchronized_;     };
+bool PField::getSynchronized()          { return this->synchronized_;     };
 
 
 // Array index for 3D indexing
 /********************************************************************/
-long Field::index(int i, int j, int k)
+long PField::index(int i, int j, int k)
 /********************************************************************/
 {
 	return ((long) this->dims_[1] * (long) i + (long) j) * (long) this->dims_[2]
@@ -304,7 +304,7 @@ long Field::index(int i, int j, int k)
 
 // Array index for 3D indexing
 /********************************************************************/
-long Field::indexLocal(int i, int j, int k)
+long PField::indexLocal(int i, int j, int k)
 /********************************************************************/
 {
 	return ((long) this->dims_local_[1] * (long) i + (long) j)
@@ -313,7 +313,7 @@ long Field::indexLocal(int i, int j, int k)
 
 // Array index for 3D indexing
 /********************************************************************/
-long Field::indexOperation(int i, int j, int k)
+long PField::indexOperation(int i, int j, int k)
 /********************************************************************/
 {
 	return ((long) this->dims_operation_[1] * (long) i + (long) j)
@@ -322,7 +322,7 @@ long Field::indexOperation(int i, int j, int k)
 
 // Array index for 3D indexing
 /********************************************************************/
-long Field::indexOperationToLocal(int i, int j, int k)
+long PField::indexOperationToLocal(int i, int j, int k)
 /********************************************************************/
 {
 	const long ii = (long) i + (long) this->offset_operation_[0];
@@ -332,7 +332,7 @@ long Field::indexOperationToLocal(int i, int j, int k)
 #ifdef DEBUG
 	for( int n=0; n<this->mpi_topology_->nproc; n++ ) {
 		if( n == this->mpi_topology_->rank ) {
-			printf("%d: Field::indexOperationToLocal\n", n);
+			printf("%d: PField::indexOperationToLocal\n", n);
 			printf("  i, j, k = %d, %d, %d\n", i,j,k);
 			printf("  (long)i, (long)j, (long)k = %ld, %ld, %ld\n", (long)i,(long)j,(long)k);
 			printf("  ii, jj, kk = %ld, %ld, %ld\n", ii,jj,kk);
@@ -344,14 +344,14 @@ long Field::indexOperationToLocal(int i, int j, int k)
 		+ kk;
 }
 
-void Field::setSynchronized( bool synchronized ) 
+void PField::setSynchronized( bool synchronized ) 
 {
 	this->synchronized_ = synchronized;
 }
 
 // Set the grid pointers for field
 /********************************************************************/
-void Field::setGridLocal(double *x_local, double *y_local, double *z_local)
+void PField::setGridLocal(double *x_local, double *y_local, double *z_local)
 /********************************************************************/
 {
 	this->x_local_ = x_local;
@@ -360,7 +360,7 @@ void Field::setGridLocal(double *x_local, double *y_local, double *z_local)
 }
 
 /********************************************************************/
-void Field::setDataOperation( const float *data_operation)
+void PField::setDataOperation( const float *data_operation)
 /********************************************************************/
 {
 	long index_local, index_operation;
@@ -380,7 +380,7 @@ void Field::setDataOperation( const float *data_operation)
 	this->synchronized_ = false;
 }
 /********************************************************************/
-void Field::setDataOperation( const double *data_operation)
+void PField::setDataOperation( const double *data_operation)
 /********************************************************************/
 {
 	long index_local, index_operation;
@@ -400,7 +400,7 @@ void Field::setDataOperation( const double *data_operation)
 }
 
 /********************************************************************/
-void Field::addDataOperation( const float *data_operation)
+void PField::addDataOperation( const float *data_operation)
 /********************************************************************/
 {
 	long index_local, index_operation;
@@ -419,7 +419,7 @@ void Field::addDataOperation( const float *data_operation)
 	this->synchronized_ = false;
 }
 /********************************************************************/
-void Field::addDataOperation( const double *data_operation)
+void PField::addDataOperation( const double *data_operation)
 /********************************************************************/
 {
 	long index_local, index_operation;
@@ -439,7 +439,7 @@ void Field::addDataOperation( const double *data_operation)
 }
 
 /********************************************************************/
-void Field::mulDataOperation( double scalar)
+void PField::mulDataOperation( double scalar)
 /********************************************************************/
 {
 	long index_local;
@@ -462,7 +462,7 @@ void Field::mulDataOperation( double scalar)
 //////////////////////////////////////////////////////////////////////
 
 /********************************************************************/
-Field& Field::operator=(const Field &a)
+PField& PField::operator=(const PField &a)
 /********************************************************************/
 {
 	// Make sure they don't point to the same address
@@ -477,7 +477,7 @@ Field& Field::operator=(const Field &a)
 }
 
 /********************************************************************/
-Field& Field::operator=(double c)
+PField& PField::operator=(double c)
 /********************************************************************/
 {
 	std::fill_n( this->data_local, this->getSizeLocal(), c );
@@ -488,7 +488,7 @@ Field& Field::operator=(double c)
 }
 
 /********************************************************************/
-Field& Field::operator+=(const Field &a)
+PField& PField::operator+=(const PField &a)
 /********************************************************************/
 {
 
@@ -509,7 +509,7 @@ Field& Field::operator+=(const Field &a)
 	return *this;
 }
 
-Field& Field::operator+=(double c)
+PField& PField::operator+=(double c)
 {
 
 	long index;
@@ -530,7 +530,7 @@ Field& Field::operator+=(double c)
 }
 
 /********************************************************************/
-Field& Field::operator-=(const Field &a)
+PField& PField::operator-=(const PField &a)
 /********************************************************************/
 {
 
@@ -551,7 +551,7 @@ Field& Field::operator-=(const Field &a)
 	return *this;
 }
 
-Field& Field::operator-=(double c)
+PField& PField::operator-=(double c)
 {
 
 	long index;
@@ -572,7 +572,7 @@ Field& Field::operator-=(double c)
 }
 
 /********************************************************************/
-Field& Field::operator*=(const Field &a)
+PField& PField::operator*=(const PField &a)
 /********************************************************************/
 {
 	long index;
@@ -592,7 +592,7 @@ Field& Field::operator*=(const Field &a)
 	return *this;
 }
 
-Field& Field::operator*=(double c)
+PField& PField::operator*=(double c)
 {
 	long index;
 
@@ -612,7 +612,7 @@ Field& Field::operator*=(double c)
 }
 
 /********************************************************************/
-Field& Field::operator/=(const Field &a)
+PField& PField::operator/=(const PField &a)
 /********************************************************************/
 {
 
@@ -633,7 +633,7 @@ Field& Field::operator/=(const Field &a)
 	return *this;
 }
 
-Field& Field::operator/=(double c)
+PField& PField::operator/=(double c)
 {
 
 	long index;
@@ -658,7 +658,7 @@ Field& Field::operator/=(double c)
 //////////////////////////////////////////////////////////////////////
 
 /********************************************************************/
-Field &Field::add(Field &a, Field &b)
+PField &PField::add(PField &a, PField &b)
 /********************************************************************/
 {
 
@@ -688,7 +688,7 @@ Field &Field::add(Field &a, Field &b)
 }
 
 /********************************************************************/
-Field &Field::sub(Field &a, Field &b)
+PField &PField::sub(PField &a, PField &b)
 /********************************************************************/
 {
 
@@ -718,7 +718,7 @@ Field &Field::sub(Field &a, Field &b)
 }
 
 /********************************************************************/
-Field &Field::mul(Field &a, Field &b)
+PField &PField::mul(PField &a, PField &b)
 /********************************************************************/
 {
 
@@ -748,7 +748,7 @@ Field &Field::mul(Field &a, Field &b)
 }
 
 /********************************************************************/
-Field &Field::div(Field &a, Field &b)
+PField &PField::div(PField &a, PField &b)
 /********************************************************************/
 {
 
@@ -788,18 +788,18 @@ Field &Field::div(Field &a, Field &b)
 // are not using pure mixed derivatives here.
 
 /********************************************************************/
-void Field::ddx(Field &a)
+void PField::ddx(PField &a)
 /********************************************************************/
 {
 
 #ifdef VERBOSE
-	printf("%d: Field::ddx: entering\n", this->mpi_topology_->rank);
+	printf("%d: PField::ddx: entering\n", this->mpi_topology_->rank);
 #endif
 
 	// First check that the finite difference class has been initialized.
 	int ierr=0;
 	if( this->finite_diff_ == NULL ) {
-		printf("%d: Field::ddx: finite difference class not initialized. Must call finiteDiffInit before calling this function\n", this->mpi_topology_->rank);
+		printf("%d: PField::ddx: finite difference class not initialized. Must call finiteDiffInit before calling this function\n", this->mpi_topology_->rank);
 		MPI_Abort(this->mpi_topology_->comm,ierr);
 	}
 
@@ -808,24 +808,24 @@ void Field::ddx(Field &a)
 	this->dndxn(dd, a);
 
 #ifdef VERBOSE
-	printf("%d: Field::ddx: exiting\n", this->mpi_topology_->rank);
+	printf("%d: PField::ddx: exiting\n", this->mpi_topology_->rank);
 #endif
 
 }
 
 /********************************************************************/
-void Field::ddy(Field &a)
+void PField::ddy(PField &a)
 /********************************************************************/
 {
 
 #ifdef VERBOSE
-	printf("%d: Field::ddy: entering\n", this->mpi_topology_->rank);
+	printf("%d: PField::ddy: entering\n", this->mpi_topology_->rank);
 #endif
 
 	// First check that the finite difference class has been initialized.
 	int ierr=0;
 	if( this->finite_diff_ == NULL ) {
-		printf("%d: Field::ddy: finite difference class not initialized. Must call finiteDiffInit before calling this function\n", this->mpi_topology_->rank);
+		printf("%d: PField::ddy: finite difference class not initialized. Must call finiteDiffInit before calling this function\n", this->mpi_topology_->rank);
 		MPI_Abort(this->mpi_topology_->comm,ierr);
 	}
 
@@ -834,20 +834,20 @@ void Field::ddy(Field &a)
 	this->dndyn(dd, a);
 
 #ifdef VERBOSE
-	printf("%d: Field::ddy: exiting\n", this->mpi_topology_->rank);
+	printf("%d: PField::ddy: exiting\n", this->mpi_topology_->rank);
 #endif
 
 }
 
 /********************************************************************/
-void Field::ddz(Field &a)
+void PField::ddz(PField &a)
 /********************************************************************/
 {
 
 	// First check that the finite difference class has been initialized.
 	int ierr=0;
 	if( this->finite_diff_ == NULL ) {
-		printf("%d: Field::ddz: finite difference class not initialized. Must call finiteDiffInit before calling this function\n", this->mpi_topology_->rank);
+		printf("%d: PField::ddz: finite difference class not initialized. Must call finiteDiffInit before calling this function\n", this->mpi_topology_->rank);
 		MPI_Abort(this->mpi_topology_->comm,ierr);
 	}
 
@@ -857,14 +857,14 @@ void Field::ddz(Field &a)
 }
 
 /********************************************************************/
-void Field::d2dx2(Field &a)
+void PField::d2dx2(PField &a)
 /********************************************************************/
 {
 
 	// First check that the finite difference class has been initialized.
 	int ierr=0;
 	if( this->finite_diff_ == NULL ) {
-		printf("%d: Field::d2dx2: finite difference class not initialized. Must call finiteDiffInit before calling this function\n", this->mpi_topology_->rank);
+		printf("%d: PField::d2dx2: finite difference class not initialized. Must call finiteDiffInit before calling this function\n", this->mpi_topology_->rank);
 		MPI_Abort(this->mpi_topology_->comm,ierr);
 	}
 
@@ -873,14 +873,14 @@ void Field::d2dx2(Field &a)
 	this->dndxn(dd, a);
 }
 /********************************************************************/
-void Field::d2dy2(Field &a)
+void PField::d2dy2(PField &a)
 /********************************************************************/
 {
 
 	// First check that the finite difference class has been initialized.
 	int ierr=0;
 	if( this->finite_diff_ == NULL ) {
-		printf("%d: Field::d2dy2: finite difference class not initialized. Must call finiteDiffInit before calling this function\n", this->mpi_topology_->rank);
+		printf("%d: PField::d2dy2: finite difference class not initialized. Must call finiteDiffInit before calling this function\n", this->mpi_topology_->rank);
 		MPI_Abort(this->mpi_topology_->comm,ierr);
 	}
 
@@ -890,14 +890,14 @@ void Field::d2dy2(Field &a)
 }
 
 /********************************************************************/
-void Field::d2dz2(Field &a)
+void PField::d2dz2(PField &a)
 /********************************************************************/
 {
 
 	// First check that the finite difference class has been initialized.
 	int ierr=0;
 	if( this->finite_diff_ == NULL ) {
-		printf("%d: Field::d2dz2: finite difference class not initialized. Must call finiteDiffInit before calling this function\n", this->mpi_topology_->rank);
+		printf("%d: PField::d2dz2: finite difference class not initialized. Must call finiteDiffInit before calling this function\n", this->mpi_topology_->rank);
 		MPI_Abort(this->mpi_topology_->comm,ierr);
 	}
 
@@ -907,14 +907,14 @@ void Field::d2dz2(Field &a)
 }
 
 /********************************************************************/
-void Field::d2dxy(Field &a)
+void PField::d2dxy(PField &a)
 /********************************************************************/
 {
 
 	// First check that the finite difference class has been initialized.
 	int ierr=0;
 	if( this->finite_diff_ == NULL ) {
-		printf("%d: Field::d2dxy: finite difference class not initialized. Must call finiteDiffInit before calling this function\n", this->mpi_topology_->rank);
+		printf("%d: PField::d2dxy: finite difference class not initialized. Must call finiteDiffInit before calling this function\n", this->mpi_topology_->rank);
 		MPI_Abort(this->mpi_topology_->comm,ierr);
 	}
 
@@ -925,14 +925,14 @@ void Field::d2dxy(Field &a)
 	this->dndyn(dd, *this);
 }
 /********************************************************************/
-void Field::d2dxz(Field &a)
+void PField::d2dxz(PField &a)
 /********************************************************************/
 {
 
 	// First check that the finite difference class has been initialized.
 	int ierr=0;
 	if( this->finite_diff_ == NULL ) {
-		printf("%d: Field::d2dxz: finite difference class not initialized. Must call finiteDiffInit before calling this function\n", this->mpi_topology_->rank);
+		printf("%d: PField::d2dxz: finite difference class not initialized. Must call finiteDiffInit before calling this function\n", this->mpi_topology_->rank);
 		MPI_Abort(this->mpi_topology_->comm,ierr);
 	}
 
@@ -943,14 +943,14 @@ void Field::d2dxz(Field &a)
 	this->dndzn(dd, *this);
 }
 /********************************************************************/
-void Field::d2dyz(Field &a)
+void PField::d2dyz(PField &a)
 /********************************************************************/
 {
 
 	// First check that the finite difference class has been initialized.
 	int ierr=0;
 	if( this->finite_diff_ == NULL ) {
-		printf("%d: Field::d2dyz: finite difference class not initialized. Must call finiteDiffInit before calling this function\n", this->mpi_topology_->rank);
+		printf("%d: PField::d2dyz: finite difference class not initialized. Must call finiteDiffInit before calling this function\n", this->mpi_topology_->rank);
 		MPI_Abort(this->mpi_topology_->comm,ierr);
 	}
 
@@ -965,11 +965,11 @@ void Field::d2dyz(Field &a)
 /// DERIVATIVES (PRIVATE)
 //////////////////////////////////////////////////////////////////////
 
-void Field::dndxn(void (FiniteDiff::*dd)(int, int, double *, int, double *), Field &a)
+void PField::dndxn(void (FiniteDiff::*dd)(int, int, double *, int, double *), PField &a)
 {
 
 #ifdef VERBOSE
-	printf("%d: Field::dndxn: entering\n", this->mpi_topology_->rank);
+	printf("%d: PField::dndxn: entering\n", this->mpi_topology_->rank);
 #endif
 
 	// Create buffer to store x-data
@@ -1007,7 +1007,7 @@ void Field::dndxn(void (FiniteDiff::*dd)(int, int, double *, int, double *), Fie
 #ifdef DEBUG
 			for(int n=0; n<this->mpi_topology_->nproc; n++) {
 				if( n == this->mpi_topology_->rank ) {
-					printf("%d:Field::dndxn\n", n);
+					printf("%d:PField::dndxn\n", n);
 					printf("    nx_local     = %d\n", nx_local);
 					printf("    nx_operation = %d\n", nx_operation);
 					printf("    ny           = %d\n", ny);
@@ -1034,18 +1034,18 @@ void Field::dndxn(void (FiniteDiff::*dd)(int, int, double *, int, double *), Fie
 	delete[] dax;
 
 #ifdef VERBOSE
-	printf("%d: Field::dndxn: exiting\n", this->mpi_topology_->rank);
+	printf("%d: PField::dndxn: exiting\n", this->mpi_topology_->rank);
 #endif
 
 }
 
 
-void Field::dndyn(void (FiniteDiff::*dd)(int, int, double *, int, double *),
-		  Field &a)
+void PField::dndyn(void (FiniteDiff::*dd)(int, int, double *, int, double *),
+		  PField &a)
 {
 
 #ifdef VERBOSE
-	printf("%d: Field::dndyn: entering\n", this->mpi_topology_->rank);
+	printf("%d: PField::dndyn: entering\n", this->mpi_topology_->rank);
 #endif
 
 	// Create buffer to store x-data
@@ -1094,17 +1094,17 @@ void Field::dndyn(void (FiniteDiff::*dd)(int, int, double *, int, double *),
 	delete[] day;
 
 #ifdef VERBOSE
-	printf("%d: Field::dndyn: exiting\n", this->mpi_topology_->rank);
+	printf("%d: PField::dndyn: exiting\n", this->mpi_topology_->rank);
 #endif
 
 }
 
-void Field::dndzn(void (FiniteDiff::*dd)(int, int, double *, int, double *),
-		  Field &a)
+void PField::dndzn(void (FiniteDiff::*dd)(int, int, double *, int, double *),
+		  PField &a)
 {
 
 #ifdef VERBOSE
-	printf("%d: Field::dndzn: entering\n", this->mpi_topology_->rank);
+	printf("%d: PField::dndzn: entering\n", this->mpi_topology_->rank);
 #endif
 
 	// Create buffer to store x-data
@@ -1153,7 +1153,7 @@ void Field::dndzn(void (FiniteDiff::*dd)(int, int, double *, int, double *),
 	delete[] daz;
 
 #ifdef VERBOSE
-	printf("%d: Field::dndzn: exiting\n", this->mpi_topology_->rank);
+	printf("%d: PField::dndzn: exiting\n", this->mpi_topology_->rank);
 #endif
 
 }
@@ -1169,22 +1169,22 @@ void Field::dndzn(void (FiniteDiff::*dd)(int, int, double *, int, double *),
 //
 // Computes the dimensions/size of the MPI topology for a given number of
 // processes and domain decomposition dimensions. The size of
-// mpi_topology_dims matches FIELD_NDIMS.
+// mpi_topology_dims matches PFIELD_NDIMS.
 //
 // Inputs:
 //   nproc - number of total MPI processes
 //   mpi_decomp_ndims - number of decomposition dimensions (1 for slab decomposition, 2 for pencil, etc.)
 // Returns:
-//   mpi_topology_dims[FIELD_NDIMS] - topology dimensions in each field direction
+//   mpi_topology_dims[PFIELD_NDIMS] - topology dimensions in each field direction
 //
 /********************************************************************/
-int *Field::computeMpiTopologyDims(int nproc, int mpi_decomp_ndims)
+int *PField::computeMpiTopologyDims(int nproc, int mpi_decomp_ndims)
 /********************************************************************/
 {
 
 	// initialize the MPI topology dimensions to 1
-	int *mpi_topology_dims = new int[FIELD_NDIMS];
-	std::fill_n(mpi_topology_dims, FIELD_NDIMS, 1);
+	int *mpi_topology_dims = new int[PFIELD_NDIMS];
+	std::fill_n(mpi_topology_dims, PFIELD_NDIMS, 1);
 
 	if (mpi_decomp_ndims == 1) {
 
@@ -1229,7 +1229,7 @@ int *Field::computeMpiTopologyDims(int nproc, int mpi_decomp_ndims)
 ////////////////////////////////////////////////////////////////////////////////
 
 /********************************************************************/
-void Field::assignMpiTopology()
+void PField::assignMpiTopology()
 /********************************************************************/
 {
 
@@ -1253,14 +1253,14 @@ void Field::assignMpiTopology()
 	int *mpi_topology_dims = this->computeMpiTopologyDims(nproc, mpi_decomp_ndims);
 
 	// Create the MPI topology struct; this contains all the comm, rank, nproc, neighbors, etc.
-	this->mpi_topology_ = MpiTopologyNew(MPI_COMM_WORLD, FIELD_NDIMS, mpi_topology_dims, this->periodic_);
+	this->mpi_topology_ = MpiTopologyNew(MPI_COMM_WORLD, PFIELD_NDIMS, mpi_topology_dims, this->periodic_);
 
 	delete[] mpi_topology_dims;
 
 #ifdef VERBOSE
 	for(int n=0; n<this->mpi_topology_->nproc; n++) {
 		if( n == this->mpi_topology_->rank ) {
-			printf("%d: Field::assignMpiTopology\n",this->mpi_topology_->rank);
+			printf("%d: PField::assignMpiTopology\n",this->mpi_topology_->rank);
 			printf("    coords: %d, %d\n",this->mpi_topology_->coords[0], this->mpi_topology_->coords[1]);
 			printf("    neighbor_prev: %d, %d\n",this->mpi_topology_->neighbor_prev[0], this->mpi_topology_->neighbor_prev[1]);
 			printf("    neighbor_next: %d, %d\n",this->mpi_topology_->neighbor_next[0], this->mpi_topology_->neighbor_next[1]);
@@ -1272,19 +1272,19 @@ void Field::assignMpiTopology()
 }
 
 /********************************************************************/
-void Field::assignDimsAndOffsets()
+void PField::assignDimsAndOffsets()
 /********************************************************************/
 {
 
-	int *zero3 = new int[FIELD_NDIMS]; // Zero vector of dimension FIELD_NDIMS
-	std::fill_n(zero3, FIELD_NDIMS, 0);
+	int *zero3 = new int[PFIELD_NDIMS]; // Zero vector of dimension PFIELD_NDIMS
+	std::fill_n(zero3, PFIELD_NDIMS, 0);
 
 	// Initialize the local/operation dimensions and offset
-	memcpy(this->dims_local_, this->dims_, sizeof(*this->dims_) * FIELD_NDIMS);
-	memcpy(this->offset_local_, zero3, sizeof(*this->offset_local_) * FIELD_NDIMS);
+	memcpy(this->dims_local_, this->dims_, sizeof(*this->dims_) * PFIELD_NDIMS);
+	memcpy(this->offset_local_, zero3, sizeof(*this->offset_local_) * PFIELD_NDIMS);
 
-	memcpy(this->dims_operation_, this->dims_, sizeof(*this->dims_) * FIELD_NDIMS);
-	memcpy(this->offset_operation_, zero3, sizeof(*this->offset_local_) * FIELD_NDIMS);
+	memcpy(this->dims_operation_, this->dims_, sizeof(*this->dims_) * PFIELD_NDIMS);
+	memcpy(this->offset_operation_, zero3, sizeof(*this->offset_local_) * PFIELD_NDIMS);
 
 	delete[] zero3;
 
@@ -1329,7 +1329,7 @@ void Field::assignDimsAndOffsets()
  * Procedure to check if the field has a rind for a given dimension and location
  */
 /********************************************************************/
-bool Field::hasRind(int dim, int location)
+bool PField::hasRind(int dim, int location)
 /********************************************************************/
 {
 	if (location == -1) {
@@ -1337,7 +1337,7 @@ bool Field::hasRind(int dim, int location)
 	} else if( location == 1 ) {
 		return (this->mpi_topology_->neighbor_next[dim] >= 0) ? true : false;
 	} else {
-		printf("%d: Field::hasRind: incorrect location provided\n", this->mpi_topology_->rank);
+		printf("%d: PField::hasRind: incorrect location provided\n", this->mpi_topology_->rank);
 		int ierr=0;
 		MPI_Abort(this->mpi_topology_->comm, ierr);
 		return false; // This shouldn't be reached but put here to avoid compiler warning
@@ -1345,12 +1345,12 @@ bool Field::hasRind(int dim, int location)
 }
 
 /********************************************************************/
-void Field::synchronize()
+void PField::synchronize()
 /********************************************************************/
 {
 
 #ifdef VERBOSE
-        printf("%d: Field::synchronize\n",this->mpi_topology_->rank);
+        printf("%d: PField::synchronize\n",this->mpi_topology_->rank);
 	printf("%d:     field_decomp = %d\n", this->mpi_topology_->rank, this->field_decomp_);
 #endif
 
@@ -1370,7 +1370,7 @@ void Field::synchronize()
 }
 
 /********************************************************************/
-void Field::synchronizeDimension(int dim)
+void PField::synchronizeDimension(int dim)
 /********************************************************************/
 {
 	MPI_Request prev_request=0, next_request=0;
@@ -1384,8 +1384,8 @@ void Field::synchronizeDimension(int dim)
 	double *next_buffer = this->createRindBuffer(dim, 1);
 
 #ifdef VERBOSE
-	printf("%d: Field::synchronizeDimension: has rind next = %d\n", mpi_topology->rank, this->hasRind(dim,1));
-	printf("%d: Field::synchronizeDimension: has rind prev = %d\n", mpi_topology->rank, this->hasRind(dim,-1));                                           
+	printf("%d: PField::synchronizeDimension: has rind next = %d\n", mpi_topology->rank, this->hasRind(dim,1));
+	printf("%d: PField::synchronizeDimension: has rind prev = %d\n", mpi_topology->rank, this->hasRind(dim,-1));                                           
 #endif 
 	/*
 	 * First handshakes
@@ -1393,7 +1393,7 @@ void Field::synchronizeDimension(int dim)
 	// Recv next
 	if( this->hasRind( dim, 1 ) ) {
 #ifdef VERBOSE
-	printf("%d: Field::synchronizeDimension: receiving from next = %d\n", mpi_topology->rank, mpi_topology->neighbor_next[dim]);
+	printf("%d: PField::synchronizeDimension: receiving from next = %d\n", mpi_topology->rank, mpi_topology->neighbor_next[dim]);
 #endif
 		MPI_Irecv(next_buffer, next_buffer_size, MPI_DOUBLE,
 			  mpi_topology->neighbor_next[dim], 1, mpi_topology->comm,
@@ -1402,7 +1402,7 @@ void Field::synchronizeDimension(int dim)
 
 	if( this->hasRind( dim, -1 ) ) {
 #ifdef VERBOSE
-		printf("%d: Field::synchronizeDimension: sending to prev = %d\n", mpi_topology->rank, mpi_topology->neighbor_prev[dim]);
+		printf("%d: PField::synchronizeDimension: sending to prev = %d\n", mpi_topology->rank, mpi_topology->neighbor_prev[dim]);
 #endif
 		// Send prev
 		this->packRindBuffer(dim, -1, prev_buffer);
@@ -1414,7 +1414,7 @@ void Field::synchronizeDimension(int dim)
 
 	if( this->hasRind( dim, 1 ) ) {
 #ifdef VERBOSE
-		printf("%d: Field::synchronizeDimension: waiting to receive from next\n", mpi_topology->rank);
+		printf("%d: PField::synchronizeDimension: waiting to receive from next\n", mpi_topology->rank);
 #endif
 		MPI_Wait(&next_request, &status);
 		this->unpackRindBuffer(dim, 1, next_buffer);
@@ -1430,7 +1430,7 @@ void Field::synchronizeDimension(int dim)
 	if( this->hasRind(dim, -1) ) {
 		// Recv prev
 #ifdef VERBOSE
-		printf("%d: Field::synchronizeDimension: receiving from prev = %d\n", mpi_topology->rank, mpi_topology->neighbor_prev[dim]);
+		printf("%d: PField::synchronizeDimension: receiving from prev = %d\n", mpi_topology->rank, mpi_topology->neighbor_prev[dim]);
 #endif
 		MPI_Irecv(prev_buffer, prev_buffer_size, MPI_DOUBLE,
 			  mpi_topology->neighbor_prev[dim], 2, mpi_topology->comm,
@@ -1439,7 +1439,7 @@ void Field::synchronizeDimension(int dim)
 
 	if( this->hasRind(dim, 1 ) ) {
 #ifdef VERBOSE
-		printf("%d: Field::synchronizeDimension: sending to next\n", mpi_topology->rank);
+		printf("%d: PField::synchronizeDimension: sending to next\n", mpi_topology->rank);
 #endif
 	// Send next
 		this->packRindBuffer(dim, 1, next_buffer);
@@ -1450,7 +1450,7 @@ void Field::synchronizeDimension(int dim)
 	
 	if( this->hasRind(dim, -1) ) {
 #ifdef VERBOSE
-		printf("%d: Field::synchronizeDimension: receiving from prev\n", mpi_topology->rank);
+		printf("%d: PField::synchronizeDimension: receiving from prev\n", mpi_topology->rank);
 #endif
 		MPI_Wait(&prev_request, &status);
 		this->unpackRindBuffer(dim, -1, prev_buffer);
@@ -1466,7 +1466,7 @@ void Field::synchronizeDimension(int dim)
 }
 
 /********************************************************************/
-double *Field::createRindBuffer(int dim, int location)
+double *PField::createRindBuffer(int dim, int location)
 /********************************************************************/
 {
 	if( this->hasRind(dim,location) ) {
@@ -1489,12 +1489,12 @@ double *Field::createRindBuffer(int dim, int location)
 // allocate the buffer.
 //
 /********************************************************************/
-void Field::packRindBuffer(int dim, int location, double *rind_buffer)
+void PField::packRindBuffer(int dim, int location, double *rind_buffer)
 /********************************************************************/
 {
 
 #ifdef VERBOSE
-	printf("%d: Field::packRindBuffer: entering\n", this->mpi_topology_->rank);
+	printf("%d: PField::packRindBuffer: entering\n", this->mpi_topology_->rank);
 #endif
 	int imin, imax;
 	int jmin, jmax;
@@ -1542,7 +1542,7 @@ void Field::packRindBuffer(int dim, int location, double *rind_buffer)
 		kmax = kmin + this->rind_size_ - 1;
 
 	} else {
-		printf("%d: Field::packRindBuffer: unable to pack buffer: incorrect dimension specified\n", this->mpi_topology_->rank);
+		printf("%d: PField::packRindBuffer: unable to pack buffer: incorrect dimension specified\n", this->mpi_topology_->rank);
 		int ierr=0;
 		MPI_Abort(this->mpi_topology_->comm, ierr);
 	}
@@ -1561,13 +1561,13 @@ void Field::packRindBuffer(int dim, int location, double *rind_buffer)
 
 	// Perform sanity check
 	if (index != this->getSizeRind(dim, location)) {
-		printf("%d: Field::packRindBuffer: mismatch in expected rind buffer size\n", this->mpi_topology_->rank);
+		printf("%d: PField::packRindBuffer: mismatch in expected rind buffer size\n", this->mpi_topology_->rank);
 		int ierr=0;
 		MPI_Abort(this->mpi_topology_->comm, ierr);
 	}
 
 #ifdef VERBOSE
-	printf("%d: Field::packRindBuffer: exiting\n", this->mpi_topology_->rank);
+	printf("%d: PField::packRindBuffer: exiting\n", this->mpi_topology_->rank);
 #endif
 
 }
@@ -1584,12 +1584,12 @@ void Field::packRindBuffer(int dim, int location, double *rind_buffer)
 // allocate the buffer.
 //
 /********************************************************************/
-void Field::unpackRindBuffer(int dim, int location, double *rind_buffer)
+void PField::unpackRindBuffer(int dim, int location, double *rind_buffer)
 /********************************************************************/
 {
 
 #ifdef VERBOSE
-	printf("%d: Field::unpackRindBuffer: entering\n", this->mpi_topology_->rank);
+	printf("%d: PField::unpackRindBuffer: entering\n", this->mpi_topology_->rank);
 #endif
 
 	int istart, isize;
@@ -1641,7 +1641,7 @@ void Field::unpackRindBuffer(int dim, int location, double *rind_buffer)
 
 	} else {
 		std::cout
-			<< "Field::unpackRindBuffer: unable to pack buffer: incorrect dimension specified"
+			<< "PField::unpackRindBuffer: unable to pack buffer: incorrect dimension specified"
 			<< std::endl;
 		exit(EXIT_FAILURE);
 	}
@@ -1658,13 +1658,13 @@ void Field::unpackRindBuffer(int dim, int location, double *rind_buffer)
 
 	// Perform sanity check
 	if (index != this->getSizeRind(dim, location)) {
-		printf("%d: Field::packRindBuffer: mismatch in expected rind buffer size\n", this->mpi_topology_->rank);
+		printf("%d: PField::packRindBuffer: mismatch in expected rind buffer size\n", this->mpi_topology_->rank);
 		int ierr=0;
 		MPI_Abort(this->mpi_topology_->comm, ierr);
 	}
 
 #ifdef VERBOSE
-	printf("%d: Field::unpackRindBuffer: exiting\n", this->mpi_topology_->rank);
+	printf("%d: PField::unpackRindBuffer: exiting\n", this->mpi_topology_->rank);
 #endif
 
 }

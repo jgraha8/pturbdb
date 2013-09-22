@@ -4,7 +4,7 @@
 #define DERIVATIVE_H
 
 // Extends the fields namespace
-namespace pturb_fields
+namespace pturbdb
 {
   
   class Derivative

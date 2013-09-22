@@ -4,18 +4,18 @@
 #include <cstdlib>
 #include <cstring>
 #include <cmath>
-#include "turbdb_field.hpp"
+#include "pturbdb_field.hpp"
 #include "esio/esio.h"
 
 using namespace std;
 
-namespace pturb_fields {
+namespace pturbdb {
 
-TurbDBField::TurbDBField(const string &db_conf_file, const int *db_dims) {
+PTurbDBField::PTurbDBField(const string &db_conf_file, const int *db_dims) {
 
 	// Set private variables
 	this->db_conf_file_ = db_conf_file;
-	memcpy(this->db_dims_, db_dims, sizeof(db_dims[0]) * FIELD_NDIMS);
+	memcpy(this->db_dims_, db_dims, sizeof(db_dims[0]) * PFIELD_NDIMS);
 
 	// Read the DB conf file
 	this->readDBConfFile();
@@ -28,31 +28,31 @@ TurbDBField::TurbDBField(const string &db_conf_file, const int *db_dims) {
 /*
  * Copy Constructor
  */
-TurbDBField::TurbDBField( TurbDBField &g )
+PTurbDBField::PTurbDBField( PTurbDBField &g )
 {
-	this->TurbDBFieldCopy( g, true );
+	this->PTurbDBFieldCopy( g, true );
 }
 
-TurbDBField::TurbDBField( TurbDBField &g, bool copy_field_data )
+PTurbDBField::PTurbDBField( PTurbDBField &g, bool copy_field_data )
 {
-	this->TurbDBFieldCopy( g, copy_field_data );
+	this->PTurbDBFieldCopy( g, copy_field_data );
 }
 
-TurbDBField::~TurbDBField() {
+PTurbDBField::~PTurbDBField() {
 	delete this->pchip_fd_;
 }
 
 /*
  * Worker procedure for the copy constructors
  */ 
-void TurbDBField::TurbDBFieldCopy( TurbDBField &g, bool copy_field_data ) 
+void PTurbDBField::PTurbDBFieldCopy( PTurbDBField &g, bool copy_field_data ) 
 {
 
-	// Copy/set data members in the TurbDBField class
+	// Copy/set data members in the PTurbDBField class
 	this->db_conf_file_ = g.getDBConfFile();
 
-	memcpy(this->db_dims_,      g.getDBDims(),      sizeof(this->db_dims_[0])*FIELD_NDIMS);
-	memcpy(this->field_offset_, g.getFieldOffset(), sizeof(this->field_offset_[0])*FIELD_NDIMS);
+	memcpy(this->db_dims_,      g.getDBDims(),      sizeof(this->db_dims_[0])*PFIELD_NDIMS);
+	memcpy(this->field_offset_, g.getFieldOffset(), sizeof(this->field_offset_[0])*PFIELD_NDIMS);
 
 	this->db_time_           = g.getDBTime();
 	this->db_file_names_     = g.getDBFileNames();
@@ -66,39 +66,39 @@ void TurbDBField::TurbDBFieldCopy( TurbDBField &g, bool copy_field_data )
 	this->pchip_fd_ = g.getPCHIPFD();
 
 	// Copy the field class members
-	this->FieldCopy( g, copy_field_data );
+	this->PFieldCopy( g, copy_field_data );
 
 }
 
-void TurbDBField::dbFieldInit(const int *field_offset, const int *dims,
+void PTurbDBField::dbFieldInit(const int *field_offset, const int *dims,
 			      FieldDecomp_t field_decomp, const int *periodic, int operator_order) {
 	// Set private data
 	memcpy(this->field_offset_, field_offset,
-	       sizeof(field_offset[0]) * FIELD_NDIMS);
+	       sizeof(field_offset[0]) * PFIELD_NDIMS);
 	// Initialize the field
-	this->FieldInit(dims, field_decomp, periodic, operator_order);
+	this->PFieldInit(dims, field_decomp, periodic, operator_order);
 }
 
 /*
  * Data member getters
  */
-string                   TurbDBField::getDBConfFile()     { return this->db_conf_file_;      }
-int                     *TurbDBField::getDBDims()         { return this->db_dims_;           }
-int                     *TurbDBField::getFieldOffset()    { return this->field_offset_;      }
-vector<double>           TurbDBField::getDBTime()         { return this->db_time_;           }
-vector<string>           TurbDBField::getDBFileNames()    { return this->db_file_names_;     }
-string                   TurbDBField::getDBGridFileName() { return this->db_grid_file_name_; }
-int                      TurbDBField::getDBTimeNsteps()   { return this->db_time_nsteps_;    }
-double                   TurbDBField::getDBTimeStep()     { return this->db_time_step_;      }
-double                   TurbDBField::getDBTimeMin()      { return this->db_time_min_;       }
-double                   TurbDBField::getDBTimeMax()      { return this->db_time_max_;       }
-TurbDBField::pchip_fd_t *TurbDBField::getPCHIPFD()        { return this->pchip_fd_;          }
+string                   PTurbDBField::getDBConfFile()     { return this->db_conf_file_;      }
+int                     *PTurbDBField::getDBDims()         { return this->db_dims_;           }
+int                     *PTurbDBField::getFieldOffset()    { return this->field_offset_;      }
+vector<double>           PTurbDBField::getDBTime()         { return this->db_time_;           }
+vector<string>           PTurbDBField::getDBFileNames()    { return this->db_file_names_;     }
+string                   PTurbDBField::getDBGridFileName() { return this->db_grid_file_name_; }
+int                      PTurbDBField::getDBTimeNsteps()   { return this->db_time_nsteps_;    }
+double                   PTurbDBField::getDBTimeStep()     { return this->db_time_step_;      }
+double                   PTurbDBField::getDBTimeMin()      { return this->db_time_min_;       }
+double                   PTurbDBField::getDBTimeMax()      { return this->db_time_max_;       }
+PTurbDBField::pchip_fd_t *PTurbDBField::getPCHIPFD()        { return this->pchip_fd_;          }
 
 /*
  * Reads the database configuration file: reads the grid file name and the time
  * step and field file names
  */
-void TurbDBField::readDBConfFile() {
+void PTurbDBField::readDBConfFile() {
 
 	char db_field[80];
 	double time;
@@ -134,7 +134,7 @@ void TurbDBField::readDBConfFile() {
 
 }
 
-void TurbDBField::pchipInit() {
+void PTurbDBField::pchipInit() {
 
 	// Create new memory block
 	this->pchip_fd_ = new pchip_fd_t;
@@ -157,7 +157,7 @@ void TurbDBField::pchipInit() {
  * interpolation. The value tau is normalized time within the interval
  *  the interpolation is performed.
  */
-void TurbDBField::pchipComputeBasis(double tau, double hermite_basis[4]) {
+void PTurbDBField::pchipComputeBasis(double tau, double hermite_basis[4]) {
 
 	double c1 = 1.0 - tau;
 	double c2 = pow(c1, 2);
@@ -177,11 +177,11 @@ void TurbDBField::pchipComputeBasis(double tau, double hermite_basis[4]) {
  * and the integer n determines the interval the interpolation is performed over.
  * The discrete values p_j is the known field
  */
-void TurbDBField::pchipComputeWeights(double hermite_basis[4],
+void PTurbDBField::pchipComputeWeights(double hermite_basis[4],
 				      double pchip_weights[4]) {
 
 	if( this->pchip_fd_ == NULL ) {
-		cout << "TurbDBField: PCHIP finite difference struct not allocated" << endl;
+		cout << "PTurbDBField: PCHIP finite difference struct not allocated" << endl;
 		int ierr=0;
 		MPI_Abort(this->getMpiTopology()->comm, ierr);
 	}
@@ -201,7 +201,7 @@ void TurbDBField::pchipComputeWeights(double hermite_basis[4],
  * local domain. Each process will read the entire grid file and then copy
  * the relevant portion the appropriate array.
  */
-void TurbDBField::readDBGridLocal(const char *field_names[3], double *x,
+void PTurbDBField::readDBGridLocal(const char *field_names[3], double *x,
 				  double *y, double *z) {
 
 	// Get the offset for the local domain
@@ -277,7 +277,7 @@ void TurbDBField::readDBGridLocal(const char *field_names[3], double *x,
  * periphery of the domain when using periodic boundary conditions,
  * they are set manually assuming a uniform grid distribution.
  */
-void TurbDBField::syncDBGridLocal(int dim, const double *grid_operation,
+void PTurbDBField::syncDBGridLocal(int dim, const double *grid_operation,
 				  double *grid) {
 
 	// Copy the correct portions to the appropriate array
@@ -354,7 +354,7 @@ void TurbDBField::syncDBGridLocal(int dim, const double *grid_operation,
 	delete[] next_buffer;
 }
 
-void TurbDBField::setDBPeriodicGridLocal( int dim, const double *grid_operation, double *grid ) {
+void PTurbDBField::setDBPeriodicGridLocal( int dim, const double *grid_operation, double *grid ) {
 
 	int *dims_local = this->getDimsLocal();
 	int *dims_operation = this->getDimsOperation();
@@ -382,7 +382,7 @@ void TurbDBField::setDBPeriodicGridLocal( int dim, const double *grid_operation,
 
 }
 
-void TurbDBField::readDBField(double time, const char *field_name) {
+void PTurbDBField::readDBField(double time, const char *field_name) {
 
 	// Now compute which
 	if (time < this->db_time_min_ || time > this->db_time_max_) {
@@ -390,8 +390,7 @@ void TurbDBField::readDBField(double time, const char *field_name) {
 		exit(EXIT_FAILURE);
 	}
 
-	int cell_index = floor((time - this->db_time_min_) / this->db_time_step_)
-		+ 1;
+	int cell_index = floor((time - this->db_time_min_) / this->db_time_step_) + 1;
 	// Make sure we don't pick the last point as the cell value; this only happens when time = db_time_max_
 	cell_index = fmin(cell_index, this->db_time_nsteps_ - 1);
 

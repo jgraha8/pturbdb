@@ -6,26 +6,25 @@
  */
 #include <string>
 #include <vector>
-#include "field.hpp"
+#include "pfield.hpp"
 #include "autofd.h"
 
 #define PCHIP_FD_STENCIL_SIZE 3
 
-#ifndef TURBDB_FIELD_HPP_
-#define TURBDB_FIELD_HPP_
+#ifndef PTURBDB_FIELD_HPP_
+#define PTURBDB_FIELD_HPP_
 
 using namespace std;
 
-namespace pturb_fields {
+namespace pturbdb {
 
-class TurbDBField: public Field // Be sure to call the empty constructor
-{
+class PTurbDBField: public PField {// Be sure to call the empty constructor
 
 private:
 
 	string db_conf_file_;
-	int    db_dims_[FIELD_NDIMS];
-	int    field_offset_[FIELD_NDIMS];
+	int    db_dims_[PFIELD_NDIMS];
+	int    field_offset_[PFIELD_NDIMS];
 
 	vector<double> db_time_;
 	vector<string> db_file_names_;
@@ -47,13 +46,13 @@ private:
 
 public:
 	// Constructors
-	TurbDBField() {};
-	TurbDBField( const string &db_conf_file, const int *db_dims );
-	TurbDBField( TurbDBField &g); // Copy constructor
-	TurbDBField( TurbDBField &g, bool copy_field_data ); // Copy constructor
+	PTurbDBField() {};
+	PTurbDBField( const string &db_conf_file, const int *db_dims );
+	PTurbDBField( PTurbDBField &g); // Copy constructor
+	PTurbDBField( PTurbDBField &g, bool copy_field_data ); // Copy constructor
 
 	// Deconstructors
-	~TurbDBField();
+	~PTurbDBField();
 
 	// Getters and setters
 	string  getDBConfFile();
@@ -77,7 +76,7 @@ public:
 
 private:
 
-	void TurbDBFieldCopy( TurbDBField &g, bool copy_field_data );
+	void PTurbDBFieldCopy( PTurbDBField &g, bool copy_field_data );
 	void readDBConfFile();
 	void pchipInit();
 	void pchipComputeBasis( double tau, double hermite_basis[4] );
@@ -89,4 +88,4 @@ private:
 };
 }
 
-#endif /* TURBDB_FIELD_HPP_ */
+#endif /* PTURBDB_FIELD_HPP_ */
