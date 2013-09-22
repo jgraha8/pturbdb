@@ -292,6 +292,75 @@ int PField::getRindSize()               { return this->rind_size_;        };
 
 bool PField::getSynchronized()          { return this->synchronized_;     };
 
+/*
+ * Gets the x data on the operation grid by copying to a provided data
+ * buffer. The size of "x" must be of size getDimsOperation().
+ */ 
+void PField::getXOperation( double *x)
+{
+	for (int i = 0; i < this->dims_operation_[0]; i++)
+		x[i] = this->x_local_[i + this->offset_operation_[0]];
+}
+/*
+ * Gets the y data on the operation grid by copying to a provided data
+ * buffer. The size of "y" must be of size getDimsOperation().
+ */ 
+void PField::getYOperation( double *y)
+{
+	for (int j = 0; j < this->dims_operation_[1]; j++)
+		y[j] = this->y_local_[j + this->offset_operation_[1]];
+}
+/*
+ * Gets the z data on the operation grid by copying to a provided data
+ * buffer. The size of "z" must be of size getDimsOperation().
+ */ 
+void PField::getZOperation( double *z)
+{
+	for (int k = 0; k < this->dims_operation_[2]; k++)
+		z[k] = this->z_local_[k + this->offset_operation_[2]];
+}
+
+
+/*
+ * Gets the data on the operation grid by copying to a provided data
+ * buffer. The size of "a" must be of size getSizeOperation().
+ */ 
+void PField::getDataOperation( float *a)
+{
+	long index_local, index_operation;
+
+	index_operation=0;
+	for (int i = 0; i < this->dims_operation_[0]; i++) {
+		for (int j = 0; j < this->dims_operation_[1]; j++) {
+			for (int k = 0; k < this->dims_operation_[2]; k++) {
+				index_local = this->indexOperationToLocal(i, j, k);
+				a[index_operation] = (float)this->data_local[index_local];
+				++index_operation;
+			}
+		}
+	}
+}
+
+/*
+ * Gets the data on the operation grid by copying to a provided data
+ * buffer. The size of "a" must be of size getSizeOperation().
+ */ 
+void PField::getDataOperation( double *a)
+{
+	long index_local, index_operation;
+
+	index_operation=0;
+	for (int i = 0; i < this->dims_operation_[0]; i++) {
+		for (int j = 0; j < this->dims_operation_[1]; j++) {
+			for (int k = 0; k < this->dims_operation_[2]; k++) {
+				index_local = this->indexOperationToLocal(i, j, k);
+				a[index_operation] = this->data_local[index_local];
+				++index_operation;
+			}
+		}
+	}
+}
+
 
 // Array index for 3D indexing
 /********************************************************************/
@@ -360,98 +429,43 @@ void PField::setGridLocal(double *x_local, double *y_local, double *z_local)
 }
 
 /********************************************************************/
-void PField::setDataOperation( const float *data_operation)
+void PField::setDataOperation( const float *a)
 /********************************************************************/
 {
-	long index_local, index_operation;
+	*this = a;
+	// long index_local, index_operation;
 
-	index_operation=0;
-	for (int i = 0; i < this->dims_operation_[0]; i++) {
-		for (int j = 0; j < this->dims_operation_[1]; j++) {
-			for (int k = 0; k < this->dims_operation_[2]; k++) {
-				index_local = this->indexOperationToLocal(i, j, k);
-				this->data_local[index_local] = (double)data_operation[index_operation];
-				++index_operation;
-			}
-		}
-	}
-
-	// Set unsynchronized
-	this->synchronized_ = false;
-}
-/********************************************************************/
-void PField::setDataOperation( const double *data_operation)
-/********************************************************************/
-{
-	long index_local, index_operation;
-
-	index_operation=0;
-	for (int i = 0; i < this->dims_operation_[0]; i++) {
-		for (int j = 0; j < this->dims_operation_[1]; j++) {
-			for (int k = 0; k < this->dims_operation_[2]; k++) {
-				index_local = this->indexOperationToLocal(i, j, k);
-				this->data_local[index_local] = data_operation[index_operation++];
-			}
-		}
-	}
+	// index_operation=0;
+	// for (int i = 0; i < this->dims_operation_[0]; i++) {
+	// 	for (int j = 0; j < this->dims_operation_[1]; j++) {
+	// 		for (int k = 0; k < this->dims_operation_[2]; k++) {
+	// 			index_local = this->indexOperationToLocal(i, j, k);
+	// 			this->data_local[index_local] = (double)a[index_operation];
+	// 			++index_operation;
+	// 		}
+	// 	}
+	// }
 
 	// Set unsynchronized
 	this->synchronized_ = false;
 }
 
 /********************************************************************/
-void PField::addDataOperation( const float *data_operation)
+void PField::setDataOperation( const double *a)
 /********************************************************************/
 {
-	long index_local, index_operation;
+	*this = a;
+	// long index_local, index_operation;
 
-	index_operation=0;
-	for (int i = 0; i < this->dims_operation_[0]; i++) {
-		for (int j = 0; j < this->dims_operation_[1]; j++) {
-			for (int k = 0; k < this->dims_operation_[2]; k++) {
-				index_local = this->indexOperationToLocal(i, j, k);
-				this->data_local[index_local] += (double)data_operation[index_operation++];
-			}
-		}
-	}
-
-	// Set unsynchronized
-	this->synchronized_ = false;
-}
-/********************************************************************/
-void PField::addDataOperation( const double *data_operation)
-/********************************************************************/
-{
-	long index_local, index_operation;
-
-	index_operation=0;
-	for (int i = 0; i < this->dims_operation_[0]; i++) {
-		for (int j = 0; j < this->dims_operation_[1]; j++) {
-			for (int k = 0; k < this->dims_operation_[2]; k++) {
-				index_local = this->indexOperationToLocal(i, j, k);
-				this->data_local[index_local] += data_operation[index_operation++];
-			}
-		}
-	}
-
-	// Set unsynchronized
-	this->synchronized_ = false;
-}
-
-/********************************************************************/
-void PField::mulDataOperation( double scalar)
-/********************************************************************/
-{
-	long index_local;
-
-	for (int i = 0; i < this->dims_operation_[0]; i++) {
-		for (int j = 0; j < this->dims_operation_[1]; j++) {
-			for (int k = 0; k < this->dims_operation_[2]; k++) {
-				index_local = this->indexOperationToLocal(i, j, k);
-				this->data_local[index_local] *= scalar;
-			}
-		}
-	}
+	// index_operation=0;
+	// for (int i = 0; i < this->dims_operation_[0]; i++) {
+	// 	for (int j = 0; j < this->dims_operation_[1]; j++) {
+	// 		for (int k = 0; k < this->dims_operation_[2]; k++) {
+	// 			index_local = this->indexOperationToLocal(i, j, k);
+	// 			this->data_local[index_local] = a[index_operation++];
+	// 		}
+	// 	}
+	// }
 
 	// Set unsynchronized
 	this->synchronized_ = false;
@@ -475,6 +489,57 @@ PField& PField::operator=(const PField &a)
 	this->synchronized_ = false;
 	return *this;
 }
+
+/*
+ * Sets the data on the operation domain. The size of "a" must be of
+ * size getSizeOperation().
+ */ 
+/********************************************************************/
+PField &PField::operator=( const double *a)
+/********************************************************************/
+{
+	long index_local, index_operation;
+
+	index_operation=0;
+	for (int i = 0; i < this->dims_operation_[0]; i++) {
+		for (int j = 0; j < this->dims_operation_[1]; j++) {
+			for (int k = 0; k < this->dims_operation_[2]; k++) {
+				index_local = this->indexOperationToLocal(i, j, k);
+				this->data_local[index_local] = a[index_operation++];
+			}
+		}
+	}
+
+	// Set unsynchronized
+	this->synchronized_ = false;
+	return *this;
+}
+
+/*
+ * Sets the data on the operation domain. The size of "a" must be of
+ * size getSizeOperation().
+ */ 
+/********************************************************************/
+PField &PField::operator=( const float *a)
+/********************************************************************/
+{
+	long index_local, index_operation;
+
+	index_operation=0;
+	for (int i = 0; i < this->dims_operation_[0]; i++) {
+		for (int j = 0; j < this->dims_operation_[1]; j++) {
+			for (int k = 0; k < this->dims_operation_[2]; k++) {
+				index_local = this->indexOperationToLocal(i, j, k);
+				this->data_local[index_local] = (double)a[index_operation++];
+			}
+		}
+	}
+
+	// Set unsynchronized
+	this->synchronized_ = false;
+	return *this;
+}
+
 
 /********************************************************************/
 PField& PField::operator=(double c)
@@ -505,11 +570,61 @@ PField& PField::operator+=(const PField &a)
 
 	// Set unsynchronized
 	this->synchronized_ = false;
-
 	return *this;
 }
 
+/*
+ * Sets the data on the operation domain. The size of "a" must be of
+ * size getSizeOperation().
+ */ 
+/********************************************************************/
+PField &PField::operator+=( const double *a)
+/********************************************************************/
+{
+	long index_local, index_operation;
+
+	index_operation=0;
+	for (int i = 0; i < this->dims_operation_[0]; i++) {
+		for (int j = 0; j < this->dims_operation_[1]; j++) {
+			for (int k = 0; k < this->dims_operation_[2]; k++) {
+				index_local = this->indexOperationToLocal(i, j, k);
+				this->data_local[index_local] += a[index_operation++];
+			}
+		}
+	}
+
+	// Set unsynchronized
+	this->synchronized_ = false;
+	return *this;
+}
+
+/*
+ * Sets the data on the operation domain. The size of "a" must be of
+ * size getSizeOperation().
+ */ 
+/********************************************************************/
+PField &PField::operator+=( const float *a)
+/********************************************************************/
+{
+	long index_local, index_operation;
+
+	index_operation=0;
+	for (int i = 0; i < this->dims_operation_[0]; i++) {
+		for (int j = 0; j < this->dims_operation_[1]; j++) {
+			for (int k = 0; k < this->dims_operation_[2]; k++) {
+				index_local = this->indexOperationToLocal(i, j, k);
+				this->data_local[index_local] += (double)a[index_operation++];
+			}
+		}
+	}
+
+	// Set unsynchronized
+	this->synchronized_ = false;
+	return *this;
+}
+/********************************************************************/
 PField& PField::operator+=(double c)
+/********************************************************************/
 {
 
 	long index;
@@ -547,11 +662,62 @@ PField& PField::operator-=(const PField &a)
 
 	// Set unsynchronized
 	this->synchronized_ = false;
-
 	return *this;
 }
 
+/*
+ * Sets the data on the operation domain. The size of "a"
+ * must be of size getSizeOperation().
+ */ 
+/********************************************************************/
+PField &PField::operator-=( const double *a)
+/********************************************************************/
+{
+	long index_local, index_operation;
+
+	index_operation=0;
+	for (int i = 0; i < this->dims_operation_[0]; i++) {
+		for (int j = 0; j < this->dims_operation_[1]; j++) {
+			for (int k = 0; k < this->dims_operation_[2]; k++) {
+				index_local = this->indexOperationToLocal(i, j, k);
+				this->data_local[index_local] -= a[index_operation++];
+			}
+		}
+	}
+
+	// Set unsynchronized
+	this->synchronized_ = false;
+	return *this;
+}
+
+/*
+ * Sets the data on the operation domain. The size of "a"
+ * must be of size getSizeOperation().
+ */ 
+/********************************************************************/
+PField &PField::operator-=( const float *a)
+/********************************************************************/
+{
+	long index_local, index_operation;
+
+	index_operation=0;
+	for (int i = 0; i < this->dims_operation_[0]; i++) {
+		for (int j = 0; j < this->dims_operation_[1]; j++) {
+			for (int k = 0; k < this->dims_operation_[2]; k++) {
+				index_local = this->indexOperationToLocal(i, j, k);
+				this->data_local[index_local] -= (double)a[index_operation++];
+			}
+		}
+	}
+
+	// Set unsynchronized
+	this->synchronized_ = false;
+	return *this;
+}
+
+/********************************************************************/
 PField& PField::operator-=(double c)
+/********************************************************************/
 {
 
 	long index;
@@ -592,7 +758,59 @@ PField& PField::operator*=(const PField &a)
 	return *this;
 }
 
+/*
+ * Sets the data on the operation domain. The size of "a"
+ * must be of size getSizeOperation().
+ */ 
+/********************************************************************/
+PField &PField::operator*=( const double *a)
+/********************************************************************/
+{
+	long index_local, index_operation;
+
+	index_operation=0;
+	for (int i = 0; i < this->dims_operation_[0]; i++) {
+		for (int j = 0; j < this->dims_operation_[1]; j++) {
+			for (int k = 0; k < this->dims_operation_[2]; k++) {
+				index_local = this->indexOperationToLocal(i, j, k);
+				this->data_local[index_local] *= a[index_operation++];
+			}
+		}
+	}
+
+	// Set unsynchronized
+	this->synchronized_ = false;
+	return *this;
+}
+
+/*
+ * Sets the data on the operation domain. The size of "a"
+ * must be of size getSizeOperation().
+ */ 
+/********************************************************************/
+PField &PField::operator*=( const float *a)
+/********************************************************************/
+{
+	long index_local, index_operation;
+
+	index_operation=0;
+	for (int i = 0; i < this->dims_operation_[0]; i++) {
+		for (int j = 0; j < this->dims_operation_[1]; j++) {
+			for (int k = 0; k < this->dims_operation_[2]; k++) {
+				index_local = this->indexOperationToLocal(i, j, k);
+				this->data_local[index_local] *= (double)a[index_operation++];
+			}
+		}
+	}
+
+	// Set unsynchronized
+	this->synchronized_ = false;
+	return *this;
+}
+
+/********************************************************************/
 PField& PField::operator*=(double c)
+/********************************************************************/
 {
 	long index;
 
@@ -633,7 +851,59 @@ PField& PField::operator/=(const PField &a)
 	return *this;
 }
 
+/*
+ * Sets the data on the operation domain. The size of "a"
+ * must be of size getSizeOperation().
+ */ 
+/********************************************************************/
+PField &PField::operator/=( const double *a)
+/********************************************************************/
+{
+	long index_local, index_operation;
+
+	index_operation=0;
+	for (int i = 0; i < this->dims_operation_[0]; i++) {
+		for (int j = 0; j < this->dims_operation_[1]; j++) {
+			for (int k = 0; k < this->dims_operation_[2]; k++) {
+				index_local = this->indexOperationToLocal(i, j, k);
+				this->data_local[index_local] /= a[index_operation++];
+			}
+		}
+	}
+
+	// Set unsynchronized
+	this->synchronized_ = false;
+	return *this;
+}
+
+/*
+ * Sets the data on the operation domain. The size of "a"
+ * must be of size getSizeOperation().
+ */ 
+/********************************************************************/
+PField &PField::operator/=( const float *a)
+/********************************************************************/
+{
+	long index_local, index_operation;
+
+	index_operation=0;
+	for (int i = 0; i < this->dims_operation_[0]; i++) {
+		for (int j = 0; j < this->dims_operation_[1]; j++) {
+			for (int k = 0; k < this->dims_operation_[2]; k++) {
+				index_local = this->indexOperationToLocal(i, j, k);
+				this->data_local[index_local] /= (double)a[index_operation++];
+			}
+		}
+	}
+
+	// Set unsynchronized
+	this->synchronized_ = false;
+	return *this;
+}
+
+/********************************************************************/
 PField& PField::operator/=(double c)
+/********************************************************************/
 {
 
 	long index;
@@ -788,7 +1058,7 @@ PField &PField::div(PField &a, PField &b)
 // are not using pure mixed derivatives here.
 
 /********************************************************************/
-void PField::ddx(PField &a)
+PField &PField::ddx(PField &a)
 /********************************************************************/
 {
 
@@ -810,11 +1080,11 @@ void PField::ddx(PField &a)
 #ifdef VERBOSE
 	printf("%d: PField::ddx: exiting\n", this->mpi_topology_->rank);
 #endif
-
+	return *this;
 }
 
 /********************************************************************/
-void PField::ddy(PField &a)
+PField &PField::ddy(PField &a)
 /********************************************************************/
 {
 
@@ -836,11 +1106,11 @@ void PField::ddy(PField &a)
 #ifdef VERBOSE
 	printf("%d: PField::ddy: exiting\n", this->mpi_topology_->rank);
 #endif
-
+	return *this;
 }
 
 /********************************************************************/
-void PField::ddz(PField &a)
+PField &PField::ddz(PField &a)
 /********************************************************************/
 {
 
@@ -854,10 +1124,12 @@ void PField::ddz(PField &a)
 	void (FiniteDiff::*dd)(int, int, double *, int, double *);
 	dd = &FiniteDiff::ddz;
 	this->dndzn(dd, a);
+
+	return *this;
 }
 
 /********************************************************************/
-void PField::d2dx2(PField &a)
+PField &PField::d2dx2(PField &a)
 /********************************************************************/
 {
 
@@ -871,9 +1143,11 @@ void PField::d2dx2(PField &a)
 	void (FiniteDiff::*dd)(int, int, double *, int, double *);
 	dd = &FiniteDiff::d2dx2;
 	this->dndxn(dd, a);
+
+	return *this;
 }
 /********************************************************************/
-void PField::d2dy2(PField &a)
+PField &PField::d2dy2(PField &a)
 /********************************************************************/
 {
 
@@ -887,13 +1161,14 @@ void PField::d2dy2(PField &a)
 	void (FiniteDiff::*dd)(int, int, double *, int, double *);
 	dd = &FiniteDiff::d2dy2;
 	this->dndyn(dd, a);
+
+	return *this;
 }
 
 /********************************************************************/
-void PField::d2dz2(PField &a)
+PField &PField::d2dz2(PField &a)
 /********************************************************************/
 {
-
 	// First check that the finite difference class has been initialized.
 	int ierr=0;
 	if( this->finite_diff_ == NULL ) {
@@ -904,13 +1179,14 @@ void PField::d2dz2(PField &a)
 	void (FiniteDiff::*dd)(int, int, double *, int, double *);
 	dd = &FiniteDiff::d2dz2;
 	this->dndzn(dd, a);
+
+	return *this;
 }
 
 /********************************************************************/
-void PField::d2dxy(PField &a)
+PField &PField::d2dxy(PField &a)
 /********************************************************************/
 {
-
 	// First check that the finite difference class has been initialized.
 	int ierr=0;
 	if( this->finite_diff_ == NULL ) {
@@ -923,12 +1199,13 @@ void PField::d2dxy(PField &a)
 	this->dndxn(dd, a);
 	dd = &FiniteDiff::ddy;
 	this->dndyn(dd, *this);
+
+	return *this;
 }
 /********************************************************************/
-void PField::d2dxz(PField &a)
+PField &PField::d2dxz(PField &a)
 /********************************************************************/
 {
-
 	// First check that the finite difference class has been initialized.
 	int ierr=0;
 	if( this->finite_diff_ == NULL ) {
@@ -941,12 +1218,13 @@ void PField::d2dxz(PField &a)
 	this->dndxn(dd, a);
 	dd = &FiniteDiff::ddz;
 	this->dndzn(dd, *this);
+
+	return *this;
 }
 /********************************************************************/
-void PField::d2dyz(PField &a)
+PField &PField::d2dyz(PField &a)
 /********************************************************************/
 {
-
 	// First check that the finite difference class has been initialized.
 	int ierr=0;
 	if( this->finite_diff_ == NULL ) {
@@ -959,13 +1237,17 @@ void PField::d2dyz(PField &a)
 	this->dndyn(dd, a);
 	dd = &FiniteDiff::ddz;
 	this->dndzn(dd, *this);
+
+	return *this;
 }
 
 //////////////////////////////////////////////////////////////////////
 /// DERIVATIVES (PRIVATE)
 //////////////////////////////////////////////////////////////////////
 
+/********************************************************************/
 void PField::dndxn(void (FiniteDiff::*dd)(int, int, double *, int, double *), PField &a)
+/********************************************************************/
 {
 
 #ifdef VERBOSE
@@ -1039,9 +1321,10 @@ void PField::dndxn(void (FiniteDiff::*dd)(int, int, double *, int, double *), PF
 
 }
 
-
+/********************************************************************/
 void PField::dndyn(void (FiniteDiff::*dd)(int, int, double *, int, double *),
 		  PField &a)
+/********************************************************************/
 {
 
 #ifdef VERBOSE
@@ -1099,8 +1382,10 @@ void PField::dndyn(void (FiniteDiff::*dd)(int, int, double *, int, double *),
 
 }
 
+/********************************************************************/
 void PField::dndzn(void (FiniteDiff::*dd)(int, int, double *, int, double *),
 		  PField &a)
+/********************************************************************/
 {
 
 #ifdef VERBOSE

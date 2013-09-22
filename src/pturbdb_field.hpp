@@ -54,6 +54,10 @@ public:
 	// Deconstructors
 	~PTurbDBField();
 
+	// Procedure to set the field_offset and initialize the PField class
+	void PFieldInit( const int *field_offset, const int *dims, FieldDecomp_t field_decomp, 
+			  const int *periodic, int operator_order );
+
 	// Getters and setters
 	string  getDBConfFile();
 	int    *getDBDims();
@@ -69,10 +73,10 @@ public:
         double          getDBTimeMax();
 	pchip_fd_t     *getPCHIPFD();
 
-	void dbFieldInit( const int *field_offset, const int *dims, FieldDecomp_t field_decomp,
-			  const int *periodic, int operator_order );
         void readDBGridLocal(const char *field_names[3], double *x, double *y, double *z);
 	void readDBField(double time, const char *field_name);
+
+	void copyDataOperation( double *data );
 
 private:
 

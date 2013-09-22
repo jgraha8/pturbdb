@@ -8,9 +8,9 @@
 #define DB_NY 512
 #define DB_NX 2048
 
-#define FIELD_NZ 256
-#define FIELD_NY 256
-#define FIELD_NX 256
+#define FIELD_NZ 64
+#define FIELD_NY 64
+#define FIELD_NX 64
 
 //#define FIELD_NZ 128
 //#define FIELD_NY 64
@@ -31,7 +31,7 @@ int main(int argc, char *argv[]) {
 
 	PTurbDBField *u = new PTurbDBField("turbdb.conf", db_dims);
 
-	u->dbFieldInit(db_field_offset, field_dims, FIELD_DECOMP_PENCIL, periodic, 4);
+	u->PFieldInit(db_field_offset, field_dims, FIELD_DECOMP_PENCIL, periodic, 4);
 
 	int rank = u->getMpiTopology()->rank;
 	int nproc = u->getMpiTopology()->nproc;
@@ -64,6 +64,10 @@ int main(int argc, char *argv[]) {
 	double *y = new double[dims_local[1]];
 	double *z = new double[dims_local[2]];
 
+	double *x_operation = new double[dims_operation[0]];
+	double *y_operation = new double[dims_operation[1]];
+	double *z_operation = new double[dims_operation[2]];
+
 	// This sets the grid
 	u->readDBGridLocal(grid_field_names, x, y, z);
 
@@ -72,19 +76,15 @@ int main(int argc, char *argv[]) {
 		int ierr=0;
 		MPI_Abort( u->getMpiTopology()->comm, ierr);
 	}
+
+	// Read the operation grid
+      	u->getXOperation( x_operation );
+	u->getYOperation( y_operation );
+	u->getZOperation( z_operation );
+
 		
 
 	MPI_Barrier(u->getMpiTopology()->comm);
-	// // Print the grid to stdout
-	// for (int n = 0; n < nproc; n++) {
-	// 	if (n == rank) {
-	// 		for (long i = 0; i < dims_local[2]; i++) {
-	// 			cout << "rank, i, z[i] " << rank << " " << i << " " << z[i]
-	// 					<< endl;
-	// 		}
-	// 	}
-	// 	MPI_Barrier(u->getMpiTopology()->comm);
-	// }
 
 	// Read the middle time
 	double middle_time = 0.5*( u->getDBTimeMax() + u->getDBTimeMin() );
@@ -93,11 +93,11 @@ int main(int argc, char *argv[]) {
 	PTurbDBField *w = new PTurbDBField( *u, false ); // Do not copy u field data
 
 	// Read u from the DB
-	u->readDBField( middle_time, "u" );
+	u->readDBField( middle_time/2, "u" );
 	// Read u from the DB
-	v->readDBField( middle_time, "v" );
+	v->readDBField( middle_time/2, "v" );
 	// Read u from the DB
-	w->readDBField( middle_time, "w" );
+	w->readDBField( middle_time/2, "w" );
 
 	PField *dudx = new PField( field_dims, FIELD_DECOMP_SLAB, periodic, 4 );
 	// Set the grid and initialize finite differences
@@ -145,22 +145,29 @@ int main(int argc, char *argv[]) {
 	PField *O13 = new PField( *dudz );
 	PField *O23 = new PField( *dvdz );
 
-	(*S12 += (*dvdx))*=0.5;
-	(*S13 += (*dwdx))*=0.5;
-	(*S23 += (*dwdy))*=0.5;
+	(*S12 += *dvdx)*=0.5;
+	(*S13 += *dwdx)*=0.5;
+	(*S23 += *dwdy)*=0.5;
 
-	(*O12 -= (*dvdx))*=0.5;
-	(*O13 -= (*dwdx))*=0.5;
-	(*O23 -= (*dwdy))*=0.5;
+	(*O12 -= *dvdx)*=0.5;
+	(*O13 -= *dwdx)*=0.5;
+	(*O23 -= *dwdy)*=0.5;
 
 	PField *TrS = new PField( *S11, false );
 	PField *TrO = new PField( *S11, false );
 
 	// Here using Q as a buffer. The multiplication takes place and is stored in Q. We then add it to TrS.
-	TrO->mul( *S12, *S12);
-	*TrO += Q->mul( *S13, *S13 );
-	*TrO += Q->mul( *S23, *S23 );
-	*TrO *= -2.0; // Multiply the result by -2.0
+	// TrO->mul( *S12, *S12);
+	// *TrO += Q->mul( *S13, *S13 );
+	// *TrO += Q->mul( *S23, *S23 );
+	// *TrO *= -2.0; // Multiply the result by -2.0
+
+	*TrO = Q->add( Q->add( Q->mul( *S12, 
+				       *S12 ),
+			       Q->mul( *S13, 
+				       *S13 ) ), 
+		       Q->mul( *S23, 
+			       *S23 ) ) *= -2.0;
 
 	TrS->mul( *S11, *S11 );
 	*TrS += Q->mul( *S22, *S22 );
@@ -170,7 +177,11 @@ int main(int argc, char *argv[]) {
 	// Q then only retains 1/2 of the diagonal of the symmetric component
 	Q->sub( *TrO, *TrS ) *= 0.5;
 
-	
+	double *Q_data = new double[Q->getSizeOperation()];
+
+	Q->getDataOperation( Q_data );
+	// Now set the data
+	*Q = Q_data;
 
 	// Compute the Q-criterion
 	

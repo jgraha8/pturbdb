@@ -83,25 +83,48 @@ public:
 	double *getYLocal();
 	double *getZLocal();	
 
+	// Data getters; these require a buffer of size given by getDimsOperation()
+	void getXOperation( double *x );
+	void getYOperation( double *y );
+	void getZOperation( double *z );
+
+	// Data getters; these require a buffer of size given by getSizeOperation()
+	void getDataOperation( float *a );
+	void getDataOperation( double *a );
+
 	long index( int i, int j, int k );
 	long indexLocal( int i, int j, int k );
 	long indexOperation( int i, int j, int k );
 	long indexOperationToLocal( int i, int j, int k );
 
 	void setGridLocal( double *x_local, double *y_local, double *z_local );
-	void setDataOperation( const float *data_operation);
-	void setDataOperation( const double *data_operation);
+	void setDataOperation( const float *a ); // Perform same task as assignment operator
+	void setDataOperation( const double *a ); // Performs same task as assignment operator
 
 	// Assignment operator
 	PField &operator=( const PField &a );
+	PField &operator=( const double *a ); // Performs same task as setDataOperation
+	PField &operator=( const float *a );  // Performs same task as setDataOperation
 	PField &operator=( double c );
+
 	PField &operator+=( const PField &a );
+	PField &operator+=( const double *a );
+	PField &operator+=( const float *a );
 	PField &operator+=( double c );
+
 	PField &operator-=( const PField &a );
+	PField &operator-=( const double *a );
+	PField &operator-=( const float *a );
 	PField &operator-=( double c );
+
 	PField &operator*=( const PField &a );
+	PField &operator*=( const double *a );
+	PField &operator*=( const float *a );
 	PField &operator*=( double c ) ;
+
 	PField &operator/=( const PField &a );
+	PField &operator/=( const double *a );
+	PField &operator/=( const float *a );
 	PField &operator/=( double c );
 
 	PField &add( PField &a, PField &b );
@@ -109,25 +132,20 @@ public:
 	PField &mul( PField &a, PField &b );
 	PField &div( PField &a, PField &b );
 
-	void ddx( PField &a );
-	void ddy( PField &a );
-	void ddz( PField &a );
+	PField &ddx( PField &a );
+	PField &ddy( PField &a );
+	PField &ddz( PField &a );
 
-	void d2dx2( PField &a );
-	void d2dy2( PField &a );
-	void d2dz2( PField &a );
-	void d2dxy( PField &a );
-	void d2dxz( PField &a );
-	void d2dyz( PField &a );
+	PField &d2dx2( PField &a );
+	PField &d2dy2( PField &a );
+	PField &d2dz2( PField &a );
+	PField &d2dxy( PField &a );
+	PField &d2dxz( PField &a );
+	PField &d2dyz( PField &a );
     
-	void addDataOperation( const float *data_operation);
-	void addDataOperation( const double *data_operation);
-	void mulDataOperation( double scalar);
-
-   
 protected:
 
-	void PFieldInit( const int *dims, FieldDecomp_t field_decomp, const int *periodic, int operator_order );
+	virtual void PFieldInit( const int *dims, FieldDecomp_t field_decomp, const int *periodic, int operator_order );
 	void PFieldCopy( PField &g, bool copy_data_local );
 
 	int *computeMpiTopologyDims( int nproc, int mpi_decomp_ndims );

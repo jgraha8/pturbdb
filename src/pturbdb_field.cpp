@@ -11,8 +11,10 @@ using namespace std;
 
 namespace pturbdb {
 
-PTurbDBField::PTurbDBField(const string &db_conf_file, const int *db_dims) {
-
+/******************************************************************************/
+PTurbDBField::PTurbDBField(const string &db_conf_file, const int *db_dims) : PField()
+/******************************************************************************/
+{
 	// Set private variables
 	this->db_conf_file_ = db_conf_file;
 	memcpy(this->db_dims_, db_dims, sizeof(db_dims[0]) * PFIELD_NDIMS);
@@ -28,24 +30,33 @@ PTurbDBField::PTurbDBField(const string &db_conf_file, const int *db_dims) {
 /*
  * Copy Constructor
  */
-PTurbDBField::PTurbDBField( PTurbDBField &g )
+/******************************************************************************/
+PTurbDBField::PTurbDBField( PTurbDBField &g ) : PField( g )
+/******************************************************************************/
 {
 	this->PTurbDBFieldCopy( g, true );
 }
 
-PTurbDBField::PTurbDBField( PTurbDBField &g, bool copy_field_data )
+/******************************************************************************/
+PTurbDBField::PTurbDBField( PTurbDBField &g, bool copy_field_data ) : PField(g, copy_field_data)
+/******************************************************************************/
 {
 	this->PTurbDBFieldCopy( g, copy_field_data );
 }
 
-PTurbDBField::~PTurbDBField() {
+/******************************************************************************/
+PTurbDBField::~PTurbDBField()
+/******************************************************************************/
+{
 	delete this->pchip_fd_;
 }
 
 /*
  * Worker procedure for the copy constructors
  */ 
+/******************************************************************************/
 void PTurbDBField::PTurbDBFieldCopy( PTurbDBField &g, bool copy_field_data ) 
+/******************************************************************************/
 {
 
 	// Copy/set data members in the PTurbDBField class
@@ -64,19 +75,19 @@ void PTurbDBField::PTurbDBFieldCopy( PTurbDBField &g, bool copy_field_data )
 	this->db_time_max_    = g.getDBTimeMax();
 
 	this->pchip_fd_ = g.getPCHIPFD();
-
-	// Copy the field class members
-	this->PFieldCopy( g, copy_field_data );
-
 }
 
-void PTurbDBField::dbFieldInit(const int *field_offset, const int *dims,
-			      FieldDecomp_t field_decomp, const int *periodic, int operator_order) {
+/******************************************************************************/
+void PTurbDBField::PFieldInit(const int *field_offset, const int *dims,
+			      FieldDecomp_t field_decomp, const int *periodic, int operator_order)
+/******************************************************************************/
+{
 	// Set private data
 	memcpy(this->field_offset_, field_offset,
 	       sizeof(field_offset[0]) * PFIELD_NDIMS);
-	// Initialize the field
-	this->PFieldInit(dims, field_decomp, periodic, operator_order);
+
+	// Initialize the field field class (this is calling the PField::PFieldInit procedure)
+	PField::PFieldInit(dims, field_decomp, periodic, operator_order);
 }
 
 /*
@@ -92,7 +103,7 @@ int                      PTurbDBField::getDBTimeNsteps()   { return this->db_tim
 double                   PTurbDBField::getDBTimeStep()     { return this->db_time_step_;      }
 double                   PTurbDBField::getDBTimeMin()      { return this->db_time_min_;       }
 double                   PTurbDBField::getDBTimeMax()      { return this->db_time_max_;       }
-PTurbDBField::pchip_fd_t *PTurbDBField::getPCHIPFD()        { return this->pchip_fd_;          }
+PTurbDBField::pchip_fd_t *PTurbDBField::getPCHIPFD()       { return this->pchip_fd_;          }
 
 /*
  * Reads the database configuration file: reads the grid file name and the time
@@ -444,9 +455,11 @@ void PTurbDBField::readDBField(double time, const char *field_name) {
 
 		// We now modify the data_local field using the pchip_weights and the data read
 		if (i == 0) {
-			this->setDataOperation(data_buffer);
+			//this->setDataOperation(data_buffer);
+			PField::operator=(data_buffer);
 		} else {
-			this->addDataOperation(data_buffer);
+			//this->addDataOperation(data_buffer);
+			PField::operator+=(data_buffer);
 		}
 
 	}
