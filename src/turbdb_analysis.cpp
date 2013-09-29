@@ -10,13 +10,13 @@
 #define DB_NY 512
 #define DB_NX 2048
 
-#define FIELD_NZ 384
-#define FIELD_NY 256
-#define FIELD_NX 512
+// #define FIELD_NZ 384
+// #define FIELD_NY 256
+// #define FIELD_NX 512
 
-//#define FIELD_NZ 64
-//#define FIELD_NY 256
-//#define FIELD_NX 64
+#define FIELD_NZ 64
+#define FIELD_NY 64
+#define FIELD_NX 64
 
 
 using namespace std;
@@ -94,13 +94,16 @@ int main(int argc, char *argv[]) {
 
 	if( mpi_topology->rank == 0 ) cout << "Reading u from DB" << endl;
 	// Read u from the DB
-	u->readDBField( 3*middle_time/2, "u" );
+	//u->readDBField( 3*middle_time/2, "u" );
+	*u = (double)10000.0L;
 	if( mpi_topology->rank == 0 ) cout << "Reading v from DB" << endl;
 	// Read u from the DB
-	v->readDBField( 3*middle_time/2, "v" );
+	//v->readDBField( 3*middle_time/2, "v" );
+	*v = (double)20.0;
 	if( mpi_topology->rank == 0 ) cout << "Reading w from DB" << endl;
 	// Read u from the DB
-	w->readDBField( 3*middle_time/2, "w" );
+	//w->readDBField( 3*middle_time/2, "w" );
+	*w = (double)-90.0;
 	if( mpi_topology->rank == 0 ) cout << "Reading p from DB" << endl;
 	// Read u from the DB
 	p->readDBField( 3*middle_time/2, "p" );
