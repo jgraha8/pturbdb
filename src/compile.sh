@@ -1,7 +1,7 @@
 #!/bin/bash
 
 EXEC=speed3
-SRCS=( derivative.cpp pfield.cpp pturbdb_field.cpp mpi_topology.cpp turbdb_analysis.cpp )
+SRCS=( derivative.cpp pfield.cpp pfield_math.cpp pturbdb_field.cpp mpi_topology.cpp turbdb_analysis.cpp )
 # Generate the object list
 OBJS=$(for s in ${SRCS[@]}; do echo ${s%.*}.o; done)
 
