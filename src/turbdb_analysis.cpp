@@ -2,6 +2,7 @@
 //#include <stdlib.h>
 #include <stdlib.h>
 #include "esio/esio.h"
+#include "mpi_topology.hpp"
 #include "pturbdb_field.hpp"
 #include "pfield_math.hpp"
 
@@ -13,9 +14,9 @@
 #define FIELD_NY 256
 #define FIELD_NX 512
 
-//#define FIELD_NZ 128
-//#define FIELD_NY 64
-//#define FIELD_NX 128
+//#define FIELD_NZ 64
+//#define FIELD_NY 256
+//#define FIELD_NX 64
 
 
 using namespace std;
@@ -27,7 +28,7 @@ int main(int argc, char *argv[]) {
 	MPI_Init(&argc, &argv);
 
 	int db_dims[] = { DB_NZ, DB_NY, DB_NX };
-	int db_field_offset[] = { 0, 0, 0 };
+	int db_field_offset[] = { FIELD_NZ, 0, FIELD_NX };
 	int field_dims[] = { FIELD_NZ, FIELD_NY, FIELD_NX };
 	int periodic[] = { 0, 0, 0 };
 
@@ -63,6 +64,7 @@ int main(int argc, char *argv[]) {
 	int *dims_operation = u->getDimsOperation();
 	int *offset_local = u->getOffsetLocal();
 	int *offset_operation = u->getOffsetOperation();
+	MPITopology_t *mpi_topology = u->getMPITopology();
 
 	double *x = new double[dims_local[0]];
 	double *y = new double[dims_local[1]];
@@ -78,10 +80,10 @@ int main(int argc, char *argv[]) {
 	if( u->getXLocal() == NULL ) {
 		cout << "Grid not set as expected" << endl;
 		int ierr=0;
-		MPI_Abort( u->getMPITopology()->comm, ierr);
+		MPI_Abort( mpi_topology->comm, ierr);
 	}
 
-	MPI_Barrier(u->getMPITopology()->comm);
+	MPI_Barrier(mpi_topology->comm);
 
 	// Read the middle time
 	double middle_time = 0.12345*0.5*( u->getDBTimeMax() + u->getDBTimeMin() );
@@ -90,87 +92,73 @@ int main(int argc, char *argv[]) {
 	PTurbDBField *w = new PTurbDBField( *u, false ); // Do not copy u field data
 	PTurbDBField *p = new PTurbDBField( *u, false ); // Do not copy u field data
 
-	if( u->getMPITopology()->rank == 0 ) cout << "Reading u from DB" << endl;
+	if( mpi_topology->rank == 0 ) cout << "Reading u from DB" << endl;
 	// Read u from the DB
 	u->readDBField( 3*middle_time/2, "u" );
-	if( u->getMPITopology()->rank == 0 ) cout << "Reading v from DB" << endl;
+	if( mpi_topology->rank == 0 ) cout << "Reading v from DB" << endl;
 	// Read u from the DB
 	v->readDBField( 3*middle_time/2, "v" );
-	if( u->getMPITopology()->rank == 0 ) cout << "Reading w from DB" << endl;
+	if( mpi_topology->rank == 0 ) cout << "Reading w from DB" << endl;
 	// Read u from the DB
 	w->readDBField( 3*middle_time/2, "w" );
-	if( u->getMPITopology()->rank == 0 ) cout << "Reading p from DB" << endl;
+	if( mpi_topology->rank == 0 ) cout << "Reading p from DB" << endl;
 	// Read u from the DB
 	p->readDBField( 3*middle_time/2, "p" );
 
-	// PField *dudx = new PField( field_dims, FIELD_DECOMP_PENCIL, periodic, 8 );
-	// // Set the grid and initialize finite differences
-	// dudx->setGridLocal( x, y, z );
-	// dudx->finiteDiffInit();
-
 	// // Read the operation grid
-      	// dudx->getXOperation( x_operation );
-	// dudx->getYOperation( y_operation );
-	// dudx->getZOperation( z_operation );
+      	u->getXOperation( x_operation );
+	u->getYOperation( y_operation );
+	u->getZOperation( z_operation );
 
-	// PField *dudy = new PField( *dudx );
-	// PField *dudz = new PField( *dudx );
-
-	// PField *dvdx = new PField( *dudx );
-	// PField *dvdy = new PField( *dudx );
-	// PField *dvdz = new PField( *dudx );
-
-	// PField *dwdx = new PField( *dudx );
-	// PField *dwdy = new PField( *dudx );
-	// PField *dwdz = new PField( *dudx );
+	// Create a velocity vector from the velocity components
+	PFieldVector_t vel = PFieldVectorAssign( *u, *v, *w );
 
 	// Velocity gradients
-	if( u->getMPITopology()->rank == 0 ) cout << "Computing u gradient" << endl;
+	if( mpi_topology->rank == 0 ) cout << "Computing u gradient" << endl;
 	PFieldVector_t grad_u = PFieldGradient( *u );
-	if( u->getMPITopology()->rank == 0 ) cout << "Computing v gradient" << endl;
+	if( mpi_topology->rank == 0 ) cout << "Computing v gradient" << endl;
 	PFieldVector_t grad_v = PFieldGradient( *v );
-	if( u->getMPITopology()->rank == 0 ) cout << "Computing w gradient" << endl;
+	if( mpi_topology->rank == 0 ) cout << "Computing w gradient" << endl;
 	PFieldVector_t grad_w = PFieldGradient( *w );
 
-	PFieldTensor_t grad_vel = PFieldTensorNew( grad_u, grad_v, grad_w );
+	PFieldVector_t curl_vel = PFieldCurl( vel ) ;
+	PFieldTensor_t grad_vel = PFieldTensorAssign( grad_u, grad_v, grad_w );
+	
+	// MPI_Barrier( mpi_topology->comm );
+	// if( mpi_topology->rank == 0 ) cout << "Computing symmetric velocity gradient tensor" << endl;
+	// PFieldTensor_t Sij = PFieldTensorSymmetric( grad_vel );
 
-	MPI_Barrier( u->getMPITopology()->comm );
-	if( u->getMPITopology()->rank == 0 ) cout << "Computing symmetric velocity gradient tensor" << endl;
-	PFieldTensor_t Sij = PFieldTensorSymmetric( grad_vel );
-
-	MPI_Barrier( u->getMPITopology()->comm );
-	if( u->getMPITopology()->rank == 0 ) cout << "Computing anti-symmetric velocity gradient tensor" << endl;
-	PFieldTensor_t Rij = PFieldTensorAntiSymmetric( grad_vel );
+	// MPI_Barrier( mpi_topology->comm );
+	// if( mpi_topology->rank == 0 ) cout << "Computing anti-symmetric velocity gradient tensor" << endl;
+	// PFieldTensor_t Rij = PFieldTensorAntiSymmetric( grad_vel );
 
 	// Create new fields 
 	//PField *S = new PField( *u, false );
 	//PField *R = new PField( *u, false );
-	PField *Q = new PField( *u, false );
+	//PField *Q = new PField( *u, false );
+	
 
-	MPI_Barrier( u->getMPITopology()->comm );
-	if( u->getMPITopology()->rank == 0 ) cout << "Computing scalar product of Sij" << endl;
+	// MPI_Barrier( mpi_topology->comm );
+	// if( mpi_topology->rank == 0 ) cout << "Computing scalar product of Sij" << endl;
+	// PField *S = PFieldTensorDotDot( Sij, Sij );
 
-	PField *S = PFieldTensorDotDot( Sij, Sij );
+	// MPI_Barrier( mpi_topology->comm );
+	// if( mpi_topology->rank == 0 ) cout << "Computing scalar product of Rij" << endl;
+	// PField *R = PFieldTensorDotDot( Rij, Rij );
 
-	MPI_Barrier( u->getMPITopology()->comm );
-	if( u->getMPITopology()->rank == 0 ) cout << "Computing scalar product of Rij" << endl;
+	MPI_Barrier( mpi_topology->comm );
+	if( mpi_topology->rank == 0 ) cout << "Computing Q invariant" << endl;
+	PField *Q = PFieldTensorDotDot( grad_vel, grad_vel ); 
+	*Q *= -0.5;
 
-	PField *R = PFieldTensorDotDot( Rij, Rij );
-
-	MPI_Barrier( u->getMPITopology()->comm );
-	if( u->getMPITopology()->rank == 0 ) cout << "Computing Q invariant" << endl;
-	Q->add( *S, *R ) *= 0.5;
-
+	// Temporary data buffer
 	double *t_data = new double[u->getSizeOperation()];
 
-	// Compute the Q-criterion
-	
-	MPI_Barrier(u->getMPITopology()->comm);
-
-	if( u->getMPITopology()->rank == 0 ) cout << "Writing output" << endl;
+	MPI_Barrier(mpi_topology->comm);
+	if( mpi_topology->rank == 0 ) cout << "Writing output" << endl;
 
 	// Output data
-	esio_handle h = esio_handle_initialize(u->getMPITopology()->comm);
+	esio_handle h = esio_handle_initialize(mpi_topology->comm);
 
 	// Open the database file
 	esio_file_create(h, "/datascope/tdbchannel/analysis/q.h5", 1); // Open read-only
@@ -179,11 +167,12 @@ int main(int argc, char *argv[]) {
 			        field_dims[1], offset_local[1]+offset_operation[1], dims_operation[1],
 			        field_dims[2], offset_local[2]+offset_operation[2], dims_operation[2]);
 
-	if( u->getMPITopology()->rank == 0 ) cout << "Writing grid" << endl;
+	if( mpi_topology->rank == 0 ) cout << "Writing grid" << endl;
 	
 	double *x_full = new double[u->getSizeOperation()];
 	double *y_full = new double[u->getSizeOperation()];
 	double *z_full = new double[u->getSizeOperation()];
+
 	long index=0;
 	for(int i=0; i<dims_operation[0]; i++) {
 		for (int j=0; j<dims_operation[1]; j++) {
@@ -199,7 +188,8 @@ int main(int argc, char *argv[]) {
 	esio_field_write_double(h, grid_field_names[1], y_full, 0, 0, 0, "y");
 	esio_field_write_double(h, grid_field_names[2], z_full, 0, 0, 0, "x");
 
-	if( u->getMPITopology()->rank == 0 ) cout << "Writing fields" << endl;
+	if( mpi_topology->rank == 0 ) cout << "Writing fields" << endl;
+
 	u->getDataOperation(t_data);
 	esio_field_write_double(h, "u", t_data, 0, 0, 0, "u");
 
@@ -211,6 +201,13 @@ int main(int argc, char *argv[]) {
 
 	p->getDataOperation(t_data);
 	esio_field_write_double(h, "p", t_data, 0, 0, 0, "p");
+
+	curl_vel[0]->getDataOperation(t_data);
+	esio_field_write_double(h, "omega_x", t_data, 0, 0, 0, "omega_x");
+	curl_vel[1]->getDataOperation(t_data);
+	esio_field_write_double(h, "omega_y", t_data, 0, 0, 0, "omega_y");
+	curl_vel[2]->getDataOperation(t_data);
+	esio_field_write_double(h, "omega_z", t_data, 0, 0, 0, "omega_z");
 
 	Q->getDataOperation(t_data);
 	esio_field_write_double(h, "Q", t_data, 0, 0, 0, "Q");
@@ -279,7 +276,7 @@ int main(int argc, char *argv[]) {
 		printf("  Elapsed wall clock time = %f seconds.\n", wtime);
 	}
 
-	MPI_Barrier(u->getMPITopology()->comm);
+	MPI_Barrier(mpi_topology->comm);
 
 	// Terminate MPI.
 	MPI_Finalize();

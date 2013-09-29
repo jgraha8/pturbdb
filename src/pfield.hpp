@@ -132,6 +132,8 @@ public:
 	PField &mul( PField &a, PField &b );
 	PField &div( PField &a, PField &b );
 
+	PField &sqrt( PField &a );
+
 	PField &ddx( PField &a );
 	PField &ddy( PField &a );
 	PField &ddz( PField &a );

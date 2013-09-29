@@ -158,12 +158,11 @@ void PField::PFieldCopy( PField &g, bool copy_data_local )
 	// since if g is deleted we lose the allocated MPI topology
 	// struct.
 	this->assignMPITopology();
+	this->finite_diff_ = NULL;
 	// Initialize finite difference class
 	if( this->x_local_ != NULL && this->y_local_ != NULL && this->z_local_ != NULL ) {
 		this->finiteDiffInit();
-	} else {
-		this->finite_diff_ = NULL;
-	}
+	} 
 
 	// Copy synchronization state
 	this->synchronized_   = g.getSynchronized();
@@ -1057,6 +1056,35 @@ PField &PField::div(PField &a, PField &b)
 	return *this;
 }
 
+/********************************************************************/
+PField &PField::sqrt(PField &a)
+/********************************************************************/
+{
+
+#ifdef BOUNDS_CHECK
+	long N = this->getSizeOperation();
+	// First check that the fields are the same size
+	if ( N != a.getSizeOperation() ) {
+		cout << "Mismatch in field sizes" << endl;
+		exit (EXIT_FAILURE);
+	}
+#endif
+
+	long index;
+	for (int i = 0; i < this->dims_operation_[0]; i++) {
+		for (int j = 0; j < this->dims_operation_[1]; j++) {
+			for (int k = 0; k < this->dims_operation_[2]; k++) {
+				index = this->indexOperationToLocal(i, j, k);
+				this->data_local[index] = std::sqrt(a.data_local[index]);
+			}
+		}
+	}
+
+	// Set unsynchronized
+	this->synchronized_ = false;
+	return *this;
+}
+
 //////////////////////////////////////////////////////////////////////
 /// DERIVATIVES (PUBLIC)
 //////////////////////////////////////////////////////////////////////
@@ -1487,7 +1515,7 @@ int *PField::computeMPITopologyDims(int nproc, int mpi_decomp_ndims)
 
 	} else if (mpi_decomp_ndims == 2) {
 
-		int M = std::min( (int) ceil( sqrt(nproc * (double) this->dims_[0] / this->dims_[1])), nproc);
+		int M = std::min( (int) std::ceil( std::sqrt(nproc * (double) this->dims_[0] / this->dims_[1])), nproc);
 		int N = nproc / M;
 
 		while (1) {
