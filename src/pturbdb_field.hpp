@@ -77,6 +77,14 @@ public:
 	void readDBField(double time, const char *field_name);
 
 	void copyDataOperation( double *data );
+	
+	// Assignment operators; these are not inherited. We are using
+	// the PField assignment operator to set data_local;
+	PTurbDBField &operator=( float a ){ PField::operator=(a); return *this; }
+	PTurbDBField &operator=( double a ){ PField::operator=(a); return *this; }
+	PTurbDBField &operator=( const float *a ){ PField::operator=(a); return *this; }
+	PTurbDBField &operator=( const double *a ){ PField::operator=(a); return *this; }
+	PTurbDBField &operator=( const PTurbDBField &a ){ PField::operator=(a); return *this; }
 
 private:
 
