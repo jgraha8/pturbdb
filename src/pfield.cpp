@@ -125,6 +125,9 @@ void PField::PFieldInit(const int *dims, FieldDecomp_t field_decomp,
 
 }
 
+/*
+ * Worker for the PField copy constructor
+ */
 void PField::PFieldCopy( PField &g, bool copy_data_local )
 {
 
@@ -146,13 +149,21 @@ void PField::PFieldCopy( PField &g, bool copy_data_local )
 	this->rind_size_      = g.getRindSize();
 	this->field_decomp_   = g.getFieldDecomp();
 
-	// Copy pointers
-	this->mpi_topology_   = g.getMPITopology();
-	this->finite_diff_    = g.getFiniteDiff();
-
+	// Copy external pointers
 	this->x_local_        = g.getXLocal();
 	this->y_local_        = g.getYLocal();
 	this->z_local_        = g.getZLocal();
+
+	// Assign the MPI topology. Cannot copy the pointer value
+	// since if g is deleted we lose the allocated MPI topology
+	// struct.
+	this->assignMPITopology();
+	// Initialize finite difference class
+	if( this->x_local_ != NULL && this->y_local_ != NULL && this->z_local_ != NULL ) {
+		this->finiteDiffInit();
+	} else {
+		this->finite_diff_ = NULL;
+	}
 
 	// Copy synchronization state
 	this->synchronized_   = g.getSynchronized();
@@ -182,12 +193,11 @@ void PField::finiteDiffInit()
 	int ierr=0;
 
 	if (this->finite_diff_ != NULL) {
-		printf("%d: PField::finiteDiffInit: class instance fd already created\n", this->mpi_topology_->rank);
-		MPI_Abort(this->mpi_topology_->comm, ierr);
+		printf("%d: PField::finiteDiffInit: class instance fd already created--skipping.\n", this->mpi_topology_->rank);
+		//MPI_Abort(this->mpi_topology_->comm, ierr);
 	}
 
-	if (this->x_local_ == NULL || this->y_local_ == NULL
-	    || this->z_local_ == NULL) {
+	if (this->x_local_ == NULL || this->y_local_ == NULL || this->z_local_ == NULL) {
 		printf("%d: PField::finiteDiffInit: requires setGridLocal be called first\n", this->mpi_topology_->rank);
 		MPI_Abort(this->mpi_topology_->comm, ierr);
 	}
