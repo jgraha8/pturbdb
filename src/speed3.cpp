@@ -30,9 +30,9 @@ int main ( int argc, char *argv[])
 
   Field *g = new Field( *f ); // Make a copy of f
 
-  int rank = f->getMpiTopology()->rank;
-  int nproc = f->getMpiTopology()->nproc;
-  int *decomp_dims = f->getMpiTopology()->dims;
+  int rank = f->getMPITopology()->rank;
+  int nproc = f->getMPITopology()->nproc;
+  int *decomp_dims = f->getMPITopology()->dims;
 
   for (int n=0; n<nproc; n++) {
     if( n == rank ) {
@@ -41,7 +41,7 @@ int main ( int argc, char *argv[])
       cout << "Number of operation data elements : " << g->getSizeOperation() << endl;
       cout << "MPI Topology : " << decomp_dims[0] << "x" << decomp_dims[1] << "x" << decomp_dims[2] << endl;
     }
-    MPI_Barrier( g->getMpiTopology()->comm );
+    MPI_Barrier( g->getMPITopology()->comm );
   }
 
   int *dims_local = f->getDimsLocal();
@@ -103,8 +103,8 @@ int main ( int argc, char *argv[])
   for (int i=0; i<dims_local[0]; i++) {
     for (int j=0; j<dims_local[1]; j++) {
       for (int k=0; k<dims_local[2]; k++) {
-	if( test->getMpiTopology()->coords[0] == 1 && 
-	    test->getMpiTopology()->coords[1] == 1 ) {
+	if( test->getMPITopology()->coords[0] == 1 && 
+	    test->getMPITopology()->coords[1] == 1 ) {
 	  test->data_local[index++] = 0.0;
 	} else {
 	  test->data_local[index++] = 1.0;
@@ -117,10 +117,10 @@ int main ( int argc, char *argv[])
   df->ddx( *test );
 
   double sum_test=0.0;
-  if( test->getMpiTopology()->coords[0] == 1 && 
-      test->getMpiTopology()->coords[1] == 1 ) {
+  if( test->getMPITopology()->coords[0] == 1 && 
+      test->getMPITopology()->coords[1] == 1 ) {
 
-    cout << "center rank : " << test->getMpiTopology()->rank << endl;
+    cout << "center rank : " << test->getMPITopology()->rank << endl;
     cout << "dims_local : " << dims_local[0] << " " << dims_local[1] << " " << dims_local[2] << endl;
     cout << "dims_operation : " << dims_operation[0] << " " << dims_operation[1] << " " << dims_operation[2] << endl;
 
@@ -140,7 +140,7 @@ int main ( int argc, char *argv[])
 
   }
 
-  MPI_Barrier(test->getMpiTopology()->comm);
+  MPI_Barrier(test->getMPITopology()->comm);
 
   
  //  df->add( *df, *df2 );
@@ -178,7 +178,7 @@ int main ( int argc, char *argv[])
       printf ( "  Elapsed wall clock time = %f seconds.\n", wtime );
     }
 
-  MPI_Barrier( g->getMpiTopology()->comm );
+  MPI_Barrier( g->getMPITopology()->comm );
   // Terminate MPI.
    MPI_Finalize ( );
   

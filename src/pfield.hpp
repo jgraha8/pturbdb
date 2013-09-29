@@ -34,7 +34,7 @@ private:
 	FieldDecomp_t field_decomp_;
 
 	// MPI Topology struct
-	MpiTopology_t *mpi_topology_;
+	MPITopology_t *mpi_topology_;
 
 	// FiniteDiff Class 
 	FiniteDiff *finite_diff_;
@@ -66,7 +66,7 @@ public:
 	long           getSizeLocal();
 	long           getSizeOperation();
 	long           getSizeRind( int dim, int location );
-	MpiTopology_t *getMpiTopology();
+	MPITopology_t *getMPITopology();
 	FiniteDiff    *getFiniteDiff();
 	FieldDecomp_t  getFieldDecomp();
 	int           *getFieldPeriodic();
@@ -148,9 +148,9 @@ protected:
 	virtual void PFieldInit( const int *dims, FieldDecomp_t field_decomp, const int *periodic, int operator_order );
 	void PFieldCopy( PField &g, bool copy_data_local );
 
-	int *computeMpiTopologyDims( int nproc, int mpi_decomp_ndims );
+	int *computeMPITopologyDims( int nproc, int mpi_decomp_ndims );
 
-	void assignMpiTopology();
+	void assignMPITopology();
 	void assignDimsAndOffsets();
 
 	bool hasRind(int dim, int location);

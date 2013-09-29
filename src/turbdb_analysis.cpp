@@ -31,11 +31,11 @@ int main(int argc, char *argv[]) {
 
 	PTurbDBField *u = new PTurbDBField("turbdb.conf", db_dims);
 
-	u->PFieldInit(db_field_offset, field_dims, FIELD_DECOMP_PENCIL, periodic, 4);
+	u->PFieldInit(db_field_offset, field_dims, FIELD_DECOMP_PENCIL, periodic, 8);
 
-	int rank = u->getMpiTopology()->rank;
-	int nproc = u->getMpiTopology()->nproc;
-	int *decomp_dims = u->getMpiTopology()->dims;
+	int rank = u->getMPITopology()->rank;
+	int nproc = u->getMPITopology()->nproc;
+	int *decomp_dims = u->getMPITopology()->dims;
 
 	for (int n = 0; n < nproc; n++) {
 		if (n == rank) {
@@ -51,7 +51,7 @@ int main(int argc, char *argv[]) {
 					<< u->getDBTimeMax() << endl;
 
 		}
-		MPI_Barrier(u->getMpiTopology()->comm);
+		MPI_Barrier(u->getMPITopology()->comm);
 	}
 
 	// Read the grid
@@ -76,25 +76,32 @@ int main(int argc, char *argv[]) {
 	if( u->getXLocal() == NULL ) {
 		cout << "Grid not set as expected" << endl;
 		int ierr=0;
-		MPI_Abort( u->getMpiTopology()->comm, ierr);
+		MPI_Abort( u->getMPITopology()->comm, ierr);
 	}
 
-	MPI_Barrier(u->getMpiTopology()->comm);
+	MPI_Barrier(u->getMPITopology()->comm);
 
 	// Read the middle time
 	double middle_time = 0.5*( u->getDBTimeMax() + u->getDBTimeMin() );
 
 	PTurbDBField *v = new PTurbDBField( *u, false ); // Do not copy u field data
 	PTurbDBField *w = new PTurbDBField( *u, false ); // Do not copy u field data
+	PTurbDBField *p = new PTurbDBField( *u, false ); // Do not copy u field data
 
+	if( u->getMPITopology()->rank == 0 ) cout << "Reading u from DB" << endl;
 	// Read u from the DB
-	u->readDBField( middle_time/2, "u" );
+	u->readDBField( 3*middle_time/2, "u" );
+	if( u->getMPITopology()->rank == 0 ) cout << "Reading v from DB" << endl;
 	// Read u from the DB
-	v->readDBField( middle_time/2, "v" );
+	v->readDBField( 3*middle_time/2, "v" );
+	if( u->getMPITopology()->rank == 0 ) cout << "Reading w from DB" << endl;
 	// Read u from the DB
-	w->readDBField( middle_time/2, "w" );
+	w->readDBField( 3*middle_time/2, "w" );
+	if( u->getMPITopology()->rank == 0 ) cout << "Reading p from DB" << endl;
+	// Read u from the DB
+	p->readDBField( 3*middle_time/2, "p" );
 
-	PField *dudx = new PField( field_dims, FIELD_DECOMP_PENCIL, periodic, 4 );
+	PField *dudx = new PField( field_dims, FIELD_DECOMP_PENCIL, periodic, 8 );
 	// Set the grid and initialize finite differences
 	dudx->setGridLocal( x, y, z );
 	dudx->finiteDiffInit();
@@ -115,24 +122,25 @@ int main(int argc, char *argv[]) {
 	PField *dwdy = new PField( *dudx );
 	PField *dwdz = new PField( *dudx );
 
-	if( u->getMpiTopology()->rank == 0 ) cout << "Computing u derivatives" << endl;
+	if( u->getMPITopology()->rank == 0 ) cout << "Computing u derivatives" << endl;
 
 	dudx->ddx( *u );
 	dudy->ddy( *u );
 	dudz->ddz( *u );
 
-	if( u->getMpiTopology()->rank == 0 ) cout << "Computing v derivatives" << endl;
+	if( u->getMPITopology()->rank == 0 ) cout << "Computing v derivatives" << endl;
 
 	dvdx->ddx( *v );
 	dvdy->ddy( *v );
 	dvdz->ddz( *v );
 
-	if( u->getMpiTopology()->rank == 0 ) cout << "Computing w derivatives" << endl;
+	if( u->getMPITopology()->rank == 0 ) cout << "Computing w derivatives" << endl;
 
 	dwdx->ddx( *w );
 	dwdy->ddy( *w );
 	dwdz->ddz( *w );
 
+	// Create new fields 
 	PField *Q = new PField( *dudx, false );
 	PField *S11 = new PField( *dudx );
 	PField *S12 = new PField( *dudy );
@@ -181,12 +189,12 @@ int main(int argc, char *argv[]) {
 
 	// Compute the Q-criterion
 	
-	MPI_Barrier(u->getMpiTopology()->comm);
+	MPI_Barrier(u->getMPITopology()->comm);
 
-	if( u->getMpiTopology()->rank == 0 ) cout << "Writing output" << endl;
+	if( u->getMPITopology()->rank == 0 ) cout << "Writing output" << endl;
 
 	// Output data
-	esio_handle h = esio_handle_initialize(u->getMpiTopology()->comm);
+	esio_handle h = esio_handle_initialize(u->getMPITopology()->comm);
 
 	// Open the database file
 	esio_file_create(h, "/datascope/tdbchannel/analysis/q.h5", 1); // Open read-only
@@ -195,7 +203,7 @@ int main(int argc, char *argv[]) {
 			        field_dims[1], offset_local[1]+offset_operation[1], dims_operation[1],
 			        field_dims[2], offset_local[2]+offset_operation[2], dims_operation[2]);
 
-	if( u->getMpiTopology()->rank == 0 ) cout << "Writing grid" << endl;
+	if( u->getMPITopology()->rank == 0 ) cout << "Writing grid" << endl;
 	
 	double *x_full = new double[u->getSizeOperation()];
 	double *y_full = new double[u->getSizeOperation()];
@@ -215,7 +223,7 @@ int main(int argc, char *argv[]) {
 	esio_field_write_double(h, grid_field_names[1], y_full, 0, 0, 0, "y");
 	esio_field_write_double(h, grid_field_names[2], z_full, 0, 0, 0, "x");
 
-	if( u->getMpiTopology()->rank == 0 ) cout << "Writing fields" << endl;
+	if( u->getMPITopology()->rank == 0 ) cout << "Writing fields" << endl;
 	u->getDataOperation(t_data);
 	esio_field_write_double(h, "u", t_data, 0, 0, 0, "u");
 
@@ -224,6 +232,9 @@ int main(int argc, char *argv[]) {
 
 	w->getDataOperation(t_data);
 	esio_field_write_double(h, "w", t_data, 0, 0, 0, "w");
+
+	p->getDataOperation(t_data);
+	esio_field_write_double(h, "p", t_data, 0, 0, 0, "p");
 
 	Q->getDataOperation(t_data);
 	esio_field_write_double(h, "Q", t_data, 0, 0, 0, "Q");
@@ -292,7 +303,7 @@ int main(int argc, char *argv[]) {
 		printf("  Elapsed wall clock time = %f seconds.\n", wtime);
 	}
 
-	MPI_Barrier(u->getMpiTopology()->comm);
+	MPI_Barrier(u->getMPITopology()->comm);
 
 	// Terminate MPI.
 	MPI_Finalize();

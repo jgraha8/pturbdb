@@ -198,7 +198,7 @@ void PTurbDBField::pchipComputeWeights(double hermite_basis[4],
 	if( this->pchip_fd_ == NULL ) {
 		cout << "PTurbDBField: PCHIP finite difference struct not allocated" << endl;
 		int ierr=0;
-		MPI_Abort(this->getMpiTopology()->comm, ierr);
+		MPI_Abort(this->getMPITopology()->comm, ierr);
 	}
 	
 	pchip_weights[0] = hermite_basis[1] * this->pchip_fd_->coefs[0];
@@ -238,7 +238,7 @@ void PTurbDBField::readDBGridLocal(const char *field_names[3], double *x,
 	double *y_operation = new double[dims_operation[1]];
 	double *z_operation = new double[dims_operation[2]];
 
-	esio_handle h = esio_handle_initialize(this->getMpiTopology()->comm);
+	esio_handle h = esio_handle_initialize(this->getMPITopology()->comm);
 
 	// Open the database file
 	const char *db_grid_file_name = this->db_grid_file_name_.c_str();
@@ -304,7 +304,7 @@ void PTurbDBField::syncDBGridLocal(int dim, const double *grid_operation,
 	MPI_Request prev_request, next_request;
 	MPI_Status status;
 
-	MpiTopology_t *mpi_topology = this->getMpiTopology();
+	MPITopology_t *mpi_topology = this->getMPITopology();
 
 	const long rind_size = this->getRindSize();
 	double *prev_buffer = new double[rind_size];
@@ -380,7 +380,7 @@ void PTurbDBField::setDBPeriodicGridLocal( int dim, const double *grid_operation
 	int *dims_local = this->getDimsLocal();
 	int *dims_operation = this->getDimsOperation();
 
-	MpiTopology_t *mpi_topology = this->getMpiTopology();
+	MPITopology_t *mpi_topology = this->getMPITopology();
 	int rind_size = this->getRindSize();
 
 	if (this->getFieldPeriodic()[dim] == 1) {
@@ -443,7 +443,7 @@ void PTurbDBField::readDBField(double time, const char *field_name)
 	// We now evaluate the
 	for (int i = 0; i < 4; i++) {
 
-		esio_handle h = esio_handle_initialize(this->getMpiTopology()->comm);
+		esio_handle h = esio_handle_initialize(this->getMPITopology()->comm);
 
 		// Open the database file
 		const char *db_file_name =

@@ -13,9 +13,9 @@ typedef struct {
   int *coords;
   int *neighbor_next;
   int *neighbor_prev;
-} MpiTopology_t;
+} MPITopology_t;
 
 #endif
 
-MpiTopology_t *MpiTopologyNew( MPI_Comm comm, int ndims, int *dims, int *periodic );
-void MpiTopologyDelete( MpiTopology_t **mpi_topology );
+MPITopology_t *MPITopologyNew( MPI_Comm comm, int ndims, int *dims, int *periodic );
+void MPITopologyDelete( MPITopology_t **mpi_topology );

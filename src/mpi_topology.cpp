@@ -1,10 +1,10 @@
 #include <cstring>
 #include "mpi_topology.hpp"
 
-MpiTopology_t *MpiTopologyNew( MPI_Comm comm, int ndims, int *dims, int *periodic )
+MPITopology_t *MPITopologyNew( MPI_Comm comm, int ndims, int *dims, int *periodic )
 {
 
-  MpiTopology_t *mpi_topology = new MpiTopology_t;
+  MPITopology_t *mpi_topology = new MPITopology_t;
   
   mpi_topology->ndims         = ndims;
   mpi_topology->dims          = new int[ndims];
@@ -40,7 +40,7 @@ MpiTopology_t *MpiTopologyNew( MPI_Comm comm, int ndims, int *dims, int *periodi
 
 };
 
-void MpiTopologyDelete( MpiTopology_t **mpi_topology ) 
+void MPITopologyDelete( MPITopology_t **mpi_topology ) 
 {
 
   delete [] (*mpi_topology)->dims; 

@@ -20,7 +20,7 @@ PField::PField(const int *dims, FieldDecomp_t field_decomp, const int *periodic,
 	PFieldInit(dims, field_decomp, periodic, operator_order);
 
 #ifdef VERBOSE
-	printf("%d: PField::PField: constructed field\n", this->getMpiTopology()->rank);
+	printf("%d: PField::PField: constructed field\n", this->getMPITopology()->rank);
 #endif
 
 }
@@ -31,7 +31,7 @@ PField::PField(PField &g, bool copy_data_local)
 	this->PFieldCopy( g, copy_data_local );
 
 #ifdef VERBOSE
-	printf("%d: PField::PField: constructed field from copy\n", this->getMpiTopology()->rank);
+	printf("%d: PField::PField: constructed field from copy\n", this->getMPITopology()->rank);
 #endif
 
 }
@@ -42,7 +42,7 @@ PField::PField(PField &g)
 	this->PFieldCopy( g, true );
 
 #ifdef VERBOSE
-	printf("%d: PField::PField: constructed field from copy\n", this->getMpiTopology()->rank);
+	printf("%d: PField::PField: constructed field from copy\n", this->getMPITopology()->rank);
 #endif
 
 }
@@ -89,7 +89,7 @@ void PField::PFieldInit(const int *dims, FieldDecomp_t field_decomp,
 	this->rind_size_ = operator_order / 2 + operator_order % 2; // Second part adds 1 if odd operator order
 
 	// Compute the MPI topology for the given field decomposition
-	this->assignMpiTopology();
+	this->assignMPITopology();
 
 	// Compute the local and operation dims and offsets
 	this->assignDimsAndOffsets();
@@ -147,7 +147,7 @@ void PField::PFieldCopy( PField &g, bool copy_data_local )
 	this->field_decomp_   = g.getFieldDecomp();
 
 	// Copy pointers
-	this->mpi_topology_   = g.getMpiTopology();
+	this->mpi_topology_   = g.getMPITopology();
 	this->finite_diff_    = g.getFiniteDiff();
 
 	this->x_local_        = g.getXLocal();
@@ -271,7 +271,7 @@ long PField::getSizeRind(int dim, int location)
  * Getters for data members
  */
 FieldDecomp_t PField::getFieldDecomp()  { return this->field_decomp_;     };
-MpiTopology_t *PField::getMpiTopology() { return this->mpi_topology_;     };
+MPITopology_t *PField::getMPITopology() { return this->mpi_topology_;     };
 FiniteDiff *PField::getFiniteDiff()     { return this->finite_diff_;      };
 double *PField::getXLocal()             { return this->x_local_;          };
 double *PField::getYLocal()             { return this->y_local_;          };
@@ -1463,7 +1463,7 @@ void PField::dndzn(void (FiniteDiff::*dd)(int, int, double *, int, double *),
 //   mpi_topology_dims[PFIELD_NDIMS] - topology dimensions in each field direction
 //
 /********************************************************************/
-int *PField::computeMpiTopologyDims(int nproc, int mpi_decomp_ndims)
+int *PField::computeMPITopologyDims(int nproc, int mpi_decomp_ndims)
 /********************************************************************/
 {
 
@@ -1514,7 +1514,7 @@ int *PField::computeMpiTopologyDims(int nproc, int mpi_decomp_ndims)
 ////////////////////////////////////////////////////////////////////////////////
 
 /********************************************************************/
-void PField::assignMpiTopology()
+void PField::assignMPITopology()
 /********************************************************************/
 {
 
@@ -1535,17 +1535,17 @@ void PField::assignMpiTopology()
 	// Get the total number of procs
 	MPI_Comm_size(MPI_COMM_WORLD, &nproc);
 
-	int *mpi_topology_dims = this->computeMpiTopologyDims(nproc, mpi_decomp_ndims);
+	int *mpi_topology_dims = this->computeMPITopologyDims(nproc, mpi_decomp_ndims);
 
 	// Create the MPI topology struct; this contains all the comm, rank, nproc, neighbors, etc.
-	this->mpi_topology_ = MpiTopologyNew(MPI_COMM_WORLD, PFIELD_NDIMS, mpi_topology_dims, this->periodic_);
+	this->mpi_topology_ = MPITopologyNew(MPI_COMM_WORLD, PFIELD_NDIMS, mpi_topology_dims, this->periodic_);
 
 	delete[] mpi_topology_dims;
 
 #ifdef VERBOSE
 	for(int n=0; n<this->mpi_topology_->nproc; n++) {
 		if( n == this->mpi_topology_->rank ) {
-			printf("%d: PField::assignMpiTopology\n",this->mpi_topology_->rank);
+			printf("%d: PField::assignMPITopology\n",this->mpi_topology_->rank);
 			printf("    coords: %d, %d\n",this->mpi_topology_->coords[0], this->mpi_topology_->coords[1]);
 			printf("    neighbor_prev: %d, %d\n",this->mpi_topology_->neighbor_prev[0], this->mpi_topology_->neighbor_prev[1]);
 			printf("    neighbor_next: %d, %d\n",this->mpi_topology_->neighbor_next[0], this->mpi_topology_->neighbor_next[1]);
@@ -1661,7 +1661,7 @@ void PField::synchronizeDimension(int dim)
 	MPI_Request prev_request=0, next_request=0;
 	MPI_Status status;
 
-	MpiTopology_t *mpi_topology = this->mpi_topology_;
+	MPITopology_t *mpi_topology = this->mpi_topology_;
 
 	const long prev_buffer_size = this->getSizeRind(dim, -1);
 	const long next_buffer_size = this->getSizeRind(dim, 1);
