@@ -134,109 +134,86 @@ int main(int argc, char *argv[]) {
 
 	PFieldTensor_t grad_vel = PFieldTensorNew( grad_u, grad_v, grad_w );
 
-	PFieldTensor_t S = PFieldTensorSymmetric( grad_vel );
-	PFieldTensor_t R = PFieldTensorAntiSymmetric( grad_vel );
+	MPI_Barrier( u->getMPITopology()->comm );
+	if( u->getMPITopology()->rank == 0 ) cout << "Computing symmetric velocity gradient tensor" << endl;
+	PFieldTensor_t Sij = PFieldTensorSymmetric( grad_vel );
 
-	PFieldTensorMul( S, 0.9 );	
+	MPI_Barrier( u->getMPITopology()->comm );
+	if( u->getMPITopology()->rank == 0 ) cout << "Computing anti-symmetric velocity gradient tensor" << endl;
+	PFieldTensor_t Rij = PFieldTensorAntiSymmetric( grad_vel );
 
-	// // Create new fields 
-	// PField *Q = new PField( *dudx, false );
-	// PField *S11 = new PField( *dudx );
-	// PField *S12 = new PField( *dudy );
-	// PField *S13 = new PField( *dudz );
-	// PField *S22 = new PField( *dvdy );
-	// PField *S23 = new PField( *dvdz );
-	// PField *S33 = new PField( *dwdz );
+	// Create new fields 
+	//PField *S = new PField( *u, false );
+	//PField *R = new PField( *u, false );
+	PField *Q = new PField( *u, false );
 
-	// PField *O12 = new PField( *dudy );
-	// PField *O13 = new PField( *dudz );
-	// PField *O23 = new PField( *dvdz );
+	MPI_Barrier( u->getMPITopology()->comm );
+	if( u->getMPITopology()->rank == 0 ) cout << "Computing scalar product of Sij" << endl;
 
-	// (*S12 += *dvdx)*=0.5;
-	// (*S13 += *dwdx)*=0.5;
-	// (*S23 += *dwdy)*=0.5;
+	PField *S = PFieldTensorDotDot( Sij, Sij );
 
-	// (*O12 -= *dvdx)*=0.5;
-	// (*O13 -= *dwdx)*=0.5;
-	// (*O23 -= *dwdy)*=0.5;
+	MPI_Barrier( u->getMPITopology()->comm );
+	if( u->getMPITopology()->rank == 0 ) cout << "Computing scalar product of Rij" << endl;
 
-	// PField *TrS = new PField( *S11, false );
-	// PField *TrO = new PField( *S11, false );
+	PField *R = PFieldTensorDotDot( Rij, Rij );
 
-	// // Here using Q as a buffer. The multiplication takes place and is stored in Q. We then add it to TrS.
-	// // TrO->mul( *S12, *S12);
-	// // *TrO += Q->mul( *S13, *S13 );
-	// // *TrO += Q->mul( *S23, *S23 );
-	// // *TrO *= -2.0; // Multiply the result by -2.0
+	MPI_Barrier( u->getMPITopology()->comm );
+	if( u->getMPITopology()->rank == 0 ) cout << "Computing Q invariant" << endl;
+	Q->add( *S, *R ) *= 0.5;
 
-	// *TrO = Q->add( Q->add( Q->mul( *S12, 
-	// 			       *S12 ),
-	// 		       Q->mul( *S13, 
-	// 			       *S13 ) ), 
-	// 	       Q->mul( *S23, 
-	// 		       *S23 ) ) *= -2.0;
+	double *t_data = new double[u->getSizeOperation()];
 
-	// TrS->mul( *S11, *S11 );
-	// *TrS += Q->mul( *S22, *S22 );
-	// *TrS += Q->mul( *S33, *S33 );
-	// *TrS -= *TrO; // Subtract the trace of the antisymmetric component; they have the same parts
-
-	// // Q then only retains 1/2 of the diagonal of the symmetric component
-	// Q->sub( *TrO, *TrS ) *= 0.5;
-
-	// double *t_data = new double[u->getSizeOperation()];
-
-	// // Compute the Q-criterion
+	// Compute the Q-criterion
 	
-	// MPI_Barrier(u->getMPITopology()->comm);
+	MPI_Barrier(u->getMPITopology()->comm);
 
-	// if( u->getMPITopology()->rank == 0 ) cout << "Writing output" << endl;
+	if( u->getMPITopology()->rank == 0 ) cout << "Writing output" << endl;
 
-	// // Output data
-	// esio_handle h = esio_handle_initialize(u->getMPITopology()->comm);
+	// Output data
+	esio_handle h = esio_handle_initialize(u->getMPITopology()->comm);
 
-	// // Open the database file
-	// esio_file_create(h, "/datascope/tdbchannel/analysis/q.h5", 1); // Open read-only
+	// Open the database file
+	esio_file_create(h, "/datascope/tdbchannel/analysis/q.h5", 1); // Open read-only
 
-	// esio_field_establish(h, field_dims[0], offset_local[0]+offset_operation[0], dims_operation[0],
-	// 		        field_dims[1], offset_local[1]+offset_operation[1], dims_operation[1],
-	// 		        field_dims[2], offset_local[2]+offset_operation[2], dims_operation[2]);
+	esio_field_establish(h, field_dims[0], offset_local[0]+offset_operation[0], dims_operation[0],
+			        field_dims[1], offset_local[1]+offset_operation[1], dims_operation[1],
+			        field_dims[2], offset_local[2]+offset_operation[2], dims_operation[2]);
 
-	// if( u->getMPITopology()->rank == 0 ) cout << "Writing grid" << endl;
+	if( u->getMPITopology()->rank == 0 ) cout << "Writing grid" << endl;
 	
-	// double *x_full = new double[u->getSizeOperation()];
-	// double *y_full = new double[u->getSizeOperation()];
-	// double *z_full = new double[u->getSizeOperation()];
-	// long index=0;
-	// for(int i=0; i<dims_operation[0]; i++) {
-	// 	for (int j=0; j<dims_operation[1]; j++) {
-	// 		for(int k=0; k<dims_operation[2]; k++) {
-	// 			x_full[index] = x_operation[i];
-	// 			y_full[index] = y_operation[j];
-	// 			z_full[index] = z_operation[k];
-	// 			index++;
-	// 		}
-	// 	}
-	// }
-	// esio_field_write_double(h, grid_field_names[0], x_full, 0, 0, 0, "z");
-	// esio_field_write_double(h, grid_field_names[1], y_full, 0, 0, 0, "y");
-	// esio_field_write_double(h, grid_field_names[2], z_full, 0, 0, 0, "x");
+	double *x_full = new double[u->getSizeOperation()];
+	double *y_full = new double[u->getSizeOperation()];
+	double *z_full = new double[u->getSizeOperation()];
+	long index=0;
+	for(int i=0; i<dims_operation[0]; i++) {
+		for (int j=0; j<dims_operation[1]; j++) {
+			for(int k=0; k<dims_operation[2]; k++) {
+				x_full[index] = x_operation[i];
+				y_full[index] = y_operation[j];
+				z_full[index] = z_operation[k];
+				index++;
+			}
+		}
+	}
+	esio_field_write_double(h, grid_field_names[0], x_full, 0, 0, 0, "z");
+	esio_field_write_double(h, grid_field_names[1], y_full, 0, 0, 0, "y");
+	esio_field_write_double(h, grid_field_names[2], z_full, 0, 0, 0, "x");
 
-	// if( u->getMPITopology()->rank == 0 ) cout << "Writing fields" << endl;
-	// u->getDataOperation(t_data);
-	// esio_field_write_double(h, "u", t_data, 0, 0, 0, "u");
+	if( u->getMPITopology()->rank == 0 ) cout << "Writing fields" << endl;
+	u->getDataOperation(t_data);
+	esio_field_write_double(h, "u", t_data, 0, 0, 0, "u");
 
-	// v->getDataOperation(t_data);
-	// esio_field_write_double(h, "v", t_data, 0, 0, 0, "v");
+	v->getDataOperation(t_data);
+	esio_field_write_double(h, "v", t_data, 0, 0, 0, "v");
 
-	// w->getDataOperation(t_data);
-	// esio_field_write_double(h, "w", t_data, 0, 0, 0, "w");
+	w->getDataOperation(t_data);
+	esio_field_write_double(h, "w", t_data, 0, 0, 0, "w");
 
-	// p->getDataOperation(t_data);
-	// esio_field_write_double(h, "p", t_data, 0, 0, 0, "p");
+	p->getDataOperation(t_data);
+	esio_field_write_double(h, "p", t_data, 0, 0, 0, "p");
 
-	// Q->getDataOperation(t_data);
-	// esio_field_write_double(h, "Q", t_data, 0, 0, 0, "Q");
+	Q->getDataOperation(t_data);
+	esio_field_write_double(h, "Q", t_data, 0, 0, 0, "Q");
 
 	// dudx->getDataOperation(t_data);
 	// esio_field_write_double(h, "dudx", t_data, 0, 0, 0, "dudx");
@@ -265,8 +242,8 @@ int main(int argc, char *argv[]) {
 	// dwdz->getDataOperation(t_data);
 	// esio_field_write_double(h, "dwdz", t_data, 0, 0, 0, "dwdz");
 	
-	// esio_file_close(h);
-	// esio_handle_finalize(h);
+	esio_file_close(h);
+	esio_handle_finalize(h);
 
 
 	// //  df->add( *df, *df2 );

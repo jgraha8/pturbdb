@@ -1,5 +1,7 @@
+#include <iostream>
 #include "pfield_math.hpp"
 
+using namespace std;
 namespace pturbdb {
 
 PFieldVector_t PFieldVectorNew( PField &pfield )
@@ -22,13 +24,13 @@ void PFieldVectorDelete( PFieldVector_t &pfield_vector )
 	pfield_vector.clear();
 }
 
-PField PFieldVectorDot( PFieldVector_t &a, PFieldVector_t &b )
+PField *PFieldVectorDot( PFieldVector_t &a, PFieldVector_t &b )
 {
-	PField c( *a[0], false );
+	PField *c = new PField( *a[0], false );
 
-	c.mul( *a[0], *b[0] ) 
-		+= c.mul( *a[1], *b[1] )
-		+= c.mul( *a[2], *b[2] );
+	c->mul( *a[0], *b[0] ) 
+		+= c->mul( *a[1], *b[1] )
+		+= c->mul( *a[2], *b[2] );
 
 	return c;
 }
@@ -98,12 +100,12 @@ PFieldTensor_t PFieldTensorSymmetric( PFieldTensor_t &tensor ) {
 	tensor_symmetric[0][2]->add( *tensor[0][2], *tensor[2][0] ) *= 0.5; // Compute field
 
 	// Delete and copy the pointer
-	delete tensor_symmetric[1][0]; tensor_symmetric[1][0] = tensor_symmetric[0][1]; // Copy pointer
+	*tensor_symmetric[1][0] = *tensor_symmetric[0][1]; // Copy pointer
 	*tensor_symmetric[1][1] = *tensor[1][1];                                        // Copy field
 	tensor_symmetric[1][2]->add( *tensor[1][2], *tensor[2][1] ) *= 0.5;             // Compute field
 
-	delete tensor_symmetric[2][0]; tensor_symmetric[2][0] = tensor_symmetric[0][2]; // Copy pointer
-	delete tensor_symmetric[2][1]; tensor_symmetric[2][1] = tensor_symmetric[1][2]; // Copy pointer
+	*tensor_symmetric[2][0] = *tensor_symmetric[0][2]; // Copy pointer
+	*tensor_symmetric[2][1] = *tensor_symmetric[1][2]; // Copy pointer
 	*tensor_symmetric[2][2] = *tensor[2][2];                                        // Copy field
 
 	return tensor_symmetric;
@@ -144,25 +146,20 @@ PFieldTensor_t PFieldTensorDot( PFieldTensor_t &a, PFieldTensor_t &b )
 	return c;
 }
 
-PField PFieldTensorDotDot( PFieldTensor_t &a, PFieldTensor_t &b )
+PField *PFieldTensorDotDot( PFieldTensor_t &a, PFieldTensor_t &b )
 {
 	PFieldTensor_t c = PFieldTensorDot( a, b );
-
-
-	PField d(*a[0][0]);
-
-	d = PFieldTensorTrace( c );	
-	return d;
+	return PFieldTensorTrace( c );
 }
 
-PField PFieldTensorTrace( PFieldTensor_t &a ) 
+PField *PFieldTensorTrace( PFieldTensor_t &a ) 
 {
 	// Create a new PField class
-	PField b( *a[0][0] );
+	PField *b = new PField( *a[0][0] );
 	
-	b.mul( *a[0][0], *a[0][0] ) 
-		+= b.mul( *a[1][1], *a[1][1] )
-		+= b.mul( *a[2][2], *a[2][2] );
+	b->mul( *a[0][0], *a[0][0] ) 
+		+= b->mul( *a[1][1], *a[1][1] )
+		+= b->mul( *a[2][2], *a[2][2] );
 
 	return b;
 }
