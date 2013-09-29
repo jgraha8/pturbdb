@@ -155,6 +155,89 @@ FiniteDiff::fd_t *FiniteDiff::fdCreateD1( int ns, double *s, int order )
 	  
 		}
 
+	} else if( order == 6 ) {
+
+		for (n=0; n<ns; n++ ) {
+
+			fdInit( 7, fd[n] );
+
+			// Set the stencil
+			if( n == 0 ) {
+ 				// First point
+				fdSetStencil( 0, fd[n] ); // Forward differencing
+			} else if( n == 1 ) {
+				// Second point
+				fdSetStencil( -1, fd[n] ); // Forward-biased differencing
+			} else if( n == 2 ) {
+				// Second point
+				fdSetStencil( -2, fd[n] ); // Forward-biased differencing
+
+
+			} else if ( n == ns - 3 ) {
+				// Second to last point
+				fdSetStencil( -4, fd[n] ); // Backward-biased differencing
+
+			} else if ( n == ns - 2 ) {
+				// Second to last point
+				fdSetStencil( -5, fd[n] ); // Backward-biased differencing
+			} else if ( n == ns - 1 ) {
+				// Last point
+				fdSetStencil( -6, fd[n] ); // Backward differencing
+
+			} else {
+				// Interior points
+				fdSetStencil( -3, fd[n] ); // Central differencing
+			}
+
+			fdSetDS( n, s, fd[n] );
+			fdSetCoef( 1, fd[n] );
+	  
+		}
+
+	} else if( order == 8 ) {
+
+		for (n=0; n<ns; n++ ) {
+
+			fdInit( 9, fd[n] );
+
+			// Set the stencil
+			if( n == 0 ) {
+ 				// First point
+				fdSetStencil( 0, fd[n] ); // Forward differencing
+			} else if( n == 1 ) {
+				// Second point
+				fdSetStencil( -1, fd[n] ); // Forward-biased differencing
+			} else if( n == 2 ) {
+				// Second point
+				fdSetStencil( -2, fd[n] ); // Forward-biased differencing
+			} else if( n == 3 ) {
+				// Second point
+				fdSetStencil( -3, fd[n] ); // Forward-biased differencing
+
+
+			} else if ( n == ns - 4 ) {
+				// Second to last point
+				fdSetStencil( -5, fd[n] ); // Backward-biased differencing
+			} else if ( n == ns - 3 ) {
+				// Second to last point
+				fdSetStencil( -6, fd[n] ); // Backward-biased differencing
+			} else if ( n == ns - 2 ) {
+				// Second to last point
+				fdSetStencil( -7, fd[n] ); // Backward-biased differencing
+			} else if ( n == ns - 1 ) {
+				// Last point
+				fdSetStencil( -8, fd[n] ); // Backward differencing
+
+			} else {
+				// Interior points
+				fdSetStencil( -4, fd[n] ); // Central differencing
+			}
+
+			fdSetDS( n, s, fd[n] );
+			fdSetCoef( 1, fd[n] );
+	  
+		}
+
 	} else {
 
 		cout << "Finite difference order 2 and 4 only supported" << endl;
@@ -210,6 +293,7 @@ FiniteDiff::fd_t *FiniteDiff::fdCreateD2( int ns, double *s, int order )
 				// Second point
 				fdInit( 6, fd[n] );
 				fdSetStencil( -1, fd[n] ); // Forward-biased differencing
+
 			} else if ( n == ns - 2 ) {
 				// Second to last point
 				fdInit( 6, fd[n] );
@@ -218,10 +302,106 @@ FiniteDiff::fd_t *FiniteDiff::fdCreateD2( int ns, double *s, int order )
 				// Last point
 				fdInit( 6, fd[n] );
 				fdSetStencil( -5, fd[n] ); // Backward differencing
+
 			} else {
 				// Interior points
 				fdInit( 5, fd[n] );
 				fdSetStencil( -2, fd[n] ); // Central differencing
+			}
+
+			fdSetDS( n, s, fd[n] );
+			fdSetCoef( 2, fd[n] );
+	  
+		}
+
+	} else if( order == 6 ) {
+
+		for (n=0; n<ns; n++ ) {
+
+			// Set the stencil
+			if( n == 0 ) {
+				// First point
+				fdInit( 8, fd[n] );
+				fdSetStencil( 0, fd[n] ); // Forward differencing
+			} else if( n == 1 ) {
+				// Second point
+				fdInit( 8, fd[n] );
+				fdSetStencil( -1, fd[n] ); // Forward-biased differencing
+			} else if( n == 2 ) {
+				// Second point
+				fdInit( 8, fd[n] );
+				fdSetStencil( -2, fd[n] ); // Forward-biased differencing
+
+
+
+ 			} else if ( n == ns - 3 ) {
+				// Second to last point
+				fdInit( 8, fd[n] );
+				fdSetStencil( -5, fd[n] ); // Backward-biased differencing
+			} else if ( n == ns - 2 ) {
+				// Second to last point
+				fdInit( 8, fd[n] );
+				fdSetStencil( -6, fd[n] ); // Backward-biased differencing
+			} else if ( n == ns - 1 ) {
+				// Last point
+				fdInit( 8, fd[n] );
+				fdSetStencil( -7, fd[n] ); // Backward differencing
+
+			} else {
+				// Interior points
+				fdInit( 7, fd[n] );
+				fdSetStencil( -3, fd[n] ); // Central differencing
+			}
+
+			fdSetDS( n, s, fd[n] );
+			fdSetCoef( 2, fd[n] );
+	  
+		}
+
+	} else if( order == 8 ) {
+
+		for (n=0; n<ns; n++ ) {
+
+			// Set the stencil
+			if( n == 0 ) {
+				// First point
+				fdInit( 10, fd[n] );
+				fdSetStencil( 0, fd[n] ); // Forward differencing
+			} else if( n == 1 ) {
+				// Second point
+				fdInit( 10, fd[n] );
+				fdSetStencil( -1, fd[n] ); // Forward-biased differencing
+			} else if( n == 2 ) {
+				// Second point
+				fdInit( 10, fd[n] );
+				fdSetStencil( -2, fd[n] ); // Forward-biased differencing
+			} else if( n == 3 ) {
+				// Second point
+				fdInit( 10, fd[n] );
+				fdSetStencil( -3, fd[n] ); // Forward-biased differencing
+
+
+ 			} else if ( n == ns - 4 ) {
+				// Second to last point
+				fdInit( 10, fd[n] );
+				fdSetStencil( -6, fd[n] ); // Backward-biased differencing
+ 			} else if ( n == ns - 3 ) {
+				// Second to last point
+				fdInit( 10, fd[n] );
+				fdSetStencil( -7, fd[n] ); // Backward-biased differencing
+			} else if ( n == ns - 2 ) {
+				// Second to last point
+				fdInit( 10, fd[n] );
+				fdSetStencil( -8, fd[n] ); // Backward-biased differencing
+			} else if ( n == ns - 1 ) {
+				// Last point
+				fdInit( 10, fd[n] );
+				fdSetStencil( -9, fd[n] ); // Backward differencing
+
+			} else {
+				// Interior points
+				fdInit( 9, fd[n] );
+				fdSetStencil( -4, fd[n] ); // Central differencing
 			}
 
 			fdSetDS( n, s, fd[n] );
