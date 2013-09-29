@@ -102,10 +102,11 @@ public:
 	void setDataOperation( const double *a ); // Performs same task as assignment operator
 
 	// Assignment operator
-	PField &operator=( const PField &a );
-	PField &operator=( const double *a ); // Performs same task as setDataOperation
-	PField &operator=( const float *a );  // Performs same task as setDataOperation
+	PField &operator=( float c);
 	PField &operator=( double c );
+	PField &operator=( const float *a );  // Performs same task as setDataOperation
+	PField &operator=( const double *a ); // Performs same task as setDataOperation
+	PField &operator=( const PField &a );
 
 	PField &operator+=( const PField &a );
 	PField &operator+=( const double *a );
@@ -120,6 +121,7 @@ public:
 	PField &operator*=( const PField &a );
 	PField &operator*=( const double *a );
 	PField &operator*=( const float *a );
+	PField &operator*=( float c ) ;
 	PField &operator*=( double c ) ;
 
 	PField &operator/=( const PField &a );

@@ -442,19 +442,6 @@ void PField::setDataOperation( const float *a)
 /********************************************************************/
 {
 	*this = a;
-	// long index_local, index_operation;
-
-	// index_operation=0;
-	// for (int i = 0; i < this->dims_operation_[0]; i++) {
-	// 	for (int j = 0; j < this->dims_operation_[1]; j++) {
-	// 		for (int k = 0; k < this->dims_operation_[2]; k++) {
-	// 			index_local = this->indexOperationToLocal(i, j, k);
-	// 			this->data_local[index_local] = (double)a[index_operation];
-	// 			++index_operation;
-	// 		}
-	// 	}
-	// }
-
 	// Set unsynchronized
 	this->synchronized_ = false;
 }
@@ -464,18 +451,6 @@ void PField::setDataOperation( const double *a)
 /********************************************************************/
 {
 	*this = a;
-	// long index_local, index_operation;
-
-	// index_operation=0;
-	// for (int i = 0; i < this->dims_operation_[0]; i++) {
-	// 	for (int j = 0; j < this->dims_operation_[1]; j++) {
-	// 		for (int k = 0; k < this->dims_operation_[2]; k++) {
-	// 			index_local = this->indexOperationToLocal(i, j, k);
-	// 			this->data_local[index_local] = a[index_operation++];
-	// 		}
-	// 	}
-	// }
-
 	// Set unsynchronized
 	this->synchronized_ = false;
 }
@@ -549,6 +524,14 @@ PField &PField::operator=( const float *a)
 	return *this;
 }
 
+
+/********************************************************************/
+PField& PField::operator=(float c)
+/********************************************************************/
+{
+	*this = (double)c;
+	return *this;
+}
 
 /********************************************************************/
 PField& PField::operator=(double c)
@@ -817,6 +800,13 @@ PField &PField::operator*=( const float *a)
 	return *this;
 }
 
+/********************************************************************/
+PField& PField::operator*=(float c)
+/********************************************************************/
+{
+	*this *= (double)c;
+	return *this;
+}
 /********************************************************************/
 PField& PField::operator*=(double c)
 /********************************************************************/
