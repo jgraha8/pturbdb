@@ -8,7 +8,7 @@ using namespace std;
 
 namespace pturbdb {
 
-FiniteDiff::FiniteDiff( int nx, double *x, int ny, double *y, int nz, double *z, int order ) 
+FiniteDiff::FiniteDiff( int nx, double *x, int ny, double *y, int nz, double *z, int order ) : Derivative( nx, ny, nz )
 {
 	this->fd_ddx = NULL;
 	this->fd_ddy = NULL;
@@ -18,8 +18,20 @@ FiniteDiff::FiniteDiff( int nx, double *x, int ny, double *y, int nz, double *z,
 	this->fd_d2dy2 = NULL;
 	this->fd_d2dz2 = NULL;
 	
-	FiniteDiffInit( nx, x, ny, y, nz, z, order );
+	FiniteDiffInit( this->nx_, x, this->ny_, y, this->nz_, z, order );
 }    
+
+FiniteDiff::~FiniteDiff()
+{
+	this->fdDelete( this->nx_, &this->fd_ddx );
+	this->fdDelete( this->ny_, &this->fd_ddy );
+	this->fdDelete( this->nz_, &this->fd_ddz );
+	
+	this->fdDelete( this->nx_, &this->fd_d2dx2 );
+	this->fdDelete( this->ny_, &this->fd_d2dy2 );
+	this->fdDelete( this->nz_, &this->fd_d2dz2 );
+
+}
 
 void FiniteDiff::FiniteDiffInit( int nx, double *x, int ny, double *y, int nz, double *z, int order )
 {
@@ -417,6 +429,21 @@ FiniteDiff::fd_t *FiniteDiff::fdCreateD2( int ns, double *s, int order )
 	}
 	
 	return fd;
+}
+
+/*
+ * Deletes the allocated fd_t structs created with fdCreateD*. Returns
+ * a NULL pointer.
+ */
+void FiniteDiff::fdDelete( int ns, fd_t **fd )
+{
+	for (int n=0; n<ns; n++ ) {
+		delete [] (*fd)[n].stencil;
+		delete [] (*fd)[n].ds;
+		delete [] (*fd)[n].coef;
+	}
+	delete [] (*fd);
+	*fd = NULL;
 }
 
 //////////////////////////////////////////////////////////////////////

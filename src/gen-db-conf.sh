@@ -4,7 +4,7 @@ DB_ROOT="/datascope/tdbchannel"
 
 echo "${DB_ROOT}/grid.h5" > turbdb.conf
 
-dt=0.00136
+dt=0.0013
 N_step_db=5;
 
 index=0;

@@ -19,12 +19,12 @@ PFieldVector_t PFieldVectorNew( PField &pfield )
 	return pfield_vector;
 }
 
-PFieldVector_t PFieldVectorAssign( PField &a, PField &b, PField &c ) 
+PFieldVector_t PFieldVectorAssign( PField *a, PField *b, PField *c ) 
 {
 	PFieldVector_t vector;
-	vector.push_back( &a );
-	vector.push_back( &b );
-	vector.push_back( &c );
+	vector.push_back( a );
+	vector.push_back( b );
+	vector.push_back( c );
 	return vector;
 }
 
@@ -179,6 +179,18 @@ PFieldTensor_t PFieldTensorAntiSymmetric( PFieldTensor_t &tensor ) {
 	return tensor_anti;
 }
 
+PFieldTensor_t PFieldTensorTranspose( PFieldTensor_t &tensor ) {
+
+	// Create a new base tensor
+	PFieldTensor_t tensor_trans = PFieldTensorNew( tensor );
+
+	for( size_t i=0; i<tensor.size(); i++ ) {
+		for (size_t j=0; j<tensor[i].size(); j++ ) {
+			*tensor_trans[j][i] = *tensor[i][j];
+		}
+	}
+	return tensor_trans;	
+}
 /*
  * Computes the inner/dot/tensor product of two tensors.
  */

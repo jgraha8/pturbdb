@@ -58,9 +58,11 @@ PField::~PField(void)
 	printf("%d: PField::~PField: deconstructed field\n", this->mpi_topology_->rank);
 #endif
 
+	if( this->mpi_topology_ != NULL ) MPITopologyDelete( &this->mpi_topology_ );
+	if( this->finite_diff_ != NULL ) delete this->finite_diff_;
        	delete[] this->data_local;
-	delete this->finite_diff_;
-	delete this->mpi_topology_;
+
+
 
 }
 
@@ -203,8 +205,9 @@ void PField::finiteDiffInit()
 
 	// First initialize the fd class instance
 	this->finite_diff_ = new FiniteDiff(this->dims_local_[0], this->x_local_,
-					    this->dims_local_[1], this->y_local_, this->dims_local_[2],
-					    this->z_local_, this->operator_order_);
+					    this->dims_local_[1], this->y_local_, 
+					    this->dims_local_[2], this->z_local_, 
+					    this->operator_order_);
 
 #ifdef VERBOSE
 	printf("%d: PField::finiteDiffInit: exiting\n", this->mpi_topology_->rank);
@@ -1565,6 +1568,7 @@ void PField::assignMPITopology()
 
 	int *mpi_topology_dims = this->computeMPITopologyDims(nproc, mpi_decomp_ndims);
 
+	cout << "Creating new mpi_topology\n";
 	// Create the MPI topology struct; this contains all the comm, rank, nproc, neighbors, etc.
 	this->mpi_topology_ = MPITopologyNew(MPI_COMM_WORLD, PFIELD_NDIMS, mpi_topology_dims, this->periodic_);
 

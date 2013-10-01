@@ -43,12 +43,15 @@ MPITopology_t *MPITopologyNew( MPI_Comm comm, int ndims, int *dims, int *periodi
 void MPITopologyDelete( MPITopology_t **mpi_topology ) 
 {
 
-  delete [] (*mpi_topology)->dims; 
-  delete [] (*mpi_topology)->coords; 
-  delete [] (*mpi_topology)->neighbor_next; 
-  delete [] (*mpi_topology)->neighbor_prev; 
-  delete *mpi_topology;
+	// Free the MPI communicator
+	MPI_Comm_free( &(*mpi_topology)->comm );
 
-  *mpi_topology = NULL;
+	delete [] (*mpi_topology)->dims; 
+	delete [] (*mpi_topology)->coords; 
+	delete [] (*mpi_topology)->neighbor_next; 
+	delete [] (*mpi_topology)->neighbor_prev; 
+	delete *mpi_topology;
+
+	*mpi_topology = NULL;
 
 }

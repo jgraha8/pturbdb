@@ -15,6 +15,9 @@ namespace pturbdb {
 PTurbDBField::PTurbDBField(const string &db_conf_file, const int *db_dims) : PField()
 /******************************************************************************/
 {
+	// First nullify pointers
+	this->pchip_fd_ = NULL;
+
 	// Set private variables
 	this->db_conf_file_ = db_conf_file;
 	memcpy(this->db_dims_, db_dims, sizeof(db_dims[0]) * PFIELD_NDIMS);
@@ -34,6 +37,9 @@ PTurbDBField::PTurbDBField(const string &db_conf_file, const int *db_dims) : PFi
 PTurbDBField::PTurbDBField( PTurbDBField &g ) : PField( g )
 /******************************************************************************/
 {
+	// First nullify pointers
+	this->pchip_fd_ = NULL;
+
 	this->PTurbDBFieldCopy( g, true );
 }
 
@@ -41,6 +47,9 @@ PTurbDBField::PTurbDBField( PTurbDBField &g ) : PField( g )
 PTurbDBField::PTurbDBField( PTurbDBField &g, bool copy_field_data ) : PField(g, copy_field_data)
 /******************************************************************************/
 {
+	// First nullify pointers
+	this->pchip_fd_ = NULL;
+
 	this->PTurbDBFieldCopy( g, copy_field_data );
 }
 
@@ -48,7 +57,7 @@ PTurbDBField::PTurbDBField( PTurbDBField &g, bool copy_field_data ) : PField(g, 
 PTurbDBField::~PTurbDBField()
 /******************************************************************************/
 {
-	delete this->pchip_fd_;
+	if( this->pchip_fd_ != NULL ) delete this->pchip_fd_;
 }
 
 /*
@@ -74,7 +83,9 @@ void PTurbDBField::PTurbDBFieldCopy( PTurbDBField &g, bool copy_field_data )
 	this->db_time_min_    = g.getDBTimeMin();
 	this->db_time_max_    = g.getDBTimeMax();
 
-	this->pchip_fd_ = g.getPCHIPFD();
+	// Initialize the PCHIP finite difference struct
+	this->pchipInit();
+
 }
 
 /******************************************************************************/
@@ -281,6 +292,11 @@ void PTurbDBField::readDBGridLocal(const char *field_names[3], double *x,
 	this->setDBPeriodicGridLocal( 1, y_operation, y);
 	this->setDBPeriodicGridLocal( 2, z_operation, z);
 
+	// Clean-up buffers
+	delete [] x_operation;
+	delete [] y_operation;
+	delete [] z_operation;
+
 	// Set the local grid for the field; only sets the pointers
 	this->setGridLocal( x, y, z );
 	// Now initialize the finite difference class
@@ -476,6 +492,9 @@ void PTurbDBField::readDBField(double time, const char *field_name)
 		}
 
 	}
+
+	// Clean up buffers
+	delete [] data_buffer;
 
 	// Make sure we set the synchronized_ flag to false
 	this->setSynchronized(false);

@@ -20,7 +20,7 @@ typedef std::vector<PFieldVector_t> PFieldTensor_t;
 PFieldVector_t PFieldVectorNew( PField &pfield );
 void PFieldVectorDelete( PFieldVector_t &pfield_vector );
 
-PFieldVector_t PFieldVectorAssign( PField &a, PField &b, PField &c );
+PFieldVector_t PFieldVectorAssign( PField *a, PField *b, PField *c );
 
 PFieldTensor_t PFieldTensorNew( PField &pfield );
 PFieldTensor_t PFieldTensorNew( PFieldTensor_t &a );
@@ -34,6 +34,7 @@ PFieldVector_t PFieldGradient( PField &pfield );
 
 PFieldTensor_t PFieldTensorSymmetric( PFieldTensor_t &tensor );
 PFieldTensor_t PFieldTensorAntiSymmetric( PFieldTensor_t &tensor );
+PFieldTensor_t PFieldTensorTranspose( PFieldTensor_t &tensor );
 PFieldTensor_t PFieldTensorDot( PFieldTensor_t &a, PFieldTensor_t &b );
 PField *PFieldTensorDotDot( PFieldTensor_t &a, PFieldTensor_t &b );
 PField *PFieldTensorTrace( PFieldTensor_t &a );
