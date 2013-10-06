@@ -38,6 +38,9 @@ int main(int argc, char *argv[]) {
 	PTurbDBField *u = new PTurbDBField("turbdb.conf", db_dims);
 
 	u->PFieldInit(db_field_offset, field_dims, FIELD_DECOMP_PENCIL, periodic, 8);
+	
+	// Turn on caching
+	u->setPCHIPCaching(true);
 
 	int rank = u->getMPITopology()->rank;
 	int nproc = u->getMPITopology()->nproc;
