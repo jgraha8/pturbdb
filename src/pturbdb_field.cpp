@@ -439,12 +439,6 @@ void PTurbDBField::readDBField(double time, const char *field_name)
 	this->pchipComputeBasis(tau, hermite_basis);
 	this->pchipComputeWeights(hermite_basis, pchip_weights);
 
-	// Create buffer the size of the operations domain
-	const size_t data_buffer_size = this->getSizeOperation();
-	float *data_buffer       = new float[data_buffer_size];
-	float *data_buffer_read; // Pointer to the data buffer we will use: data_buffer_read or the cached data
-	float *data_buffer_set;  // Pointer when assigning the data to data_local with PField::operator=
-
 	// Get the offset for the local and operation domains
 	const int *offset_local     = this->getOffsetLocal();
 	const int *offset_operation = this->getOffsetOperation();
@@ -459,7 +453,13 @@ void PTurbDBField::readDBField(double time, const char *field_name)
 	for( int i=0; i<4; i++ ) 
 		file_index[i] = cell_index - 1 + i;
 
-	std::map<int, float *> pchip_data_cache;
+	// Create buffer the size of the operations domain
+	const size_t data_buffer_size = this->getSizeOperation();
+	float *data_buffer = new float[data_buffer_size]; // Buffer for storing the weighted field
+	float *data_buffer_read; // Pointer to the data buffer we will use: data_buffer_read the cached data
+
+
+	std::map<int, float *> pchip_data_cache; // PCHIP data cache map; have to make a copy since we are using assignment operators of the map values
 	// If the cache has not been generated then create it
 	if( this->pchip_caching_ ) {
 		if( this->pchip_data_cache_ == NULL ) {
@@ -485,15 +485,16 @@ void PTurbDBField::readDBField(double time, const char *field_name)
 
 		if( this->pchip_caching_ ) {
 
-			int j=file_index[i]; // File index key
+			int key=file_index[i]; // File index key
 
-			if( ! this->pchip_data_cache_->getIsCached()[i] ) { 
-				// Field is not cached
-				data_buffer_read = pchip_data_cache[j]; // Set the data read buffer to the cache field;
-				goto read_db_field;
-			} else {
-				data_buffer_set = pchip_data_cache[j];
+			// Set the data buffer which contains the read data. We either still need to read it or it has been read and is cached.
+			data_buffer_read = pchip_data_cache[key];
+
+			if( this->pchip_data_cache_->getIsCached()[i] ) { 
 				goto set_db_field; // Skipping the reading of the field
+			} else {
+				// Field is not cached
+				goto read_db_field;
 			}
 
 		} else {
@@ -503,7 +504,7 @@ void PTurbDBField::readDBField(double time, const char *field_name)
 
 
 	read_db_field:
-		
+
 		// Open the database file
 		db_file_name = this->db_file_names_.at(file_index[i]).c_str();
 		db_file_handle = esio_handle_initialize(this->getMPITopology()->comm);
@@ -520,25 +521,22 @@ void PTurbDBField::readDBField(double time, const char *field_name)
 		esio_file_close(db_file_handle);
 		esio_handle_finalize(db_file_handle);
 
-		// Set the pointer for the set buffer
-		data_buffer_set = data_buffer_read;
-
 	set_db_field:
 
 		// Apply the appropriate weights to the input data
 		size_t j = 0;
 		while (j != data_buffer_size) {
-			data_buffer_set[j] = pchip_weights[i] * data_buffer_set[j];
+			data_buffer[j] = pchip_weights[i] * data_buffer_read[j];
 			j++;
 		}
 
 		// We now modify the data_local field using the pchip_weights and the data read
 		if (i == 0) {
 			//this->setDataOperation(data_buffer);
-			PField::operator=(data_buffer_set);
+			PField::operator=(data_buffer);
 		} else {
 			//this->addDataOperation(data_buffer);
-			PField::operator+=(data_buffer_set);
+			PField::operator+=(data_buffer);
 		}
 
 	}
