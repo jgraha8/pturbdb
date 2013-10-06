@@ -10,51 +10,47 @@ namespace pturbdb {
 
 PFieldVector_t PFieldVectorNew( PField &pfield )
 {
-	PFieldVector_t pfield_vector;
+	PFieldVector_t pfield_vector(3);
 
-	pfield_vector.push_back( new PField( pfield, false ) );
-	pfield_vector.push_back( new PField( pfield, false ) );
-	pfield_vector.push_back( new PField( pfield, false ) );
+	for(int i=0; i<3; i++ ) 
+		pfield_vector[i] = new PField( pfield, false );
 
 	return pfield_vector;
 }
 
-PFieldVector_t PFieldVectorAssign( PField *a, PField *b, PField *c ) 
-{
-	PFieldVector_t vector;
-	vector.push_back( a );
-	vector.push_back( b );
-	vector.push_back( c );
-	return vector;
-}
-
 void PFieldVectorDelete( PFieldVector_t &pfield_vector )
 {
-	delete pfield_vector[0];
-	delete pfield_vector[1];
-	delete pfield_vector[2];
-
+	for(size_t i=0; i<pfield_vector.size(); i++ )
+		delete pfield_vector[i];
 	pfield_vector.clear();
 }
 
-PField *PFieldVectorDot( PFieldVector_t &a, PFieldVector_t &b )
+PFieldVector_t &PFieldVectorAssign( PFieldVector_t &vector, PField *a, PField *b, PField *c ) 
 {
-	PField *c = new PField( *a[0], false );
-	PField *buffer = new PField( *a[0], false );
-
-	c->mul( *a[0], *b[0] );
-	*c += buffer->mul( *a[1], *b[1] );
-	*c += buffer->mul( *a[2], *b[2] );
-
-	delete buffer;
-	return c;
+	vector[0] = a;
+	vector[1] = b;
+	vector[2] = c;
+	return vector;
 }
 
-PField *PFieldVectorMag( PFieldVector_t &a )
+PField &PFieldVectorDot( PField &dot, PFieldVector_t &a, PFieldVector_t &b )
 {
-	PField *b = PFieldVectorDot( a, a );
-	b->sqrt( *b );
-	return b;
+	PField *buffer = new PField( dot, false );
+
+	dot.mul( *a[0], *b[0] );
+	dot += buffer->mul( *a[1], *b[1] );
+	dot += buffer->mul( *a[2], *b[2] );
+
+	delete buffer;
+
+	return dot;
+}
+
+PField &PFieldVectorMag( PField &mag, PFieldVector_t &a )
+{
+	PFieldVectorDot( mag, a, a );
+	mag.sqrt( mag );
+	return mag;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -67,10 +63,16 @@ PField *PFieldVectorMag( PFieldVector_t &a )
  */
 PFieldTensor_t PFieldTensorNew( PField &pfield ) 
 {
+	PFieldTensor_t tensor(3);
 	PFieldVector_t v1 = PFieldVectorNew( pfield );
 	PFieldVector_t v2 = PFieldVectorNew( pfield );
 	PFieldVector_t v3 = PFieldVectorNew( pfield );
-	return PFieldTensorAssign( v1, v2, v3 );
+
+	tensor[0] = v1;
+ 	tensor[1] = v2;
+ 	tensor[2] = v3;
+
+	return tensor;
 }
 
 PFieldTensor_t PFieldTensorNew( PFieldTensor_t &tensor ) 
@@ -78,35 +80,24 @@ PFieldTensor_t PFieldTensorNew( PFieldTensor_t &tensor )
 	return PFieldTensorNew( *tensor[0][0] );
 }
 
-
-PFieldTensor_t PFieldTensorAssign( PFieldVector_t &v1, PFieldVector_t &v2, PFieldVector_t &v3 )
-{
-	// Create a new tensor from a single PField object
-	PFieldTensor_t tensor;
-
-	tensor.push_back( v1 );
-	tensor.push_back( v2 );
-	tensor.push_back( v3 );
-
-	return tensor;
-}
-
-/*
- * Deletes the 
- */
 void PFieldTensorDelete( PFieldTensor_t &pfield_tensor )
 {
-	PFieldVectorDelete( pfield_tensor[0] );
-	PFieldVectorDelete( pfield_tensor[1] );
-	PFieldVectorDelete( pfield_tensor[2] );
-
+	PFieldTensor_t::iterator t;
+	for( t=pfield_tensor.begin(); t != pfield_tensor.end(); t++ )
+		PFieldVectorDelete( *t );
 	pfield_tensor.clear();
 }
 
-PFieldVector_t PFieldCurl( PFieldVector_t &a )
+PFieldTensor_t &PFieldTensorAssign( PFieldTensor_t &tensor, PFieldVector_t &v1, PFieldVector_t &v2, PFieldVector_t &v3 )
 {
-	PFieldVector_t curl = PFieldVectorNew( *a[0] );
+	tensor[0] = v1;
+	tensor[1] = v2;
+	tensor[2] = v3;
+	return tensor;
+}
 
+PFieldVector_t &PFieldVectorCurl( PFieldVector_t &curl, PFieldVector_t &a )
+{
 	// Need buffer PField
 	PField *buffer = new PField( *a[0], false );
 
@@ -115,29 +106,23 @@ PFieldVector_t PFieldCurl( PFieldVector_t &a )
 	curl[2]->ddx( *a[1] ) -= buffer->ddy( *a[0] );
 	
 	delete buffer;
-
 	return curl;
 }
 
 
-PFieldVector_t PFieldGradient( PField &pfield )
+PFieldVector_t &PFieldVectorGradient( PFieldVector_t &grad, PField &pfield )
 {
-	PFieldVector_t grad = PFieldVectorNew( pfield );
-
 	grad[0]->ddx( pfield );
 	grad[1]->ddy( pfield );
 	grad[2]->ddz( pfield );
-
 	return grad;
 }
+
 
 /*
  * Computes the symmetric component of the provided tensor
  */
-PFieldTensor_t PFieldTensorSymmetric( PFieldTensor_t &tensor ) {
-
-	// Create a new base tensor
-	PFieldTensor_t tensor_symmetric = PFieldTensorNew( tensor );
+PFieldTensor_t &PFieldTensorSymmetric( PFieldTensor_t &tensor_symmetric, PFieldTensor_t &tensor ) {
 
 	*tensor_symmetric[0][0] = *tensor[0][0];                            // Copy field 
 	tensor_symmetric[0][1]->add( *tensor[0][1], *tensor[1][0] ) *= 0.5; // Compute field
@@ -158,11 +143,9 @@ PFieldTensor_t PFieldTensorSymmetric( PFieldTensor_t &tensor ) {
 /*
  * Computes the anti-symmetric component of the provided tensor
  */
-PFieldTensor_t PFieldTensorAntiSymmetric( PFieldTensor_t &tensor ) {
+PFieldTensor_t &PFieldTensorAntiSymmetric( PFieldTensor_t &tensor_anti, PFieldTensor_t &tensor ) {
 
 	// Create a new base tensor
-	PFieldTensor_t tensor_anti = PFieldTensorNew( tensor );
-
 	*tensor_anti[0][0] = 0.0;                                      // Set field 
 	tensor_anti[0][1]->sub( *tensor[0][1], *tensor[1][0] ) *= 0.5; // Compute field
 	tensor_anti[0][2]->sub( *tensor[0][2], *tensor[2][0] ) *= 0.5; // Compute field
@@ -177,67 +160,65 @@ PFieldTensor_t PFieldTensorAntiSymmetric( PFieldTensor_t &tensor ) {
 	*tensor_anti[2][2] = 0.0;                                      // Set field
 
 	return tensor_anti;
+
 }
 
-PFieldTensor_t PFieldTensorTranspose( PFieldTensor_t &tensor ) {
-
-	// Create a new base tensor
-	PFieldTensor_t tensor_trans = PFieldTensorNew( tensor );
+PFieldTensor_t &PFieldTensorTranspose( PFieldTensor_t &tensor_trans, PFieldTensor_t &tensor ) {
 
 	for( size_t i=0; i<tensor.size(); i++ ) {
 		for (size_t j=0; j<tensor[i].size(); j++ ) {
 			*tensor_trans[j][i] = *tensor[i][j];
 		}
 	}
-	return tensor_trans;	
+	return tensor_trans;
 }
-/*
- * Computes the inner/dot/tensor product of two tensors.
- */
-PFieldTensor_t PFieldTensorDot( PFieldTensor_t &a, PFieldTensor_t &b ) 
-{
-	PFieldTensor_t c = PFieldTensorNew( a );
 
+/*
+ * Computes the inner/dot product of two tensors.
+ *
+ *   c = a \dot b = ab (matrix notation)
+ *   c_{ij} = a_{ik}b_{kj} = a_{ik}b_{lj}\delta_{kl}
+ *
+ */
+PFieldTensor_t &PFieldTensorDot( PFieldTensor_t &dot, PFieldTensor_t &a, PFieldTensor_t &b ) 
+{
 	PField *buffer = new PField( *a[0][0], false );
 
-	for( size_t i=0; i<c.size(); i++ ) {
-		for (size_t j=0; j<c[i].size(); j++ ) {
-			c[i][j]->mul( *a[i][0], *b[0][j] );
-			*c[i][j] += buffer->mul( *a[i][1], *b[1][j] );
-			*c[i][j] += buffer->mul( *a[i][2], *b[2][j] );
+	for( size_t i=0; i<dot.size(); i++ ) {
+		for (size_t j=0; j<dot[i].size(); j++ ) {
+			dot[i][j]->mul( *a[i][0], *b[0][j] );
+			*dot[i][j] += buffer->mul( *a[i][1], *b[1][j] );
+			*dot[i][j] += buffer->mul( *a[i][2], *b[2][j] );
 		}
 	}
 	
 	delete buffer;
-	return c;
+	return dot;
 }
 
 /*
- * Computes the scalar/double dot product of two tensors. Returns a
- * new PField pointer.
+ * Computes the inner double dot product of two tensors defined as:
+ *     c = trace(ab) => c = a_{ij}b_{ji}
  */
-PField *PFieldTensorDotDot( PFieldTensor_t &a, PFieldTensor_t &b )
+PField &PFieldTensorDotDot( PField &dotdot, PFieldTensor_t &a, PFieldTensor_t &b )
 {
-	PFieldTensor_t c = PFieldTensorDot( a, b );
-	return PFieldTensorTrace( c );
+	PFieldTensor_t c = PFieldTensorNew( dotdot );
+	PFieldTensorDot( c, a, b );
+	PFieldTensorTrace( dotdot, c );
+	PFieldTensorDelete( c );
+	return dotdot;
 }
 
 /*
  * Computes the trace of the provided tensor. Returns a new PField
  * pointer.
  */
-PField *PFieldTensorTrace( PFieldTensor_t &a ) 
+PField &PFieldTensorTrace( PField &trace, PFieldTensor_t &a ) 
 {
-	// Create a new PField class
-	PField *b = new PField( *a[0][0], false );
-	PField *buffer = new PField( *a[0][0], false );
-
-	b->mul( *a[0][0], *a[0][0] );
-	*b += buffer->mul( *a[1][1], *a[1][1] );
-	*b += buffer->mul( *a[2][2], *a[2][2] );
-
-	delete buffer;
-	return b;
+	trace = *a[0][0];
+	trace += *a[1][1];
+	trace += *a[2][2];
+	return trace;
 }
 
 PFieldTensor_t &PFieldTensorAdd( PFieldTensor_t &a, double b )
