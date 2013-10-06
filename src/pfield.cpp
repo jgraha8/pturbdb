@@ -1544,7 +1544,6 @@ void PField::assignMPITopology()
 
 	int *mpi_topology_dims = this->computeMPITopologyDims(nproc, mpi_decomp_ndims);
 
-	cout << "Creating new mpi_topology\n";
 	// Create the MPI topology struct; this contains all the comm, rank, nproc, neighbors, etc.
 	this->mpi_topology_ = MPITopologyNew(MPI_COMM_WORLD, PFIELD_NDIMS, mpi_topology_dims, this->periodic_);
 
