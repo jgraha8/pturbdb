@@ -4,6 +4,7 @@
 #include <cstdlib>
 #include <cstring>
 #include <cmath>
+#include "field_cache.hpp"
 #include "pturbdb_field.hpp"
 #include "esio/esio.h"
 
@@ -17,6 +18,7 @@ PTurbDBField::PTurbDBField(const string &db_conf_file, const int *db_dims) : PFi
 {
 	// First nullify pointers
 	this->pchip_fd_ = NULL;
+	this->pchip_data_cache_ = NULL;
 
 	// Set private variables
 	this->db_conf_file_ = db_conf_file;
@@ -27,6 +29,8 @@ PTurbDBField::PTurbDBField(const string &db_conf_file, const int *db_dims) : PFi
 
 	// Initialize the PCHIP finite difference struct
 	this->pchipInit();
+	// Set the pchip data caching to false
+	this->pchip_caching_ = false; // will have to manually turn it on
 
 }
 
@@ -39,6 +43,7 @@ PTurbDBField::PTurbDBField( PTurbDBField &g ) : PField( g )
 {
 	// First nullify pointers
 	this->pchip_fd_ = NULL;
+	this->pchip_data_cache_ = NULL;
 
 	this->PTurbDBFieldCopy( g, true );
 }
@@ -49,6 +54,7 @@ PTurbDBField::PTurbDBField( PTurbDBField &g, bool copy_field_data ) : PField(g, 
 {
 	// First nullify pointers
 	this->pchip_fd_ = NULL;
+	this->pchip_data_cache_ = NULL;
 
 	this->PTurbDBFieldCopy( g, copy_field_data );
 }
@@ -58,6 +64,7 @@ PTurbDBField::~PTurbDBField()
 /******************************************************************************/
 {
 	if( this->pchip_fd_ != NULL ) delete this->pchip_fd_;
+	if( this->pchip_data_cache_ != NULL ) delete this->pchip_data_cache_;
 }
 
 /*
@@ -86,6 +93,9 @@ void PTurbDBField::PTurbDBFieldCopy( PTurbDBField &g, bool copy_field_data )
 	// Initialize the PCHIP finite difference struct
 	this->pchipInit();
 
+	// Copy the cache data flag
+	this->pchip_caching_ = g.getPCHIPCaching();
+	this->pchip_data_cache_ = NULL;
 }
 
 /******************************************************************************/
@@ -101,20 +111,6 @@ void PTurbDBField::PFieldInit(const int *field_offset, const int *dims,
 	PField::PFieldInit(dims, field_decomp, periodic, operator_order);
 }
 
-/*
- * Data member getters
- */
-string                   PTurbDBField::getDBConfFile()     { return this->db_conf_file_;      }
-int                     *PTurbDBField::getDBDims()         { return this->db_dims_;           }
-int                     *PTurbDBField::getFieldOffset()    { return this->field_offset_;      }
-vector<double>           PTurbDBField::getDBTime()         { return this->db_time_;           }
-vector<string>           PTurbDBField::getDBFileNames()    { return this->db_file_names_;     }
-string                   PTurbDBField::getDBGridFileName() { return this->db_grid_file_name_; }
-int                      PTurbDBField::getDBTimeNsteps()   { return this->db_time_nsteps_;    }
-double                   PTurbDBField::getDBTimeStep()     { return this->db_time_step_;      }
-double                   PTurbDBField::getDBTimeMin()      { return this->db_time_min_;       }
-double                   PTurbDBField::getDBTimeMax()      { return this->db_time_max_;       }
-PTurbDBField::pchip_fd_t *PTurbDBField::getPCHIPFD()       { return this->pchip_fd_;          }
 
 /*
  * Reads the database configuration file: reads the grid file name and the time
@@ -444,57 +440,101 @@ void PTurbDBField::readDBField(double time, const char *field_name)
 	this->pchipComputeWeights(hermite_basis, pchip_weights);
 
 	// Create buffer the size of the operations domain
-	const long data_buffer_size = this->getSizeOperation();
-	float *data_buffer = new float[data_buffer_size];
+	const size_t data_buffer_size = this->getSizeOperation();
+	float *data_buffer       = new float[data_buffer_size];
+	float *data_buffer_read; // Pointer to the data buffer we will use: data_buffer_read or the cached data
+	float *data_buffer_set;  // Pointer when assigning the data to data_local with PField::operator=
 
 	// Get the offset for the local and operation domains
-	const int *offset_local = this->getOffsetLocal();
+	const int *offset_local     = this->getOffsetLocal();
 	const int *offset_operation = this->getOffsetOperation();
-	const int *dims_operation = this->getDimsOperation();
+	const int *dims_operation   = this->getDimsOperation();
 
 	int offset[3] = { this->field_offset_[0] + offset_local[0] + offset_operation[0], 
 			  this->field_offset_[1] + offset_local[1] + offset_operation[1], 
 			  this->field_offset_[2] + offset_local[2] + offset_operation[2] };
 
-	// We now evaluate the
+	// Create a vector with the file indices; need for FieldCacheSet
+	std::vector<int> file_index(4);
+	for( int i=0; i<4; i++ ) 
+		file_index[i] = cell_index - 1 + i;
+
+	// If the cache has not been generated then create it
+	if( this->pchip_caching_ ) {
+		if( this->pchip_data_cache_ == NULL ) {
+			// Currently have no cache and need one
+			this->pchip_data_cache_ = new FieldCache<float>( std::string(field_name), 4, data_buffer_size );	
+		} else if( this->pchip_data_cache_->getName().compare( field_name ) != 0 ) {
+			// We are now caching a different field. Delete the current one and create a new one
+		        delete this->pchip_data_cache_;
+			this->pchip_data_cache_ = new FieldCache<float>( std::string(field_name), 4, data_buffer_size );
+		}
+		// Set the cached field data
+		this->pchip_data_cache_->setCache( file_index );
+	}
+
+	// Now perform the PCHIP interpolation
 	for (int i = 0; i < 4; i++) {
 
-		
-		int file_index = cell_index - 1 + i;
-
-		// Check if we have a cached
-		
-		esio_handle h = esio_handle_initialize(this->getMPITopology()->comm);
-
-		
-
 		// Open the database file
-		const char *db_file_name = this->db_file_names_.at(file_index).c_str();
-		esio_file_open(h, db_file_name, 0); // Open read-only
+		const char *db_file_name;
+		esio_handle db_file_handle;
 
-		esio_field_establish(h, this->db_dims_[0], offset[0], dims_operation[0],
+		if( this->pchip_caching_ ) {
+
+			int j=file_index[i]; // File index key
+			if( ! this->pchip_data_cache_->getIsCached()[i] ) { 
+				// Field is not cached
+				data_buffer_read = this->pchip_data_cache_->getData()[j]; // Set the data read buffer to the cache field;
+				goto read_db_field;
+			} else {
+				data_buffer_set = this->pchip_data_cache_->getData()[j];
+				goto set_db_field; // Skipping the reading of the field
+			}
+
+		} else {
+			data_buffer_read = data_buffer; 
+			goto read_db_field; // Not necessary, but is explicit
+		}
+
+
+	read_db_field:
+		
+		// Open the database file
+		db_file_name = this->db_file_names_.at(file_index[i]).c_str();
+		db_file_handle = esio_handle_initialize(this->getMPITopology()->comm);
+
+		esio_file_open(db_file_handle, db_file_name, 0); // Open read-only
+			
+		esio_field_establish(db_file_handle, 
+				     this->db_dims_[0], offset[0], dims_operation[0],
 				     this->db_dims_[1], offset[1], dims_operation[1],
 				     this->db_dims_[2], offset[2], dims_operation[2]);
 
-		esio_field_read_float(h, field_name, data_buffer, 0, 0, 0);
+		esio_field_read_float(db_file_handle, field_name, data_buffer_read, 0, 0, 0);
+			
+		esio_file_close(db_file_handle);
+		esio_handle_finalize(db_file_handle);
 
-		esio_file_close(h);
-		esio_handle_finalize(h);
+		// Set the pointer for the set buffer
+		data_buffer_set = data_buffer_read;
+
+	set_db_field:
 
 		// Apply the appropriate weights to the input data
-		long j = 0;
+		size_t j = 0;
 		while (j != data_buffer_size) {
-			data_buffer[j] = pchip_weights[i] * data_buffer[j];
+			data_buffer_set[j] = pchip_weights[i] * data_buffer_set[j];
 			j++;
 		}
 
 		// We now modify the data_local field using the pchip_weights and the data read
 		if (i == 0) {
 			//this->setDataOperation(data_buffer);
-			PField::operator=(data_buffer);
+			PField::operator=(data_buffer_set);
 		} else {
 			//this->addDataOperation(data_buffer);
-			PField::operator+=(data_buffer);
+			PField::operator+=(data_buffer_set);
 		}
 
 	}

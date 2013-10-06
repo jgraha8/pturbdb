@@ -4,15 +4,17 @@
  *  Created on: Sep 17, 2013
  *      Author: jgraham
  */
+
+#ifndef PTURBDB_FIELD_HPP_
+#define PTURBDB_FIELD_HPP_
+
 #include <string>
 #include <vector>
+#include "field_cache.hpp"
 #include "pfield.hpp"
 #include "autofd.h"
 
 #define PCHIP_FD_STENCIL_SIZE 3
-
-#ifndef PTURBDB_FIELD_HPP_
-#define PTURBDB_FIELD_HPP_
 
 using namespace std;
 
@@ -42,7 +44,10 @@ private:
 	} pchip_fd_t;
 
 	pchip_fd_t *pchip_fd_;
-
+	
+	// Data caching mechanism
+	bool pchip_caching_;
+	FieldCache<float> *pchip_data_cache_;
 
 public:
 	// Constructors
@@ -59,19 +64,22 @@ public:
 			  const int *periodic, int operator_order );
 
 	// Getters and setters
-	string  getDBConfFile();
-	int    *getDBDims();
-	int    *getFieldOffset();
+	string &getDBConfFile()            { return this->db_conf_file_;      }
+	int    *getDBDims()                { return this->db_dims_;           }
+	int    *getFieldOffset()           { return this->field_offset_;      }
 
-	vector<double> getDBTime();
-	vector<string> getDBFileNames();
-	string         getDBGridFileName();
+	vector<double> &getDBTime()        { return this->db_time_;           }
+	vector<string> &getDBFileNames()   { return this->db_file_names_;     }
+	string         &getDBGridFileName(){ return this->db_grid_file_name_; }
 
-	int             getDBTimeNsteps();
-	double          getDBTimeStep();
-        double          getDBTimeMin();
-        double          getDBTimeMax();
-	pchip_fd_t     *getPCHIPFD();
+	int            &getDBTimeNsteps()  { return this->db_time_nsteps_;    }
+	double         &getDBTimeStep()    { return this->db_time_step_;      }
+        double         &getDBTimeMin()     { return this->db_time_min_;       }
+        double         &getDBTimeMax()     { return this->db_time_max_;       }
+	pchip_fd_t     *getPCHIPFD()       { return this->pchip_fd_;          }
+	bool           &getPCHIPCaching()  { return this->pchip_caching_;}
+
+	void setPCHIPCaching(bool caching){this->pchip_caching_ = caching;}
 
         void readDBGridLocal(const char *field_names[3], double *x, double *y, double *z);
 	void readDBField(double time, const char *field_name);
