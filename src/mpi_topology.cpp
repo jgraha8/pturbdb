@@ -1,7 +1,7 @@
 #include <cstring>
 #include "mpi_topology.hpp"
 
-MPITopology_t *MPITopologyNew( MPI_Comm comm, int ndims, int *dims, int *periodic )
+MPITopology_t *MPITopologyNew( MPI_Comm comm, int ndims, const int *dims, const int *periodic )
 {
 
   MPITopology_t *mpi_topology = new MPITopology_t;

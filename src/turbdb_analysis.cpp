@@ -66,11 +66,11 @@ int main(int argc, char *argv[]) {
 	// Read the grid
 	const char *grid_field_names[] = { "z", "y", "x" };
 
-	int *dims_local = u->getDimsLocal();
-	int *dims_operation = u->getDimsOperation();
-	int *offset_local = u->getOffsetLocal();
-	int *offset_operation = u->getOffsetOperation();
-	MPITopology_t *mpi_topology = u->getMPITopology();
+	const int *dims_local             = u->getDimsLocal();
+	const int *dims_operation         = u->getDimsOperation();
+	const int *offset_local           = u->getOffsetLocal();
+	const int *offset_operation       = u->getOffsetOperation();
+	const MPITopology_t *mpi_topology = u->getMPITopology();
 
 	double *x = new double[dims_local[0]];
 	double *y = new double[dims_local[1]];

@@ -23,11 +23,11 @@ public:
 	~FieldCache(); 
 
 	// Getters
-	std::string                    &getName()     {return this->name_;}
-	int                            &getNFields()  {return this->nfields_;}
-	size_t                         &getFieldSize(){return this->field_size_;}
-	std::vector<bool>              &getIsCached() {return this->is_cached_;}
-	typename std::map<int, Type *> &getData()     {return this->data_;}
+	std::string                           getName()      const {return this->name_;}
+	int                                   getNFields()   const {return this->nfields_;}
+	size_t                                getFieldSize() const {return this->field_size_;}
+	const std::vector<bool>              &getIsCached()  const {return this->is_cached_;}
+	const typename std::map<int, Type *> &getData()      const {return this->data_;}
 
 	// Setters
 	void setCache( std::vector<int> &file_index );

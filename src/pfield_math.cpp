@@ -8,7 +8,7 @@ namespace pturbdb {
 /// VECTOR PROCEDURES
 ////////////////////////////////////////////////////////////////////////////////
 
-PFieldVector_t PFieldVectorNew( PField &pfield )
+PFieldVector_t PFieldVectorNew( const PField &pfield )
 {
 	PFieldVector_t pfield_vector(3);
 
@@ -33,7 +33,7 @@ PFieldVector_t &PFieldVectorAssign( PFieldVector_t &vector, PField *a, PField *b
 	return vector;
 }
 
-PField &PFieldVectorDot( PField &dot, PFieldVector_t &a, PFieldVector_t &b )
+PField &PFieldVectorDot( PField &dot, const PFieldVector_t &a, const PFieldVector_t &b )
 {
 	PField *buffer = new PField( dot, false );
 
@@ -46,7 +46,7 @@ PField &PFieldVectorDot( PField &dot, PFieldVector_t &a, PFieldVector_t &b )
 	return dot;
 }
 
-PField &PFieldVectorMag( PField &mag, PFieldVector_t &a )
+PField &PFieldVectorMag( PField &mag, const PFieldVector_t &a )
 {
 	PFieldVectorDot( mag, a, a );
 	mag.sqrt( mag );
@@ -61,7 +61,7 @@ PField &PFieldVectorMag( PField &mag, PFieldVector_t &a )
  * Creates a new PField tensor struct using a copy of an existing
  * field. It does not copy the field data.
  */
-PFieldTensor_t PFieldTensorNew( PField &pfield ) 
+PFieldTensor_t PFieldTensorNew( const PField &pfield ) 
 {
 	PFieldTensor_t tensor(3);
 	PFieldVector_t v1 = PFieldVectorNew( pfield );
@@ -75,7 +75,7 @@ PFieldTensor_t PFieldTensorNew( PField &pfield )
 	return tensor;
 }
 
-PFieldTensor_t PFieldTensorNew( PFieldTensor_t &tensor ) 
+PFieldTensor_t PFieldTensorNew( const PFieldTensor_t &tensor ) 
 {
 	return PFieldTensorNew( *tensor[0][0] );
 }
@@ -122,7 +122,7 @@ PFieldVector_t &PFieldVectorGradient( PFieldVector_t &grad, PField &pfield )
 /*
  * Computes the symmetric component of the provided tensor
  */
-PFieldTensor_t &PFieldTensorSymmetric( PFieldTensor_t &tensor_symmetric, PFieldTensor_t &tensor ) {
+PFieldTensor_t &PFieldTensorSymmetric( PFieldTensor_t &tensor_symmetric, const PFieldTensor_t &tensor ) {
 
 	*tensor_symmetric[0][0] = *tensor[0][0];                            // Copy field 
 	tensor_symmetric[0][1]->add( *tensor[0][1], *tensor[1][0] ) *= 0.5; // Compute field
@@ -143,7 +143,7 @@ PFieldTensor_t &PFieldTensorSymmetric( PFieldTensor_t &tensor_symmetric, PFieldT
 /*
  * Computes the anti-symmetric component of the provided tensor
  */
-PFieldTensor_t &PFieldTensorAntiSymmetric( PFieldTensor_t &tensor_anti, PFieldTensor_t &tensor ) {
+PFieldTensor_t &PFieldTensorAntiSymmetric( PFieldTensor_t &tensor_anti, const PFieldTensor_t &tensor ) {
 
 	// Create a new base tensor
 	*tensor_anti[0][0] = 0.0;                                      // Set field 
@@ -163,7 +163,7 @@ PFieldTensor_t &PFieldTensorAntiSymmetric( PFieldTensor_t &tensor_anti, PFieldTe
 
 }
 
-PFieldTensor_t &PFieldTensorTranspose( PFieldTensor_t &tensor_trans, PFieldTensor_t &tensor ) {
+PFieldTensor_t &PFieldTensorTranspose( PFieldTensor_t &tensor_trans, const PFieldTensor_t &tensor ) {
 
 	for( size_t i=0; i<tensor.size(); i++ ) {
 		for (size_t j=0; j<tensor[i].size(); j++ ) {
@@ -180,7 +180,7 @@ PFieldTensor_t &PFieldTensorTranspose( PFieldTensor_t &tensor_trans, PFieldTenso
  *   c_{ij} = a_{ik}b_{kj} = a_{ik}b_{lj}\delta_{kl}
  *
  */
-PFieldTensor_t &PFieldTensorDot( PFieldTensor_t &dot, PFieldTensor_t &a, PFieldTensor_t &b ) 
+PFieldTensor_t &PFieldTensorDot( PFieldTensor_t &dot, const PFieldTensor_t &a, const PFieldTensor_t &b ) 
 {
 	PField *buffer = new PField( *a[0][0], false );
 
@@ -200,7 +200,7 @@ PFieldTensor_t &PFieldTensorDot( PFieldTensor_t &dot, PFieldTensor_t &a, PFieldT
  * Computes the inner double dot product of two tensors defined as:
  *     c = trace(ab) => c = a_{ij}b_{ji}
  */
-PField &PFieldTensorDotDot( PField &dotdot, PFieldTensor_t &a, PFieldTensor_t &b )
+PField &PFieldTensorDotDot( PField &dotdot, const PFieldTensor_t &a, const PFieldTensor_t &b )
 {
 	PFieldTensor_t c = PFieldTensorNew( dotdot );
 	PFieldTensorDot( c, a, b );
@@ -213,7 +213,7 @@ PField &PFieldTensorDotDot( PField &dotdot, PFieldTensor_t &a, PFieldTensor_t &b
  * Computes the trace of the provided tensor. Returns a new PField
  * pointer.
  */
-PField &PFieldTensorTrace( PField &trace, PFieldTensor_t &a ) 
+PField &PFieldTensorTrace( PField &trace, const PFieldTensor_t &a ) 
 {
 	trace = *a[0][0];
 	trace += *a[1][1];

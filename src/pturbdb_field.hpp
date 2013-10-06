@@ -53,8 +53,8 @@ public:
 	// Constructors
 	PTurbDBField() {};
 	PTurbDBField( const string &db_conf_file, const int *db_dims );
-	PTurbDBField( PTurbDBField &g); // Copy constructor
-	PTurbDBField( PTurbDBField &g, bool copy_field_data ); // Copy constructor
+	PTurbDBField( const PTurbDBField &g); // Copy constructor
+	PTurbDBField( const PTurbDBField &g, bool copy_field_data ); // Copy constructor
 
 	// Deconstructors
 	~PTurbDBField();
@@ -64,28 +64,27 @@ public:
 			  const int *periodic, int operator_order );
 
 	// Getters and setters
-	string &getDBConfFile()            { return this->db_conf_file_;      }
-	int    *getDBDims()                { return this->db_dims_;           }
-	int    *getFieldOffset()           { return this->field_offset_;      }
+ 	string  getDBConfFile()            const { return this->db_conf_file_;      }
+ 	const int    *getDBDims()          const { return this->db_dims_;           }
+ 	const int    *getFieldOffset()     const { return this->field_offset_;      }
 
-	vector<double> &getDBTime()        { return this->db_time_;           }
-	vector<string> &getDBFileNames()   { return this->db_file_names_;     }
-	string         &getDBGridFileName(){ return this->db_grid_file_name_; }
+	const vector<double> &getDBTime()      const { return this->db_time_;           }
+	const vector<string> &getDBFileNames() const { return this->db_file_names_;     }
+	string         getDBGridFileName()     const { return this->db_grid_file_name_; }
 
-	int            &getDBTimeNsteps()  { return this->db_time_nsteps_;    }
-	double         &getDBTimeStep()    { return this->db_time_step_;      }
-        double         &getDBTimeMin()     { return this->db_time_min_;       }
-        double         &getDBTimeMax()     { return this->db_time_max_;       }
-	pchip_fd_t     *getPCHIPFD()       { return this->pchip_fd_;          }
-	bool           &getPCHIPCaching()  { return this->pchip_caching_;}
+	int            getDBTimeNsteps()   const { return this->db_time_nsteps_;    }
+	double         getDBTimeStep()     const { return this->db_time_step_;      }
+        double         getDBTimeMin()      const { return this->db_time_min_;       }
+        double         getDBTimeMax()      const { return this->db_time_max_;       }
+
+	const pchip_fd_t *getPCHIPFD()      const { return this->pchip_fd_;          }
+	bool              getPCHIPCaching() const { return this->pchip_caching_;}
 
 	void setPCHIPCaching(bool caching){this->pchip_caching_ = caching;}
 
         void readDBGridLocal(const char *field_names[3], double *x, double *y, double *z);
 	void readDBField(double time, const char *field_name);
 
-	void copyDataOperation( double *data );
-	
 	// Assignment operators; these are not inherited. We are using
 	// the PField assignment operator to set data_local;
 	PTurbDBField &operator=( float a ){ PField::operator=(a); return *this; }
@@ -96,14 +95,14 @@ public:
 
 private:
 
-	void PTurbDBFieldCopy( PTurbDBField &g, bool copy_field_data );
+	void PTurbDBFieldCopy( const PTurbDBField &g, bool copy_field_data );
 	void readDBConfFile();
 	void pchipInit();
-	void pchipComputeBasis( double tau, double hermite_basis[4] );
-	void pchipComputeWeights( double hermite_basis[4], double pchip_weights[4] );
+	void pchipComputeBasis( double tau, double hermite_basis[4] ) const;
+	void pchipComputeWeights( double hermite_basis[4], double pchip_weights[4] ) const;
 
-        void syncDBGridLocal( int dim, const double *grid_operation, double *grid );
-        void setDBPeriodicGridLocal( int dim, const double *grid_operation, double *grid );
+        void syncDBGridLocal( int dim, const double *grid_operation, double *grid ) const;
+        void setDBPeriodicGridLocal( int dim, const double *grid_operation, double *grid ) const;
 	
 };
 }

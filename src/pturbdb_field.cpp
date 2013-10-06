@@ -38,7 +38,7 @@ PTurbDBField::PTurbDBField(const string &db_conf_file, const int *db_dims) : PFi
  * Copy Constructor
  */
 /******************************************************************************/
-PTurbDBField::PTurbDBField( PTurbDBField &g ) : PField( g )
+PTurbDBField::PTurbDBField( const PTurbDBField &g ) : PField( g )
 /******************************************************************************/
 {
 	// First nullify pointers
@@ -49,7 +49,7 @@ PTurbDBField::PTurbDBField( PTurbDBField &g ) : PField( g )
 }
 
 /******************************************************************************/
-PTurbDBField::PTurbDBField( PTurbDBField &g, bool copy_field_data ) : PField(g, copy_field_data)
+PTurbDBField::PTurbDBField( const PTurbDBField &g, bool copy_field_data ) : PField(g, copy_field_data)
 /******************************************************************************/
 {
 	// First nullify pointers
@@ -71,7 +71,7 @@ PTurbDBField::~PTurbDBField()
  * Worker procedure for the copy constructors
  */ 
 /******************************************************************************/
-void PTurbDBField::PTurbDBFieldCopy( PTurbDBField &g, bool copy_field_data ) 
+void PTurbDBField::PTurbDBFieldCopy( const PTurbDBField &g, bool copy_field_data ) 
 /******************************************************************************/
 {
 
@@ -179,7 +179,7 @@ void PTurbDBField::pchipInit() {
  * interpolation. The value tau is normalized time within the interval
  *  the interpolation is performed.
  */
-void PTurbDBField::pchipComputeBasis(double tau, double hermite_basis[4]) {
+void PTurbDBField::pchipComputeBasis(double tau, double hermite_basis[4]) const {
 
 	double c1 = 1.0 - tau;
 	double c2 = pow(c1, 2);
@@ -200,7 +200,7 @@ void PTurbDBField::pchipComputeBasis(double tau, double hermite_basis[4]) {
  * The discrete values p_j is the known field
  */
 void PTurbDBField::pchipComputeWeights(double hermite_basis[4],
-				      double pchip_weights[4]) {
+				      double pchip_weights[4]) const {
 
 	if( this->pchip_fd_ == NULL ) {
 		cout << "PTurbDBField: PCHIP finite difference struct not allocated" << endl;
@@ -308,7 +308,7 @@ void PTurbDBField::readDBGridLocal(const char *field_names[3], double *x,
  * they are set manually assuming a uniform grid distribution.
  */
 void PTurbDBField::syncDBGridLocal(int dim, const double *grid_operation,
-				  double *grid) {
+				  double *grid) const {
 
 	// Copy the correct portions to the appropriate array
 
@@ -316,14 +316,14 @@ void PTurbDBField::syncDBGridLocal(int dim, const double *grid_operation,
 	MPI_Request prev_request, next_request;
 	MPI_Status status;
 
-	MPITopology_t *mpi_topology = this->getMPITopology();
+	const MPITopology_t *mpi_topology = this->getMPITopology();
 
 	const long rind_size = this->getRindSize();
 	double *prev_buffer = new double[rind_size];
 	double *next_buffer = new double[rind_size];
 
-	int *dims_operation = this->getDimsOperation();
-	int *dims_local = this->getDimsLocal();
+	const int *dims_operation = this->getDimsOperation();
+	const int *dims_local     = this->getDimsLocal();
 
 	/*
 	 * First handshakes
@@ -385,14 +385,14 @@ void PTurbDBField::syncDBGridLocal(int dim, const double *grid_operation,
 }
 
 /********************************************************************/
-void PTurbDBField::setDBPeriodicGridLocal( int dim, const double *grid_operation, double *grid )
+void PTurbDBField::setDBPeriodicGridLocal( int dim, const double *grid_operation, double *grid ) const
 /********************************************************************/
 {
 
-	int *dims_local = this->getDimsLocal();
-	int *dims_operation = this->getDimsOperation();
+	const int *dims_local     = this->getDimsLocal();
+	const int *dims_operation = this->getDimsOperation();
 
-	MPITopology_t *mpi_topology = this->getMPITopology();
+	const MPITopology_t *mpi_topology = this->getMPITopology();
 	int rind_size = this->getRindSize();
 
 	if (this->getFieldPeriodic()[dim] == 1) {
@@ -459,6 +459,7 @@ void PTurbDBField::readDBField(double time, const char *field_name)
 	for( int i=0; i<4; i++ ) 
 		file_index[i] = cell_index - 1 + i;
 
+	std::map<int, float *> pchip_data_cache;
 	// If the cache has not been generated then create it
 	if( this->pchip_caching_ ) {
 		if( this->pchip_data_cache_ == NULL ) {
@@ -471,6 +472,8 @@ void PTurbDBField::readDBField(double time, const char *field_name)
 		}
 		// Set the cached field data
 		this->pchip_data_cache_->setCache( file_index );
+		// Make a copy of the pchip cached data map
+		pchip_data_cache = this->pchip_data_cache_->getData();
 	}
 
 	// Now perform the PCHIP interpolation
@@ -483,12 +486,13 @@ void PTurbDBField::readDBField(double time, const char *field_name)
 		if( this->pchip_caching_ ) {
 
 			int j=file_index[i]; // File index key
+
 			if( ! this->pchip_data_cache_->getIsCached()[i] ) { 
 				// Field is not cached
-				data_buffer_read = this->pchip_data_cache_->getData()[j]; // Set the data read buffer to the cache field;
+				data_buffer_read = pchip_data_cache[j]; // Set the data read buffer to the cache field;
 				goto read_db_field;
 			} else {
-				data_buffer_set = this->pchip_data_cache_->getData()[j];
+				data_buffer_set = pchip_data_cache[j];
 				goto set_db_field; // Skipping the reading of the field
 			}
 

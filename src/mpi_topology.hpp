@@ -17,5 +17,5 @@ typedef struct {
 
 #endif
 
-MPITopology_t *MPITopologyNew( MPI_Comm comm, int ndims, int *dims, int *periodic );
+MPITopology_t *MPITopologyNew( MPI_Comm comm, int ndims, const int *dims, const int *periodic );
 void MPITopologyDelete( MPITopology_t **mpi_topology );
