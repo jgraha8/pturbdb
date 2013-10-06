@@ -8,7 +8,7 @@ using namespace std;
 
 namespace pturbdb {
 
-FiniteDiff::FiniteDiff( int nx, double *x, int ny, double *y, int nz, double *z, int order ) : Derivative( nx, ny, nz )
+FiniteDiff::FiniteDiff( int nx, const double *x, int ny, const double *y, int nz, const double *z, int order ) : Derivative( nx, ny, nz )
 {
 	this->fd_ddx = NULL;
 	this->fd_ddy = NULL;
@@ -33,7 +33,7 @@ FiniteDiff::~FiniteDiff()
 
 }
 
-void FiniteDiff::FiniteDiffInit( int nx, double *x, int ny, double *y, int nz, double *z, int order )
+void FiniteDiff::FiniteDiffInit( int nx, const double *x, int ny, const double *y, int nz, const double *z, int order )
 {
 #ifdef VERBOSE
 	printf("FiniteDiff::FiniteDiffInit: entering\n");
@@ -72,7 +72,7 @@ void FiniteDiff::fdSetStencil( int start_index, fd_t &fd )
 }
 
 /********************************************************************/
-void FiniteDiff::fdSetDS( int n, double *s, fd_t &fd )
+void FiniteDiff::fdSetDS( int n, const double *s, fd_t &fd )
 /********************************************************************/
 {
 
@@ -107,7 +107,7 @@ void FiniteDiff::fdSetCoef( int order_deriv, fd_t &fd )
 }
 
 /********************************************************************/
-FiniteDiff::fd_t *FiniteDiff::fdCreateD1( int ns, double *s, int order ) 
+FiniteDiff::fd_t *FiniteDiff::fdCreateD1( int ns, const double *s, int order ) 
 /********************************************************************/
 {
 
@@ -260,7 +260,7 @@ FiniteDiff::fd_t *FiniteDiff::fdCreateD1( int ns, double *s, int order )
 }
 
 /********************************************************************/
-FiniteDiff::fd_t *FiniteDiff::fdCreateD2( int ns, double *s, int order ) 
+FiniteDiff::fd_t *FiniteDiff::fdCreateD2( int ns, const double *s, int order ) 
 /********************************************************************/
 {
 
@@ -456,7 +456,7 @@ void FiniteDiff::fdDelete( int ns, fd_t **fd )
 // 
 
 /********************************************************************/
-void FiniteDiff::ddx( int offset, int na, double *a, int nda, double *da )
+void FiniteDiff::ddx( int offset, int na, const double *a, int nda, double *da )
 /********************************************************************/
 {
 #ifdef VERBOSE
@@ -472,31 +472,31 @@ void FiniteDiff::ddx( int offset, int na, double *a, int nda, double *da )
 #endif
 }
 /********************************************************************/
-void FiniteDiff::ddy( int offset, int na, double *a, int nda, double *da )
+void FiniteDiff::ddy( int offset, int na, const double *a, int nda, double *da )
 /********************************************************************/
 {
 	this->fdOp( this->fd_ddy, offset, na, a, nda, da );
 }
 /********************************************************************/
-void FiniteDiff::ddz( int offset, int na, double *a, int nda, double *da )
+void FiniteDiff::ddz( int offset, int na, const double *a, int nda, double *da )
 /********************************************************************/
 {
 	this->fdOp( this->fd_ddz, offset, na, a, nda, da );
 }
 /********************************************************************/
-void FiniteDiff::d2dx2( int offset, int na, double *a, int nda, double *da )
+void FiniteDiff::d2dx2( int offset, int na, const double *a, int nda, double *da )
 /********************************************************************/
 {
 	this->fdOp( this->fd_d2dx2, offset, na, a, nda, da );
 }
 /********************************************************************/
-void FiniteDiff::d2dy2( int offset, int na, double *a, int nda, double *da )
+void FiniteDiff::d2dy2( int offset, int na, const double *a, int nda, double *da )
 /********************************************************************/
 {
 	this->fdOp( this->fd_d2dy2, offset, na, a, nda, da );
 }
 /********************************************************************/
-void FiniteDiff::d2dz2( int offset, int na, double *a, int nda, double *da )
+void FiniteDiff::d2dz2( int offset, int na, const double *a, int nda, double *da )
 /********************************************************************/
 {
 	this->fdOp( this->fd_d2dz2, offset, na, a, nda, da );
@@ -506,7 +506,7 @@ void FiniteDiff::d2dz2( int offset, int na, double *a, int nda, double *da )
 // Finite difference operation function
 //
 /********************************************************************/
-void FiniteDiff::fdOp( FiniteDiff::fd_t *fd, int offset, int na, double *a, int nda, double *da )
+void FiniteDiff::fdOp( const FiniteDiff::fd_t *fd, int offset, int na, const double *a, int nda, double *da )
 /********************************************************************/
 {
 #ifdef VERBOSE

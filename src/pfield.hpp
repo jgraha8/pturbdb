@@ -41,7 +41,7 @@ private:
  
 
 	// Grid pointers; these are not allocated but must be set with setGrid
-	double *x_local_, *y_local_, *z_local_;
+	const double *x_local_, *y_local_, *z_local_;
 
 	bool synchronized_;
 
@@ -53,8 +53,8 @@ public:
 	// Constructor
 	PField(){};
 	PField( const int *dims, FieldDecomp_t field_decomp, const int *periodic, int operator_order );
-	PField(PField &g, bool copy_data_local);
-	PField( PField &g );
+	PField( const PField &g, bool copy_data_local);
+	PField( const PField &g );
 	// Deconstructor
 	~PField();
 
@@ -62,42 +62,43 @@ public:
 	void finiteDiffInit();
     
 	// Get the size of the field
-	long           getSize();
-	long           getSizeLocal();
-	long           getSizeOperation();
-	long           getSizeRind( int dim, int location );
-	MPITopology_t *getMPITopology();
-	FiniteDiff    *getFiniteDiff();
-	FieldDecomp_t  getFieldDecomp();
-	int           *getFieldPeriodic();
-	int            getOperatorOrder();
-	int           *getDims();
-	int           *getDimsLocal();
-	int           *getDimsOperation();
-	int           *getOffsetLocal();
-	int           *getOffsetOperation();
-	int            getRindSize();
-	bool           getSynchronized();
+	size_t getSize() const;
+	size_t getSizeLocal() const;
+	size_t getSizeOperation() const;
+	size_t getSizeRind( int dim, int location ) const;
 
-	double *getXLocal();
-	double *getYLocal();
-	double *getZLocal();	
+
+	FieldDecomp_t  getFieldDecomp()       const { return this->field_decomp_;     };
+	const MPITopology_t *getMPITopology() const { return this->mpi_topology_;     };
+	const FiniteDiff    *getFiniteDiff()  const { return this->finite_diff_;      };
+	const double        *getXLocal()      const { return this->x_local_;          };
+	const double        *getYLocal()      const { return this->y_local_;          };
+	const double        *getZLocal()      const { return this->z_local_;          };
+	const int     *getFieldPeriodic()     const { return this->periodic_;         };
+	int            getOperatorOrder()     const { return this->operator_order_;   };
+	const int     *getDims()              const { return this->dims_;             };
+	const int     *getDimsLocal()         const { return this->dims_local_;       };    
+	const int     *getDimsOperation()     const { return this->dims_operation_;   };
+	const int     *getOffsetLocal()       const { return this->offset_local_;     };
+	const int     *getOffsetOperation()   const { return this->offset_operation_; };
+	int            getRindSize()          const { return this->rind_size_;        };
+	bool           getSynchronized()      const { return this->synchronized_;     };
 
 	// Data getters; these require a buffer of size given by getDimsOperation()
-	void getXOperation( double *x );
-	void getYOperation( double *y );
-	void getZOperation( double *z );
+	void getXOperation( double *x ) const;
+	void getYOperation( double *y ) const;
+	void getZOperation( double *z ) const;
 
 	// Data getters; these require a buffer of size given by getSizeOperation()
-	void getDataOperation( float *a );
-	void getDataOperation( double *a );
+	void getDataOperation( float *a ) const;
+	void getDataOperation( double *a ) const;
 
-	long index( int i, int j, int k );
-	long indexLocal( int i, int j, int k );
-	long indexOperation( int i, int j, int k );
-	long indexOperationToLocal( int i, int j, int k );
+	size_t index( int i, int j, int k ) const;
+	size_t indexLocal( int i, int j, int k ) const;
+	size_t indexOperation( int i, int j, int k ) const;
+	size_t indexOperationToLocal( int i, int j, int k ) const;
 
-	void setGridLocal( double *x_local, double *y_local, double *z_local );
+	void setGridLocal( const double *x_local, const double *y_local, const double *z_local );
 	void setDataOperation( const float *a ); // Perform same task as assignment operator
 	void setDataOperation( const double *a ); // Performs same task as assignment operator
 
@@ -129,12 +130,12 @@ public:
 	PField &operator/=( const float *a );
 	PField &operator/=( double c );
 
-	PField &add( PField &a, PField &b );
-	PField &sub( PField &a, PField &b );
-	PField &mul( PField &a, PField &b );
-	PField &div( PField &a, PField &b );
+	PField &add( const PField &a, const PField &b );
+	PField &sub( const PField &a, const PField &b );
+	PField &mul( const PField &a, const PField &b );
+	PField &div( const PField &a, const PField &b );
 
-	PField &sqrt( PField &a );
+	PField &sqrt( const PField &a );
 
 	PField &ddx( PField &a );
 	PField &ddy( PField &a );
@@ -150,23 +151,23 @@ public:
 protected:
 
 	virtual void PFieldInit( const int *dims, FieldDecomp_t field_decomp, const int *periodic, int operator_order );
-	void PFieldCopy( PField &g, bool copy_data_local );
+	void PFieldCopy( const PField &g, bool copy_data_local );
 
-	int *computeMPITopologyDims( int nproc, int mpi_decomp_ndims );
+	int *computeMPITopologyDims( int nproc, int mpi_decomp_ndims ) const;
 
 	void assignMPITopology();
 	void assignDimsAndOffsets();
 
-	bool hasRind(int dim, int location);
-	double *createRindBuffer( int dim, int location );
-	void packRindBuffer( int dim, int location, double *rind_buffer );
-	void unpackRindBuffer( int dim, int location, double *rind_buffer );
+	bool hasRind(int dim, int location) const;
+	double *createRindBuffer( int dim, int location ) const;
+	void packRindBuffer( int dim, int location, double *rind_buffer ) const;
+	void unpackRindBuffer( int dim, int location, const double *rind_buffer );
 	void synchronize();
 	void synchronizeDimension(int coord_dim);
 
-	void dndxn( void (FiniteDiff::*dd)(int, int, double *, int, double *), PField &a );
-	void dndyn( void (FiniteDiff::*dd)(int, int, double *, int, double *), PField &a );
-	void dndzn( void (FiniteDiff::*dd)(int, int, double *, int, double *), PField &a );
+	void dndxn( void (FiniteDiff::*dd)(int, int, const double *, int, double *), PField &a );
+	void dndyn( void (FiniteDiff::*dd)(int, int, const double *, int, double *), PField &a );
+	void dndzn( void (FiniteDiff::*dd)(int, int, const double *, int, double *), PField &a );
    
 	// Getters/setters
 	void setSynchronized( bool synchronized ); // Making protected since it should only be set by base class or sub-classes.

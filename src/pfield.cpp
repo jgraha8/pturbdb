@@ -25,7 +25,7 @@ PField::PField(const int *dims, FieldDecomp_t field_decomp, const int *periodic,
 
 }
 
-PField::PField(PField &g, bool copy_data_local)
+PField::PField(const PField &g, bool copy_data_local)
 {
 
 	this->PFieldCopy( g, copy_data_local );
@@ -36,7 +36,7 @@ PField::PField(PField &g, bool copy_data_local)
 
 }
 
-PField::PField(PField &g)
+PField::PField(const PField &g)
 {
 
 	this->PFieldCopy( g, true );
@@ -130,7 +130,7 @@ void PField::PFieldInit(const int *dims, FieldDecomp_t field_decomp,
 /*
  * Worker for the PField copy constructor
  */
-void PField::PFieldCopy( PField &g, bool copy_data_local )
+void PField::PFieldCopy( const PField &g, bool copy_data_local )
 {
 
 	// We will make a copy of the input field
@@ -220,10 +220,10 @@ void PField::finiteDiffInit()
 //////////////////////////////////////////////////////////////////////
 
 /********************************************************************/
-long PField::getSize()
+size_t PField::getSize() const
 /********************************************************************/
 {
-	long N = 1;
+	size_t N = 1;
 	for (int n = 0; n < PFIELD_NDIMS; n++) {
 		N *= this->dims_[n];
 	}
@@ -231,10 +231,10 @@ long PField::getSize()
 }
 
 /********************************************************************/
-long PField::getSizeLocal()
+size_t PField::getSizeLocal() const
 /********************************************************************/
 {
-	long N = 1;
+	size_t N = 1;
 	for (int n = 0; n < PFIELD_NDIMS; n++) {
 		N *= this->dims_local_[n];
 	}
@@ -242,10 +242,10 @@ long PField::getSizeLocal()
 }
 
 /********************************************************************/
-long PField::getSizeOperation()
+size_t PField::getSizeOperation() const
 /********************************************************************/
 {
-	long N = 1;
+	size_t N = 1;
 	for (int n = 0; n < PFIELD_NDIMS; n++) {
 		N *= this->dims_operation_[n];
 	}
@@ -253,7 +253,7 @@ long PField::getSizeOperation()
 }
 
 /********************************************************************/
-long PField::getSizeRind(int dim, int location)
+size_t PField::getSizeRind(int dim, int location) const
 /********************************************************************/
 {
 	// If the dimension and location does not have a rind, return 0
@@ -261,14 +261,14 @@ long PField::getSizeRind(int dim, int location)
 		return 0;
 
 	if (dim == 0) {
-		return (long) this->rind_size_ * (long) this->dims_operation_[1]
-			* (long) this->dims_operation_[2];
+		return (size_t) this->rind_size_ * (size_t) this->dims_operation_[1]
+			* (size_t) this->dims_operation_[2];
 	} else if (dim == 1) {
-		return (long) this->dims_operation_[0] * (long) this->rind_size_
-			* (long) this->dims_operation_[2];
+		return (size_t) this->dims_operation_[0] * (size_t) this->rind_size_
+			* (size_t) this->dims_operation_[2];
 	} else if (dim == 2) {
-		return (long) this->dims_operation_[0] * (long) this->dims_operation_[1]
-			* (long) this->rind_size_;
+		return (size_t) this->dims_operation_[0] * (size_t) this->dims_operation_[1]
+			* (size_t) this->rind_size_;
 	} else {
 		printf("%d: PField::getSizeRind: incorrect dimension number specified\n", 
 		       this->mpi_topology_->rank);
@@ -282,33 +282,12 @@ long PField::getSizeRind(int dim, int location)
 /*
  * Getters for data members
  */
-FieldDecomp_t PField::getFieldDecomp()  { return this->field_decomp_;     };
-MPITopology_t *PField::getMPITopology() { return this->mpi_topology_;     };
-FiniteDiff *PField::getFiniteDiff()     { return this->finite_diff_;      };
-double *PField::getXLocal()             { return this->x_local_;          };
-double *PField::getYLocal()             { return this->y_local_;          };
-double *PField::getZLocal()             { return this->z_local_;          };
-
-int *PField::getFieldPeriodic()         { return this->periodic_;         };
-
-int PField::getOperatorOrder()          { return this->operator_order_;   };
-
-int *PField::getDims()                  { return this->dims_;             };
-int *PField::getDimsLocal()             { return this->dims_local_;       };    
-int *PField::getDimsOperation()         { return this->dims_operation_;   };
-
-int *PField::getOffsetLocal()           { return this->offset_local_;     };
-int *PField::getOffsetOperation()       { return this->offset_operation_; };
-
-int PField::getRindSize()               { return this->rind_size_;        };
-
-bool PField::getSynchronized()          { return this->synchronized_;     };
 
 /*
  * Gets the x data on the operation grid by copying to a provided data
  * buffer. The size of "x" must be of size getDimsOperation().
  */ 
-void PField::getXOperation( double *x)
+void PField::getXOperation( double *x) const
 {
 	for (int i = 0; i < this->dims_operation_[0]; i++)
 		x[i] = this->x_local_[i + this->offset_operation_[0]];
@@ -317,7 +296,7 @@ void PField::getXOperation( double *x)
  * Gets the y data on the operation grid by copying to a provided data
  * buffer. The size of "y" must be of size getDimsOperation().
  */ 
-void PField::getYOperation( double *y)
+void PField::getYOperation( double *y) const
 {
 	for (int j = 0; j < this->dims_operation_[1]; j++)
 		y[j] = this->y_local_[j + this->offset_operation_[1]];
@@ -326,7 +305,7 @@ void PField::getYOperation( double *y)
  * Gets the z data on the operation grid by copying to a provided data
  * buffer. The size of "z" must be of size getDimsOperation().
  */ 
-void PField::getZOperation( double *z)
+void PField::getZOperation( double *z) const
 {
 	for (int k = 0; k < this->dims_operation_[2]; k++)
 		z[k] = this->z_local_[k + this->offset_operation_[2]];
@@ -337,9 +316,9 @@ void PField::getZOperation( double *z)
  * Gets the data on the operation grid by copying to a provided data
  * buffer. The size of "a" must be of size getSizeOperation().
  */ 
-void PField::getDataOperation( float *a)
+void PField::getDataOperation( float *a) const
 {
-	long index_local, index_operation;
+	size_t index_local, index_operation;
 
 	index_operation=0;
 	for (int i = 0; i < this->dims_operation_[0]; i++) {
@@ -357,9 +336,9 @@ void PField::getDataOperation( float *a)
  * Gets the data on the operation grid by copying to a provided data
  * buffer. The size of "a" must be of size getSizeOperation().
  */ 
-void PField::getDataOperation( double *a)
+void PField::getDataOperation( double *a) const
 {
-	long index_local, index_operation;
+	size_t index_local, index_operation;
 
 	index_operation=0;
 	for (int i = 0; i < this->dims_operation_[0]; i++) {
@@ -376,63 +355,62 @@ void PField::getDataOperation( double *a)
 
 // Array index for 3D indexing
 /********************************************************************/
-long PField::index(int i, int j, int k)
+size_t PField::index(int i, int j, int k) const
 /********************************************************************/
 {
-	return ((long) this->dims_[1] * (long) i + (long) j) * (long) this->dims_[2]
-		+ (long) k;
+	return ((size_t) this->dims_[1] * (size_t) i + (size_t) j) * (size_t) this->dims_[2]
+		+ (size_t) k;
 }
 
 // Array index for 3D indexing
 /********************************************************************/
-long PField::indexLocal(int i, int j, int k)
+size_t PField::indexLocal(int i, int j, int k) const
 /********************************************************************/
 {
-	return ((long) this->dims_local_[1] * (long) i + (long) j)
-		* (long) this->dims_local_[2] + (long) k;
+	return ((size_t) this->dims_local_[1] * (size_t) i + (size_t) j)
+		* (size_t) this->dims_local_[2] + (size_t) k;
 }
 
 // Array index for 3D indexing
 /********************************************************************/
-long PField::indexOperation(int i, int j, int k)
+size_t PField::indexOperation(int i, int j, int k) const
 /********************************************************************/
 {
-	return ((long) this->dims_operation_[1] * (long) i + (long) j)
-		* (long) this->dims_operation_[2] + (long) k;
+	return ((size_t) this->dims_operation_[1] * (size_t) i + (size_t) j)
+		* (size_t) this->dims_operation_[2] + (size_t) k;
 }
 
 // Array index for 3D indexing
 /********************************************************************/
-long PField::indexOperationToLocal(int i, int j, int k)
+size_t PField::indexOperationToLocal(int i, int j, int k) const
 /********************************************************************/
 {
-	const long ii = (long) i + (long) this->offset_operation_[0];
-	const long jj = (long) j + (long) this->offset_operation_[1];
-	const long kk = (long) k + (long) this->offset_operation_[2];
+	const size_t ii = (size_t) i + (size_t) this->offset_operation_[0];
+	const size_t jj = (size_t) j + (size_t) this->offset_operation_[1];
+	const size_t kk = (size_t) k + (size_t) this->offset_operation_[2];
 
 #ifdef DEBUG
 	for( int n=0; n<this->mpi_topology_->nproc; n++ ) {
 		if( n == this->mpi_topology_->rank ) {
 			printf("%d: PField::indexOperationToLocal\n", n);
 			printf("  i, j, k = %d, %d, %d\n", i,j,k);
-			printf("  (long)i, (long)j, (long)k = %ld, %ld, %ld\n", (long)i,(long)j,(long)k);
+			printf("  (size_t)i, (size_t)j, (size_t)k = %ld, %ld, %ld\n", (size_t)i,(size_t)j,(size_t)k);
 			printf("  ii, jj, kk = %ld, %ld, %ld\n", ii,jj,kk);
 		}
 		MPI_Barrier(this->mpi_topology_->comm);
 	}
 #endif
-	return ((long) this->dims_local_[1] * ii + jj) * (long) this->dims_local_[2]
-		+ kk;
+	return ((size_t) this->dims_local_[1] * ii + jj) * (size_t) this->dims_local_[2] + kk;
 }
 
-void PField::setSynchronized( bool synchronized ) 
+void PField::setSynchronized( bool synchronized )
 {
 	this->synchronized_ = synchronized;
 }
 
 // Set the grid pointers for field
 /********************************************************************/
-void PField::setGridLocal(double *x_local, double *y_local, double *z_local)
+void PField::setGridLocal(const double *x_local, const double *y_local, const double *z_local)
 /********************************************************************/
 {
 	this->x_local_ = x_local;
@@ -485,7 +463,7 @@ PField& PField::operator=(const PField &a)
 PField &PField::operator=( const double *a)
 /********************************************************************/
 {
-	long index_local, index_operation;
+	size_t index_local, index_operation;
 
 	index_operation=0;
 	for (int i = 0; i < this->dims_operation_[0]; i++) {
@@ -510,7 +488,7 @@ PField &PField::operator=( const double *a)
 PField &PField::operator=( const float *a)
 /********************************************************************/
 {
-	long index_local, index_operation;
+	size_t index_local, index_operation;
 
 	index_operation=0;
 	for (int i = 0; i < this->dims_operation_[0]; i++) {
@@ -552,7 +530,7 @@ PField& PField::operator+=(const PField &a)
 /********************************************************************/
 {
 
-	long index;
+	size_t index;
 
 	for (int i = 0; i < this->dims_operation_[0]; i++) {
 		for (int j = 0; j < this->dims_operation_[1]; j++) {
@@ -576,7 +554,7 @@ PField& PField::operator+=(const PField &a)
 PField &PField::operator+=( const double *a)
 /********************************************************************/
 {
-	long index_local, index_operation;
+	size_t index_local, index_operation;
 
 	index_operation=0;
 	for (int i = 0; i < this->dims_operation_[0]; i++) {
@@ -601,7 +579,7 @@ PField &PField::operator+=( const double *a)
 PField &PField::operator+=( const float *a)
 /********************************************************************/
 {
-	long index_local, index_operation;
+	size_t index_local, index_operation;
 
 	index_operation=0;
 	for (int i = 0; i < this->dims_operation_[0]; i++) {
@@ -622,7 +600,7 @@ PField& PField::operator+=(double c)
 /********************************************************************/
 {
 
-	long index;
+	size_t index;
 
 	for (int i = 0; i < this->dims_operation_[0]; i++) {
 		for (int j = 0; j < this->dims_operation_[1]; j++) {
@@ -644,7 +622,7 @@ PField& PField::operator-=(const PField &a)
 /********************************************************************/
 {
 
-	long index;
+	size_t index;
 
 	for (int i = 0; i < this->dims_operation_[0]; i++) {
 		for (int j = 0; j < this->dims_operation_[1]; j++) {
@@ -668,7 +646,7 @@ PField& PField::operator-=(const PField &a)
 PField &PField::operator-=( const double *a)
 /********************************************************************/
 {
-	long index_local, index_operation;
+	size_t index_local, index_operation;
 
 	index_operation=0;
 	for (int i = 0; i < this->dims_operation_[0]; i++) {
@@ -693,7 +671,7 @@ PField &PField::operator-=( const double *a)
 PField &PField::operator-=( const float *a)
 /********************************************************************/
 {
-	long index_local, index_operation;
+	size_t index_local, index_operation;
 
 	index_operation=0;
 	for (int i = 0; i < this->dims_operation_[0]; i++) {
@@ -715,7 +693,7 @@ PField& PField::operator-=(double c)
 /********************************************************************/
 {
 
-	long index;
+	size_t index;
 
 	for (int i = 0; i < this->dims_operation_[0]; i++) {
 		for (int j = 0; j < this->dims_operation_[1]; j++) {
@@ -736,7 +714,7 @@ PField& PField::operator-=(double c)
 PField& PField::operator*=(const PField &a)
 /********************************************************************/
 {
-	long index;
+	size_t index;
 
 	for (int i = 0; i < this->dims_operation_[0]; i++) {
 		for (int j = 0; j < this->dims_operation_[1]; j++) {
@@ -761,7 +739,7 @@ PField& PField::operator*=(const PField &a)
 PField &PField::operator*=( const double *a)
 /********************************************************************/
 {
-	long index_local, index_operation;
+	size_t index_local, index_operation;
 
 	index_operation=0;
 	for (int i = 0; i < this->dims_operation_[0]; i++) {
@@ -786,7 +764,7 @@ PField &PField::operator*=( const double *a)
 PField &PField::operator*=( const float *a)
 /********************************************************************/
 {
-	long index_local, index_operation;
+	size_t index_local, index_operation;
 
 	index_operation=0;
 	for (int i = 0; i < this->dims_operation_[0]; i++) {
@@ -814,7 +792,7 @@ PField& PField::operator*=(float c)
 PField& PField::operator*=(double c)
 /********************************************************************/
 {
-	long index;
+	size_t index;
 
 	for (int i = 0; i < this->dims_operation_[0]; i++) {
 		for (int j = 0; j < this->dims_operation_[1]; j++) {
@@ -836,7 +814,7 @@ PField& PField::operator/=(const PField &a)
 /********************************************************************/
 {
 
-	long index;
+	size_t index;
 
 	for (int i = 0; i < this->dims_operation_[0]; i++) {
 		for (int j = 0; j < this->dims_operation_[1]; j++) {
@@ -861,7 +839,7 @@ PField& PField::operator/=(const PField &a)
 PField &PField::operator/=( const double *a)
 /********************************************************************/
 {
-	long index_local, index_operation;
+	size_t index_local, index_operation;
 
 	index_operation=0;
 	for (int i = 0; i < this->dims_operation_[0]; i++) {
@@ -886,7 +864,7 @@ PField &PField::operator/=( const double *a)
 PField &PField::operator/=( const float *a)
 /********************************************************************/
 {
-	long index_local, index_operation;
+	size_t index_local, index_operation;
 
 	index_operation=0;
 	for (int i = 0; i < this->dims_operation_[0]; i++) {
@@ -908,7 +886,7 @@ PField& PField::operator/=(double c)
 /********************************************************************/
 {
 
-	long index;
+	size_t index;
 
 	for (int i = 0; i < this->dims_operation_[0]; i++) {
 		for (int j = 0; j < this->dims_operation_[1]; j++) {
@@ -930,12 +908,12 @@ PField& PField::operator/=(double c)
 //////////////////////////////////////////////////////////////////////
 
 /********************************************************************/
-PField &PField::add(PField &a, PField &b)
+PField &PField::add(const PField &a, const PField &b)
 /********************************************************************/
 {
 
 #ifdef BOUNDS_CHECK
-	long N = this->getSizeOperation();
+	size_t N = this->getSizeOperation();
 	// First check that the fields are the same size
 	if ( N != a.getSizeOperation() || N != b.getSizeOperation() ) {
 		cout << "Mismatch in field sizes" << endl;
@@ -943,7 +921,7 @@ PField &PField::add(PField &a, PField &b)
 	}
 #endif
 
-	long index;
+	size_t index;
 	for (int i = 0; i < this->dims_operation_[0]; i++) {
 		for (int j = 0; j < this->dims_operation_[1]; j++) {
 			for (int k = 0; k < this->dims_operation_[2]; k++) {
@@ -960,12 +938,12 @@ PField &PField::add(PField &a, PField &b)
 }
 
 /********************************************************************/
-PField &PField::sub(PField &a, PField &b)
+PField &PField::sub(const PField &a, const PField &b)
 /********************************************************************/
 {
 
 #ifdef BOUNDS_CHECK
-	long N = this->getSizeOperation();
+	size_t N = this->getSizeOperation();
 	// First check that the fields are the same size
 	if ( N != a.getSizeOperation() || N != b.getSizeOperation() ) {
 		cout << "Mismatch in field sizes" << endl;
@@ -973,7 +951,7 @@ PField &PField::sub(PField &a, PField &b)
 	}
 #endif
 
-	long index;
+	size_t index;
 	for (int i = 0; i < this->dims_operation_[0]; i++) {
 		for (int j = 0; j < this->dims_operation_[1]; j++) {
 			for (int k = 0; k < this->dims_operation_[2]; k++) {
@@ -990,12 +968,12 @@ PField &PField::sub(PField &a, PField &b)
 }
 
 /********************************************************************/
-PField &PField::mul(PField &a, PField &b)
+PField &PField::mul(const PField &a, const PField &b)
 /********************************************************************/
 {
 
 #ifdef BOUNDS_CHECK
-	long N = this->getSizeOperation();
+	size_t N = this->getSizeOperation();
 	// First check that the fields are the same size
 	if ( N != a.getSizeOperation() || N != b.getSizeOperation() ) {
 		cout << "Mismatch in field sizes" << endl;
@@ -1003,7 +981,7 @@ PField &PField::mul(PField &a, PField &b)
 	}
 #endif
 
-	long index;
+	size_t index;
 	for (int i = 0; i < this->dims_operation_[0]; i++) {
 		for (int j = 0; j < this->dims_operation_[1]; j++) {
 			for (int k = 0; k < this->dims_operation_[2]; k++) {
@@ -1020,12 +998,12 @@ PField &PField::mul(PField &a, PField &b)
 }
 
 /********************************************************************/
-PField &PField::div(PField &a, PField &b)
+PField &PField::div(const PField &a, const PField &b)
 /********************************************************************/
 {
 
 #ifdef BOUNDS_CHECK
-	long N = this->getSizeOperation();
+	size_t N = this->getSizeOperation();
 	// First check that the fields are the same size
 	if ( N != a.getSizeOperation() || N != b.getSizeOperation() ) {
 		cout << "Mismatch in field sizes" << endl;
@@ -1033,7 +1011,7 @@ PField &PField::div(PField &a, PField &b)
 	}
 #endif
 
-	long index;
+	size_t index;
 	for (int i = 0; i < this->dims_operation_[0]; i++) {
 		for (int j = 0; j < this->dims_operation_[1]; j++) {
 			for (int k = 0; k < this->dims_operation_[2]; k++) {
@@ -1050,12 +1028,12 @@ PField &PField::div(PField &a, PField &b)
 }
 
 /********************************************************************/
-PField &PField::sqrt(PField &a)
+PField &PField::sqrt(const PField &a)
 /********************************************************************/
 {
 
 #ifdef BOUNDS_CHECK
-	long N = this->getSizeOperation();
+	size_t N = this->getSizeOperation();
 	// First check that the fields are the same size
 	if ( N != a.getSizeOperation() ) {
 		cout << "Mismatch in field sizes" << endl;
@@ -1063,7 +1041,7 @@ PField &PField::sqrt(PField &a)
 	}
 #endif
 
-	long index;
+	size_t index;
 	for (int i = 0; i < this->dims_operation_[0]; i++) {
 		for (int j = 0; j < this->dims_operation_[1]; j++) {
 			for (int k = 0; k < this->dims_operation_[2]; k++) {
@@ -1104,7 +1082,7 @@ PField &PField::ddx(PField &a)
 		MPI_Abort(this->mpi_topology_->comm,ierr);
 	}
 
-	void (FiniteDiff::*dd)(int, int, double *, int, double *);
+	void (FiniteDiff::*dd)(int, int, const double *, int, double *);
 	dd = &FiniteDiff::ddx;
 	this->dndxn(dd, a);
 
@@ -1130,7 +1108,7 @@ PField &PField::ddy(PField &a)
 		MPI_Abort(this->mpi_topology_->comm,ierr);
 	}
 
-	void (FiniteDiff::*dd)(int, int, double *, int, double *);
+	void (FiniteDiff::*dd)(int, int, const double *, int, double *);
 	dd = &FiniteDiff::ddy;
 	this->dndyn(dd, a);
 
@@ -1152,7 +1130,7 @@ PField &PField::ddz(PField &a)
 		MPI_Abort(this->mpi_topology_->comm,ierr);
 	}
 
-	void (FiniteDiff::*dd)(int, int, double *, int, double *);
+	void (FiniteDiff::*dd)(int, int, const double *, int, double *);
 	dd = &FiniteDiff::ddz;
 	this->dndzn(dd, a);
 
@@ -1171,7 +1149,7 @@ PField &PField::d2dx2(PField &a)
 		MPI_Abort(this->mpi_topology_->comm,ierr);
 	}
 
-	void (FiniteDiff::*dd)(int, int, double *, int, double *);
+	void (FiniteDiff::*dd)(int, int, const double *, int, double *);
 	dd = &FiniteDiff::d2dx2;
 	this->dndxn(dd, a);
 
@@ -1189,7 +1167,7 @@ PField &PField::d2dy2(PField &a)
 		MPI_Abort(this->mpi_topology_->comm,ierr);
 	}
 
-	void (FiniteDiff::*dd)(int, int, double *, int, double *);
+	void (FiniteDiff::*dd)(int, int, const double *, int, double *);
 	dd = &FiniteDiff::d2dy2;
 	this->dndyn(dd, a);
 
@@ -1207,7 +1185,7 @@ PField &PField::d2dz2(PField &a)
 		MPI_Abort(this->mpi_topology_->comm,ierr);
 	}
 
-	void (FiniteDiff::*dd)(int, int, double *, int, double *);
+	void (FiniteDiff::*dd)(int, int, const double *, int, double *);
 	dd = &FiniteDiff::d2dz2;
 	this->dndzn(dd, a);
 
@@ -1225,7 +1203,7 @@ PField &PField::d2dxy(PField &a)
 		MPI_Abort(this->mpi_topology_->comm,ierr);
 	}
 
-	void (FiniteDiff::*dd)(int, int, double *, int, double *);
+	void (FiniteDiff::*dd)(int, int, const double *, int, double *);
 	dd = &FiniteDiff::ddx;
 	this->dndxn(dd, a);
 	dd = &FiniteDiff::ddy;
@@ -1244,7 +1222,7 @@ PField &PField::d2dxz(PField &a)
 		MPI_Abort(this->mpi_topology_->comm,ierr);
 	}
 
-	void (FiniteDiff::*dd)(int, int, double *, int, double *);
+	void (FiniteDiff::*dd)(int, int, const double *, int, double *);
 	dd = &FiniteDiff::ddx;
 	this->dndxn(dd, a);
 	dd = &FiniteDiff::ddz;
@@ -1263,7 +1241,7 @@ PField &PField::d2dyz(PField &a)
 		MPI_Abort(this->mpi_topology_->comm,ierr);
 	}
 
-	void (FiniteDiff::*dd)(int, int, double *, int, double *);
+	void (FiniteDiff::*dd)(int, int, const double *, int, double *);
 	dd = &FiniteDiff::ddy;
 	this->dndyn(dd, a);
 	dd = &FiniteDiff::ddz;
@@ -1277,7 +1255,7 @@ PField &PField::d2dyz(PField &a)
 //////////////////////////////////////////////////////////////////////
 
 /********************************************************************/
-void PField::dndxn(void (FiniteDiff::*dd)(int, int, double *, int, double *), PField &a)
+void PField::dndxn(void (FiniteDiff::*dd)(int, int, const double *, int, double *), PField &a)
 /********************************************************************/
 {
 
@@ -1353,8 +1331,7 @@ void PField::dndxn(void (FiniteDiff::*dd)(int, int, double *, int, double *), PF
 }
 
 /********************************************************************/
-void PField::dndyn(void (FiniteDiff::*dd)(int, int, double *, int, double *),
-		  PField &a)
+void PField::dndyn(void (FiniteDiff::*dd)(int, int, const double *, int, double *), PField &a)
 /********************************************************************/
 {
 
@@ -1414,8 +1391,7 @@ void PField::dndyn(void (FiniteDiff::*dd)(int, int, double *, int, double *),
 }
 
 /********************************************************************/
-void PField::dndzn(void (FiniteDiff::*dd)(int, int, double *, int, double *),
-		  PField &a)
+void PField::dndzn(void (FiniteDiff::*dd)(int, int, const double *, int, double *), PField &a)
 /********************************************************************/
 {
 
@@ -1494,7 +1470,7 @@ void PField::dndzn(void (FiniteDiff::*dd)(int, int, double *, int, double *),
 //   mpi_topology_dims[PFIELD_NDIMS] - topology dimensions in each field direction
 //
 /********************************************************************/
-int *PField::computeMPITopologyDims(int nproc, int mpi_decomp_ndims)
+int *PField::computeMPITopologyDims(int nproc, int mpi_decomp_ndims) const
 /********************************************************************/
 {
 
@@ -1646,7 +1622,7 @@ void PField::assignDimsAndOffsets()
  * Procedure to check if the field has a rind for a given dimension and location
  */
 /********************************************************************/
-bool PField::hasRind(int dim, int location)
+bool PField::hasRind(int dim, int location) const
 /********************************************************************/
 {
 	if (location == -1) {
@@ -1695,8 +1671,8 @@ void PField::synchronizeDimension(int dim)
 
 	MPITopology_t *mpi_topology = this->mpi_topology_;
 
-	const long prev_buffer_size = this->getSizeRind(dim, -1);
-	const long next_buffer_size = this->getSizeRind(dim, 1);
+	const size_t prev_buffer_size = this->getSizeRind(dim, -1);
+	const size_t next_buffer_size = this->getSizeRind(dim, 1);
 	double *prev_buffer = this->createRindBuffer(dim, -1);
 	double *next_buffer = this->createRindBuffer(dim, 1);
 
@@ -1783,7 +1759,7 @@ void PField::synchronizeDimension(int dim)
 }
 
 /********************************************************************/
-double *PField::createRindBuffer(int dim, int location)
+double *PField::createRindBuffer(int dim, int location) const
 /********************************************************************/
 {
 	if( this->hasRind(dim,location) ) {
@@ -1806,7 +1782,7 @@ double *PField::createRindBuffer(int dim, int location)
 // allocate the buffer.
 //
 /********************************************************************/
-void PField::packRindBuffer(int dim, int location, double *rind_buffer)
+void PField::packRindBuffer(int dim, int location, double *rind_buffer) const
 /********************************************************************/
 {
 
@@ -1864,7 +1840,7 @@ void PField::packRindBuffer(int dim, int location, double *rind_buffer)
 		MPI_Abort(this->mpi_topology_->comm, ierr);
 	}
 
-	long index = 0;
+	size_t index = 0;
 	int i=0, j=0, k=0;
 	for (i = imin; i <= imax; i++) {
 		for (j = jmin; j <= jmax; j++) {
@@ -1901,7 +1877,7 @@ void PField::packRindBuffer(int dim, int location, double *rind_buffer)
 // allocate the buffer.
 //
 /********************************************************************/
-void PField::unpackRindBuffer(int dim, int location, double *rind_buffer)
+void PField::unpackRindBuffer(int dim, int location, const double *rind_buffer)
 /********************************************************************/
 {
 
@@ -1928,7 +1904,7 @@ void PField::unpackRindBuffer(int dim, int location, double *rind_buffer)
 	kstart = this->offset_operation_[2];
 	ksize = this->dims_operation_[2];
 
-	// Reset values along dim direction
+	// Reset values asize_t dim direction
 	if (dim == 0) {
 
 		if (location == -1) {
@@ -1963,7 +1939,7 @@ void PField::unpackRindBuffer(int dim, int location, double *rind_buffer)
 		exit(EXIT_FAILURE);
 	}
 
-	long index = 0;
+	size_t index = 0;
 	for (int i = istart; i < istart + isize; i++) {
 		for (int j = jstart; j < jstart + jsize; j++) {
 			for (int k = kstart; k < kstart + ksize; k++) {

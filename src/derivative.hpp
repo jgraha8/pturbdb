@@ -49,31 +49,31 @@ public:
 
 	// Constructor
 	FiniteDiff(){};
-	FiniteDiff( int nx, double *x, int ny, double *y, int nz, double *z, int order );
+	FiniteDiff( int nx, const double *x, int ny, const double *y, int nz, const double *z, int order );
 	// Deconstructor
 	~FiniteDiff();
 
-	void FiniteDiffInit( int nx, double *x, int ny, double *y, int nz, double *z, int order );
+	void FiniteDiffInit( int nx, const double *x, int ny, const double *y, int nz, const double *z, int order );
 
-	void ddx( int offset, int na, double *a, int nda, double *da );
-	void ddy( int offset, int na, double *a, int nda, double *da );
-	void ddz( int offset, int na, double *a, int nda, double *da );
-	void d2dx2( int offset, int na, double *a, int nda, double *da );
-	void d2dy2( int offset, int na, double *a, int nda, double *da );
-	void d2dz2( int offset, int na, double *a, int nda, double *da );
+	void ddx( int offset, int na, const double *a, int nda, double *da );
+	void ddy( int offset, int na, const double *a, int nda, double *da );
+	void ddz( int offset, int na, const double *a, int nda, double *da );
+	void d2dx2( int offset, int na, const double *a, int nda, double *da );
+	void d2dy2( int offset, int na, const double *a, int nda, double *da );
+	void d2dz2( int offset, int na, const double *a, int nda, double *da );
 
 private:
 
 	void fdInit( int ssize, fd_t &fd );
 
 	void fdSetStencil( int start_index, fd_t &fd );
-	void fdSetDS( int n, double *s, fd_t &fd );
+	void fdSetDS( int n, const double *s, fd_t &fd );
 	void fdSetCoef( int order_deriv, fd_t &fd );
-	fd_t *fdCreateD1( int ns, double *s, int order );
-	fd_t *fdCreateD2( int ns, double *s, int order );
+	fd_t *fdCreateD1( int ns, const double *s, int order );
+	fd_t *fdCreateD2( int ns, const double *s, int order );
 	void fdDelete( int n, fd_t **fd );
 	// Performs the finite differencing operation
-	void fdOp( fd_t *fd, int offset, int na, double *a, int nda, double *da );
+	void fdOp( const fd_t *fd, int offset, int na, const double *a, int nda, double *da );
 
 };
 
