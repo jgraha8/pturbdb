@@ -429,11 +429,12 @@ void PTurbDBField::readDBField(double time, const char *field_name)
 		cerr << "time out of bounds" << endl;
 		exit(EXIT_FAILURE);
 	}
-
+	
 	int cell_index = floor((time - this->db_time_min_) / this->db_time_step_) + 1;
 	// Make sure we don't pick the last point as the cell value; this only happens when time = db_time_max_
 	cell_index = fmin(cell_index, this->db_time_nsteps_ - 1);
-
+	
+        // Normalized time
 	double tau = (time - this->db_time_.at(cell_index)) / this->db_time_step_; // 0<= tau <= 1
 
 	// Compute the Hermite basis functions for the given normalized time.
@@ -451,19 +452,24 @@ void PTurbDBField::readDBField(double time, const char *field_name)
 	const int *offset_operation = this->getOffsetOperation();
 	const int *dims_operation = this->getDimsOperation();
 
-	int offset[3] = { this->field_offset_[0] + offset_local[0]
-			  + offset_operation[0], this->field_offset_[1] + offset_local[1]
-			  + offset_operation[1], this->field_offset_[2] + offset_local[2]
-			  + offset_operation[2] };
+	int offset[3] = { this->field_offset_[0] + offset_local[0] + offset_operation[0], 
+			  this->field_offset_[1] + offset_local[1] + offset_operation[1], 
+			  this->field_offset_[2] + offset_local[2] + offset_operation[2] };
 
 	// We now evaluate the
 	for (int i = 0; i < 4; i++) {
 
+		
+		int file_index = cell_index - 1 + i;
+
+		// Check if we have a cached
+		
 		esio_handle h = esio_handle_initialize(this->getMPITopology()->comm);
 
+		
+
 		// Open the database file
-		const char *db_file_name =
-			this->db_file_names_.at(cell_index - 1 + i).c_str();
+		const char *db_file_name = this->db_file_names_.at(file_index).c_str();
 		esio_file_open(h, db_file_name, 0); // Open read-only
 
 		esio_field_establish(h, this->db_dims_[0], offset[0], dims_operation[0],
