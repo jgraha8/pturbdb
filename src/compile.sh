@@ -6,15 +6,16 @@ SRCS=( derivative.cpp pfield.cpp pfield_math.cpp pturbdb_field.cpp mpi_topology.
 # Generate the object list
 OBJS=$(for s in ${SRCS[@]}; do echo ${s%.*}.o; done)
 
-INCPATH="-I../autofd -I${ESIO_ROOT}/include"
-LIBPATH="-L../autofd -L../matsolv -L${ESIO_ROOT}/lib -L${HDF5_ROOT}/lib"
-LIBS="-lautofd -lmatsolv -lgfortran -lesio -lhdf5_hl -lhdf5 -lz"
+INCPATH="-I../autofd -I${ESIO_ROOT}/include -I${LAPACK_ROOT}/include"
+LIBPATH="-L../autofd -L../matsolv -L${ESIO_ROOT}/lib -L${HDF5_ROOT}/lib -L${LAPACK_ROOT}/lib"
+LIBS="-lautofd -lmatsolv -lgfortran -lesio -lhdf5_hl -lhdf5 -lz -llapacke -llapack"
 
 CFLAGS="-O2 -Wall -g -DBOUNDS_CHECK"
 
 for s in ${SRCS[@]}
-do
+do 
     o=${s%.*}.o
+    rm -f $o
     echo mpicxx $CFLAGS $INCPATH -c -o $o $s
     mpicxx $CFLAGS $INCPATH -c -o $o $s
 done
