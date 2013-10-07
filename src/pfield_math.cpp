@@ -1,5 +1,11 @@
 #include <iostream>
+#include <cstdlib>
+#include <complex.h>
+#include <cmath>
+#include "lapacke.h"
 #include "pfield_math.hpp"
+
+#define ZERO 1.0e-12L
 
 using namespace std;
 namespace pturbdb {
@@ -18,10 +24,27 @@ PFieldVector_t PFieldVectorNew( const PField &pfield )
 	return pfield_vector;
 }
 
+PFieldComplexVector_t PFieldComplexVectorNew( const PField &pfield )
+{
+	PFieldComplexVector_t pfield_vector(2);
+
+	for(int i=0; i<2; i++ ) 
+		pfield_vector[i] = PFieldVectorNew( pfield );
+
+	return pfield_vector;
+}
+
 void PFieldVectorDelete( PFieldVector_t &pfield_vector )
 {
 	for(size_t i=0; i<pfield_vector.size(); i++ )
 		delete pfield_vector[i];
+	pfield_vector.clear();
+}
+
+void PFieldVectorDelete( PFieldComplexVector_t &pfield_vector )
+{
+	for(int i=0; i<2; i++ ) 
+		PFieldVectorDelete( pfield_vector[i] );
 	pfield_vector.clear();
 }
 
@@ -80,12 +103,27 @@ PFieldTensor_t PFieldTensorNew( const PFieldTensor_t &tensor )
 	return PFieldTensorNew( *tensor[0][0] );
 }
 
+PFieldComplexTensor_t PFieldComplexTensorNew( const PField &pfield )
+{
+	PFieldComplexTensor_t tensor(2);
+	tensor[0] = PFieldTensorNew( pfield );
+	tensor[1] = PFieldTensorNew( pfield );
+	return tensor;
+}
+
 void PFieldTensorDelete( PFieldTensor_t &pfield_tensor )
 {
 	PFieldTensor_t::iterator t;
 	for( t=pfield_tensor.begin(); t != pfield_tensor.end(); t++ )
 		PFieldVectorDelete( *t );
 	pfield_tensor.clear();
+}
+
+void PFieldTensorDelete( PFieldComplexTensor_t &tensor )
+{
+	PFieldTensorDelete( tensor[0] );
+	PFieldTensorDelete( tensor[1] );
+	tensor.clear();
 }
 
 PFieldTensor_t &PFieldTensorAssign( PFieldTensor_t &tensor, PFieldVector_t &v1, PFieldVector_t &v2, PFieldVector_t &v3 )
@@ -221,6 +259,29 @@ PField &PFieldTensorTrace( PField &trace, const PFieldTensor_t &a )
 	return trace;
 }
 
+/*
+ * Computes the determinant of the provided tensor.
+ */
+PField &PFieldTensorDeterminant( PField &det, const PFieldTensor_t &a ) 
+{
+
+	vector<vector<const double *> > b(3);
+	for(int i=0; i<3; i++ ) {
+		b[i].resize(3);
+		for(int j=0; j<3; j++) {
+			b[i][j] = a[i][j]->getDataLocal();
+		}
+	}
+
+	PFIELD_LOOP_OPERATION_TO_LOCAL(a[0][0])
+		det.setDataLocal( _index, 
+				  b[0][0][_index] * ( b[1][1][_index] * b[2][2][_index] - b[1][2][_index] * b[2][1][_index] ) +
+				  b[0][1][_index] * ( b[1][2][_index] * b[2][0][_index] - b[1][0][_index] * b[2][2][_index] ) +
+				  b[0][2][_index] * ( b[1][0][_index] * b[2][1][_index] - b[1][1][_index] * b[2][0][_index] ) );
+	PFIELD_LOOP_END
+	return det;
+}
+
 PFieldTensor_t &PFieldTensorAdd( PFieldTensor_t &a, double b )
 {
 	for( size_t i=0; i<a.size(); i++ ) {
@@ -261,8 +322,140 @@ PFieldTensor_t &PFieldTensorDiv( PFieldTensor_t &a, double b )
 	return a;
 }
 
+/*
+ * Computes the eigen pair (eigenvalue, eigenvector) for the given
+ * tensor. The eigenvectors are stored in row major order.
+ */ 
+void PFieldEigenPair( PFieldComplexVector_t &eigen_value, PFieldComplexTensor_t &eigen_vector, const PFieldTensor_t &a ) 
+{
+	// Local matrix for each element in the field
+	lapack_complex_double *A_elem            = (lapack_complex_double *)calloc(PFIELD_NDIMS*PFIELD_NDIMS,sizeof(lapack_complex_double));
+	lapack_complex_double *eigen_value_elem  = (lapack_complex_double *)calloc(PFIELD_NDIMS,             sizeof(lapack_complex_double));
+	lapack_complex_double *eigen_vector_elem = (lapack_complex_double *)calloc(PFIELD_NDIMS*PFIELD_NDIMS,sizeof(lapack_complex_double));
+
+	PFIELD_LOOP_OPERATION_TO_LOCAL(a[0][0])
+
+	for( int m=0; m<PFIELD_NDIMS; m++ ) {
+		for( int n=0; n<PFIELD_NDIMS; n++ ) {
+			A_elem[m*PFIELD_NDIMS+n] = lapack_make_complex_double(a[m][n]->getDataLocal()[_index],0.0L);
+		}
+	}
+
+	lapack_int info = LAPACKE_zgeev(LAPACK_ROW_MAJOR,'N','V', PFIELD_NDIMS, A_elem, PFIELD_NDIMS, 
+					eigen_value_elem, NULL, PFIELD_NDIMS, eigen_vector_elem, PFIELD_NDIMS );
+	
+	/* Check for convergence */
+	if( info > 0 ) {
+		printf( "PFieldEigenPair: failed to compute eigenvalues.\n" );
+		int ierr=0;
+		MPI_Abort( a[0][0]->getMPITopology()->comm, ierr );
+	}
+		
+	for( int m=0; m<PFIELD_NDIMS; m++ ) {
+
+		eigen_value[0][m]->setDataLocal( _index, creal(eigen_value_elem[m]) );
+		eigen_value[1][m]->setDataLocal( _index, cimag(eigen_value_elem[m]) );
+
+		for( int n=0; n<PFIELD_NDIMS; n++ ) {
+						
+			// Careful the eigenvectors are given as columns; need to store them in eigen_vector along rows.
+			eigen_vector[0][m][n]->setDataLocal( _index, creal(eigen_vector_elem[m+n*PFIELD_NDIMS]) );
+			eigen_vector[1][m][n]->setDataLocal( _index, cimag(eigen_vector_elem[m+n*PFIELD_NDIMS]) );
+
+		}
+	}
+
+	PFIELD_LOOP_END
 
 }
 
+/*
+ * Computes the eigen pair (eigenvalue, eigenvector) for the given tensor which is assumed to be the
+ * velocity gradient tensor. The eigen pairs are computed for each point in the field and if the
+ * eigenvalues have 1 real component and a complex conjugate pair then the eigen pair is
+ * retained. Otherwise all components are set to zero. The eigenvalues are stored as:
+ *
+ *     \lambda_r, \lambda_{cr}, \lambda_{ci} 
+ *
+ * where \lambda_r is the real eigenvalue and \lambda_{cr} +/- i\lambda_{ci} form the complex
+ * conjugate pair.
+ *
+ * The eigenvectors are stored in row major order as:
+ *
+ *     v_r, v_{cr}, v_{ci}
+ *
+ * where v_r forms the first row and so on. The vectors v_{cr} and v_{ci} are the real and imaginary
+ * components, respectively, of the original eigenvector pair given as:
+ *
+ *     v_{cr} +/- iv_{ci}
+ *
+ * For more information see Chakraborty, Balachandar, and Adrian, JFM (2005)
+ */ 
+void PFieldEigenPairVortex( PFieldVector_t &eigen_value, PFieldTensor_t &eigen_vector, const PFieldTensor_t &a ) 
+{
 
+	PFieldComplexVector_t eigen_value_complex  = PFieldComplexVectorNew( *a[0][0] );
+	PFieldComplexTensor_t eigen_vector_complex = PFieldComplexTensorNew( *a[0][0] );
 
+	// Compute the eigen pair
+	PFieldEigenPair( eigen_value_complex, eigen_vector_complex, a );
+
+	PFIELD_LOOP_OPERATION_TO_LOCAL(a[0][0])
+
+	std::vector<int> real_eigval;
+	std::vector<int> complex_eigval;
+
+	for (int m=0; m<PFIELD_NDIMS; m++ ) {
+
+		// Checking the imaginary part of the eigenvalue
+		if( fabs( eigen_value_complex[1][m]->getDataLocal()[_index] ) <= ZERO ) {
+			real_eigval.push_back( m );
+		} else {
+			complex_eigval.push_back( m );
+		}
+	}
+	
+	if( real_eigval.size() == 1 && complex_eigval.size() == 2 ) {
+		// Check if they are complex conjugates
+
+		const double e1_real = eigen_value_complex[0][complex_eigval[0]]->getDataLocal()[_index];
+		const double e1_imag = eigen_value_complex[1][complex_eigval[0]]->getDataLocal()[_index];
+		const double e2_real = eigen_value_complex[0][complex_eigval[1]]->getDataLocal()[_index];
+		const double e2_imag = eigen_value_complex[1][complex_eigval[1]]->getDataLocal()[_index];
+
+		if( e1_real - e2_real <= ZERO && 
+		    e1_imag + e2_imag <= ZERO ) {
+			// These are complex conjugates
+			//std::cout << "Complex conjugates: " << e1 << ", " << e2 << std::endl;	 
+			eigen_value[0]->setDataLocal( _index, eigen_value_complex[0][real_eigval[0]]->getDataLocal()[_index] );
+			eigen_value[1]->setDataLocal( _index, eigen_value_complex[0][complex_eigval[0]]->getDataLocal()[_index] ); // Real part of the first complex eigenvalue
+			eigen_value[2]->setDataLocal( _index, eigen_value_complex[1][complex_eigval[0]]->getDataLocal()[_index] ); // Imaginary part of the firt complex eigenvalue
+
+			for( int n=0; n<PFIELD_NDIMS; n++ ) {
+				eigen_vector[0][n]->setDataLocal( _index, eigen_vector_complex[0][real_eigval[0]][n]->getDataLocal()[_index] );
+				eigen_vector[1][n]->setDataLocal( _index, eigen_vector_complex[0][complex_eigval[0]][n]->getDataLocal()[_index] );
+				eigen_vector[2][n]->setDataLocal( _index, eigen_vector_complex[1][complex_eigval[1]][n]->getDataLocal()[_index] );
+			}
+			continue;
+		} else {
+			goto set_all_zero;
+		}
+		goto set_all_zero;
+	}
+
+ set_all_zero:
+	for (int m=0; m<PFIELD_NDIMS; m++ ) {
+		eigen_value[m]->setDataLocal( _index, 0.0L );
+		for (int n=0; n<PFIELD_NDIMS; n++ ) {
+			eigen_vector[m][n]->setDataLocal( _index, 0.0L );
+		}
+	}
+
+	PFIELD_LOOP_END
+
+	PFieldVectorDelete( eigen_value_complex );
+	PFieldTensorDelete( eigen_vector_complex );
+
+}
+
+}
