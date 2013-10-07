@@ -1,10 +1,26 @@
+#ifndef PFIELD_H
+#define PFIELD_H
+
 #include "derivative.hpp"
 #include "mpi_topology.hpp"
 
 #define PFIELD_NDIMS 3
 
-#ifndef PFIELD_H
-#define PFIELD_H
+#define PFIELD_LOOP_OPERATION(pfield) \
+	const int *_dims = pfield->getDimsOperation(); \
+	for( int _i=0; _i<_dims[0]; _i++ ) { \
+	        for( int _j=0; _j<_dims[1]; _j++ ) { \
+		        for( int _k=0; _k<_dims[2]; _k++ ) { \
+			        const size_t _index = pfield->indexOperation(_i,_j,_k); 
+
+
+#define PFIELD_LOOP_OPERATION_TO_LOCAL(pfield) \
+	const int *_dims = pfield->getDimsOperation(); \
+	for( int _i=0; _i<_dims[0]; _i++ ) { \
+	        for( int _j=0; _j<_dims[1]; _j++ ) { \
+		        for( int _k=0; _k<_dims[2]; _k++ ) { \
+			        const size_t _index = pfield->indexOperationToLocal(_i,_j,_k); 
+#define PFIELD_LOOP_END }}}
 
 namespace pturbdb {
 
@@ -83,6 +99,7 @@ public:
 	const int     *getOffsetOperation()   const { return this->offset_operation_; };
 	int            getRindSize()          const { return this->rind_size_;        };
 	bool           getSynchronized()      const { return this->synchronized_;     };
+	const double  *getDataLocal()         const { return this->data_local;       }
 
 	// Data getters; these require a buffer of size given by getDimsOperation()
 	void getXOperation( double *x ) const;
@@ -93,14 +110,16 @@ public:
 	void getDataOperation( float *a ) const;
 	void getDataOperation( double *a ) const;
 
-	size_t index( int i, int j, int k ) const;
-	size_t indexLocal( int i, int j, int k ) const;
-	size_t indexOperation( int i, int j, int k ) const;
-	size_t indexOperationToLocal( int i, int j, int k ) const;
+	size_t index( const int &i, const int &j, const int &k ) const;
+	size_t indexLocal( const int &i, const int &j, const int &k ) const;
+	size_t indexOperation( const int &i, const int &j, const int &k ) const;
+	size_t indexOperationToLocal( const int &i, const int &j, const int &k ) const;
 
 	void setGridLocal( const double *x_local, const double *y_local, const double *z_local );
+	void setDataLocal( const size_t &index, const double &a );
 	void setDataOperation( const float *a ); // Perform same task as assignment operator
 	void setDataOperation( const double *a ); // Performs same task as assignment operator
+	void setDataOperation( const int &i, const int &j, const int &k, const double &a );
 
 	// Assignment operator
 	PField &operator=( float c);

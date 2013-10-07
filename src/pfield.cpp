@@ -355,7 +355,7 @@ void PField::getDataOperation( double *a) const
 
 // Array index for 3D indexing
 /********************************************************************/
-size_t PField::index(int i, int j, int k) const
+size_t PField::index( const int &i, const int &j, const int &k ) const
 /********************************************************************/
 {
 	return ((size_t) this->dims_[1] * (size_t) i + (size_t) j) * (size_t) this->dims_[2]
@@ -364,7 +364,7 @@ size_t PField::index(int i, int j, int k) const
 
 // Array index for 3D indexing
 /********************************************************************/
-size_t PField::indexLocal(int i, int j, int k) const
+size_t PField::indexLocal(const int &i, const int &j, const int &k) const
 /********************************************************************/
 {
 	return ((size_t) this->dims_local_[1] * (size_t) i + (size_t) j)
@@ -373,7 +373,7 @@ size_t PField::indexLocal(int i, int j, int k) const
 
 // Array index for 3D indexing
 /********************************************************************/
-size_t PField::indexOperation(int i, int j, int k) const
+size_t PField::indexOperation(const int &i, const int &j, const int &k) const
 /********************************************************************/
 {
 	return ((size_t) this->dims_operation_[1] * (size_t) i + (size_t) j)
@@ -382,7 +382,7 @@ size_t PField::indexOperation(int i, int j, int k) const
 
 // Array index for 3D indexing
 /********************************************************************/
-size_t PField::indexOperationToLocal(int i, int j, int k) const
+size_t PField::indexOperationToLocal(const int &i, const int &j, const int &k) const
 /********************************************************************/
 {
 	const size_t ii = (size_t) i + (size_t) this->offset_operation_[0];
@@ -419,6 +419,16 @@ void PField::setGridLocal(const double *x_local, const double *y_local, const do
 }
 
 /********************************************************************/
+void PField::setDataLocal( const size_t &index, const double &a )
+/********************************************************************/
+{
+	// Set the single elemenetn
+	this->data_local[index] = a;
+	// Set unsynchronized
+	this->synchronized_ = false;
+}
+
+/********************************************************************/
 void PField::setDataOperation( const float *a)
 /********************************************************************/
 {
@@ -432,6 +442,16 @@ void PField::setDataOperation( const double *a)
 /********************************************************************/
 {
 	*this = a;
+	// Set unsynchronized
+	this->synchronized_ = false;
+}
+
+/********************************************************************/
+void PField::setDataOperation( const int &i, const int &j, const int &k, const double &a )
+/********************************************************************/
+{
+	// Set the single elemenetn
+	this->data_local[this->indexOperationToLocal(i, j, k)] = a;
 	// Set unsynchronized
 	this->synchronized_ = false;
 }
