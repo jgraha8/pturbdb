@@ -4,6 +4,7 @@
 #include <stdlib.h>
 #include "esio/esio.h"
 #include "mpi_topology.hpp"
+#include "pfield.hpp"
 #include "pturbdb_field.hpp"
 #include "pfield_math.hpp"
 
@@ -16,10 +17,13 @@
 // #define FIELD_NY 256
 // #define FIELD_NX 512
 
-#define FIELD_NZ 128
-#define FIELD_NY 128
-#define FIELD_NX 128
+#define FIELD_NZ 256
+#define FIELD_NY 256
+#define FIELD_NX 256
 
+#define NSTEPS 5
+
+#define H5_OUTPUT_PATH "/datascope/tdbchannel/analysis/cache-eigen"
 
 using namespace std;
 using namespace pturbdb;
@@ -40,7 +44,7 @@ int main(int argc, char *argv[]) {
 	u->PFieldInit(db_field_offset, field_dims, FIELD_DECOMP_PENCIL, periodic, 8);
 	
 	// Turn on caching
-	u->setPCHIPCaching(true);
+	//u->setPCHIPCaching(true);
 
 	int rank = u->getMPITopology()->rank;
 	int nproc = u->getMPITopology()->nproc;
@@ -99,21 +103,15 @@ int main(int argc, char *argv[]) {
 	double *x_full = new double[u->getSizeOperation()];
 	double *y_full = new double[u->getSizeOperation()];
 	double *z_full = new double[u->getSizeOperation()];
-	
-	long index=0;
-	for(int i=0; i<dims_operation[0]; i++) {
-		for (int j=0; j<dims_operation[1]; j++) {
-			for(int k=0; k<dims_operation[2]; k++) {
-				x_full[index] = x_operation[i];
-				y_full[index] = y_operation[j];
-				z_full[index] = z_operation[k];
-				index++;
-			}
-		}
-	}
-	
+
+	PFIELD_LOOP_OPERATION( u )
+	x_full[_index] = x_operation[_i];
+	y_full[_index] = y_operation[_j];
+	z_full[_index] = z_operation[_k];
+	PFIELD_LOOP_END
+	     
 	// Set the starting time and the time step
-	const double start_time = u->getDBTimeMax()/2;
+	const double start_time = u->getDBTimeMax()/3;
 	static const double dt = DB_DT/2;
 
 	PTurbDBField *v = new PTurbDBField( *u, false ); // Do not copy u field data
@@ -127,35 +125,57 @@ int main(int argc, char *argv[]) {
 	PFieldVector_t vorticity = PFieldVectorNew( *u );
 
 	PFieldTensor_t Aij = PFieldTensorNew( *u );
-	PFieldTensor_t Sij = PFieldTensorNew( *u );
-	PFieldTensor_t Tij = PFieldTensorNew( *u );
-	PFieldTensor_t Tji = PFieldTensorNew( *u );
+	// PFieldTensor_t Sij = PFieldTensorNew( *u );
+	// PFieldTensor_t Tij = PFieldTensorNew( *u );
+	// PFieldTensor_t Tji = PFieldTensorNew( *u );
 	
-	PField *S2 = new PField( *u, false );
-	PField *T2 = new PField( *u, false );
+	PFieldVector_t lambda = PFieldVectorNew( *u );
+	PFieldTensor_t eigvec = PFieldTensorNew( *u );
+	
+	// PField *S2 = new PField( *u, false );
+	// PField *T2 = new PField( *u, false );
 	PField *Q  = new PField( *u, false );
-	PField *Q1 = new PField( *u, false );
+	PField *R  = new PField( *u, false );
+	// PField *Q1 = new PField( *u, false );
 
 	// Temporary data buffer
 	double *t_data = new double[u->getSizeOperation()];
 
-	static const int nsteps = 300;
-	for (int n=0; n<nsteps; n++) {
+	for (int n=0; n<NSTEPS; n++) {
 
-		if( mpi_topology->rank == 0 ) cout << "Percent complete " << n*100.0/nsteps << endl;
+		if( mpi_topology->rank == 0 ) {
+			printf("================================================================================\n");
+			printf("Percent complete : %.2f\n", n*100.0/NSTEPS);
+		}
 
 		double time = start_time - dt * n;
 
-		if( mpi_topology->rank == 0 ) cout << "Reading u from DB" << endl;
+		if( mpi_topology->rank == 0 ) {
+			cout << "Reading u from DB";
+			if( u->getPCHIPCaching() ) cout << " (cached)";
+			cout << endl;
+		}
 		u->readDBField( time, "u" );
 
-		if( mpi_topology->rank == 0 ) cout << "Reading v from DB" << endl;
+		if( mpi_topology->rank == 0 ) {
+			cout << "Reading V from DB";
+			if( v->getPCHIPCaching() ) cout << " (cached)";
+			cout << endl;
+		}
 		v->readDBField( time, "v" );
 
-		if( mpi_topology->rank == 0 ) cout << "Reading w from DB" << endl;
+		if( mpi_topology->rank == 0 ) {
+			cout << "Reading w from DB";
+			if( w->getPCHIPCaching() ) cout << " (cached)";
+			cout << endl;
+		}
 		w->readDBField( time, "w" );
 
-		if( mpi_topology->rank == 0 ) cout << "Reading p from DB" << endl;
+		if( mpi_topology->rank == 0 ) {
+			cout << "Reading p from DB";
+			if( p->getPCHIPCaching() ) cout << " (cached)";
+			cout << endl;
+		}
 		p->readDBField( time, "p" );
 
 		// Assign pointers to the velocity vector
@@ -172,35 +192,39 @@ int main(int argc, char *argv[]) {
 		PFieldVectorCurl( vorticity, vel ) ;
 		PFieldTensorAssign( Aij, grad_u, grad_v, grad_w );
 
+		// Compute the vortex eigen pair for Aij
 		MPI_Barrier( mpi_topology->comm );
-		if( mpi_topology->rank == 0 ) cout << "Computing symmetric velocity gradient tensor" << endl;
-		PFieldTensorSymmetric( Sij, Aij );
+		if( mpi_topology->rank == 0 ) cout << "Computing the vortex eigenpair of the velocity gradient tensor" << endl;
+		PFieldEigenPairVortex( lambda, eigvec, Aij );
 
-		MPI_Barrier( mpi_topology->comm );
-		if( mpi_topology->rank == 0 ) cout << "Computing anti-symmetric velocity gradient tensor" << endl;
-		PFieldTensorAntiSymmetric( Tij, Aij );
-		
-		MPI_Barrier( mpi_topology->comm );
-		if( mpi_topology->rank == 0 ) cout << "Computing transpose of anti-symmetric velocity gradient tensor" << endl;
-		PFieldTensorTranspose( Tji, Tij );
-		
-		MPI_Barrier( mpi_topology->comm );
-		if( mpi_topology->rank == 0 ) cout << "Computing scalar product of Sij" << endl;
-		PFieldTensorDotDot( *S2, Sij, Sij );
+		// MPI_Barrier( mpi_topology->comm );
+		// if( mpi_topology->rank == 0 ) cout << "Computing symmetric velocity gradient tensor" << endl;
+		// PFieldTensorSymmetric( Sij, Aij );
 
-		MPI_Barrier( mpi_topology->comm );
-		if( mpi_topology->rank == 0 ) cout << "Computing scalar product of Rij" << endl;
-		PFieldTensorDotDot( *T2, Tij, Tji );
+		// MPI_Barrier( mpi_topology->comm );
+		// if( mpi_topology->rank == 0 ) cout << "Computing anti-symmetric velocity gradient tensor" << endl;
+		// PFieldTensorAntiSymmetric( Tij, Aij );
+		
+		// MPI_Barrier( mpi_topology->comm );
+		// if( mpi_topology->rank == 0 ) cout << "Computing transpose of anti-symmetric velocity gradient tensor" << endl;
+		// PFieldTensorTranspose( Tji, Tij );
+		
+		// MPI_Barrier( mpi_topology->comm );
+		// if( mpi_topology->rank == 0 ) cout << "Computing scalar product of Sij" << endl;
+		// PFieldTensorDotDot( *S2, Sij, Sij );
+
+		// MPI_Barrier( mpi_topology->comm );
+		// if( mpi_topology->rank == 0 ) cout << "Computing scalar product of Rij" << endl;
+		// PFieldTensorDotDot( *T2, Tij, Tji );
 
 		MPI_Barrier( mpi_topology->comm );
 
 		if( mpi_topology->rank == 0 ) cout << "Computing Q invariant" << endl;
-		//PField *Q = PFieldTensorDotDot( Aij, Aij ); 
-		// *Q *= -(double)0.5L; // Apply the -1/2 factor
-
-		Q->sub( *T2, *S2 ) *= 0.5;
+		// Q->sub( *T2, *S2 ) *= 0.5;
+		PFieldTensorDotDot( *Q, Aij, Aij ) *= (double)-0.5L; // Apply the -1/2 factor
 		
-		PFieldTensorDotDot( *Q1, Aij, Aij ) *= -(double)0.5; // Apply the -1/2 factor
+		if( mpi_topology->rank == 0 ) cout << "Computing R invariant" << endl;
+		PFieldTensorDeterminant( *R, Aij ) *= (double) -1.0L; // Apply the -1 factor
 
 		MPI_Barrier(mpi_topology->comm);
 		if( mpi_topology->rank == 0 ) cout << "Writing output" << endl;
@@ -213,7 +237,8 @@ int main(int argc, char *argv[]) {
 		// h5file->precision(8);
 		// *h5file << time << ".h5";
 		
-		std::string *h5file = new std::string("/datascope/tdbchannel/analysis/q-wall-time-");
+		std::string *h5file = new std::string(H5_OUTPUT_PATH);
+		*h5file = *h5file + "/q-wall-time-";
 		char time_buffer[10];
 		sprintf(time_buffer, "%9.6f", time);
 		char *s = time_buffer;
@@ -261,8 +286,40 @@ int main(int argc, char *argv[]) {
 		Q->getDataOperation(t_data);
 		esio_field_write_double(h, "Q", t_data, 0, 0, 0, "Q");
 
-		Q1->getDataOperation(t_data);
-		esio_field_write_double(h, "Q1", t_data, 0, 0, 0, "Q1");
+		R->getDataOperation(t_data);
+		esio_field_write_double(h, "R", t_data, 0, 0, 0, "R");
+
+		// Q1->getDataOperation(t_data);
+		// esio_field_write_double(h, "Q1", t_data, 0, 0, 0, "Q1");
+
+		lambda[0]->getDataOperation(t_data);
+		esio_field_write_double(h, "lambda1", t_data, 0, 0, 0, "lamba1");
+		lambda[1]->getDataOperation(t_data);
+		esio_field_write_double(h, "lambda2", t_data, 0, 0, 0, "lambda2");
+		lambda[2]->getDataOperation(t_data);
+		esio_field_write_double(h, "lambda3", t_data, 0, 0, 0, "lambda3");
+
+		
+		eigvec[0][0]->getDataOperation(t_data);
+		esio_field_write_double(h, "vr1", t_data, 0, 0, 0, "vr1");
+		eigvec[0][1]->getDataOperation(t_data);
+		esio_field_write_double(h, "vr2", t_data, 0, 0, 0, "vr2");
+		eigvec[0][2]->getDataOperation(t_data);
+		esio_field_write_double(h, "vr3", t_data, 0, 0, 0, "vr3");
+
+		eigvec[1][0]->getDataOperation(t_data);
+		esio_field_write_double(h, "vcr1", t_data, 0, 0, 0, "vcr1");
+		eigvec[1][1]->getDataOperation(t_data);
+		esio_field_write_double(h, "vcr2", t_data, 0, 0, 0, "vcr2");
+		eigvec[1][2]->getDataOperation(t_data);
+		esio_field_write_double(h, "vcr3", t_data, 0, 0, 0, "vcr3");
+
+		eigvec[2][0]->getDataOperation(t_data);
+		esio_field_write_double(h, "vci1", t_data, 0, 0, 0, "vci1");
+		eigvec[2][1]->getDataOperation(t_data);
+		esio_field_write_double(h, "vci2", t_data, 0, 0, 0, "vci2");
+		eigvec[2][2]->getDataOperation(t_data);
+		esio_field_write_double(h, "vci3", t_data, 0, 0, 0, "vci3");
 
 		// Aij[0][0]->getDataOperation(t_data);
 		// esio_field_write_double(h, "dudx", t_data, 0, 0, 0, "dudx");
@@ -308,15 +365,18 @@ int main(int argc, char *argv[]) {
 	PFieldVectorDelete( grad_w );
 	PFieldVectorDelete( vorticity );
 
-	PFieldTensorDelete( Sij );
-	PFieldTensorDelete( Tij );
-	PFieldTensorDelete( Tji );
+	// PFieldTensorDelete( Sij );
+	// PFieldTensorDelete( Tij );
+	// PFieldTensorDelete( Tji );
 
-	delete S2;
-	delete T2;
+	PFieldVectorDelete( lambda );
+	PFieldTensorDelete( eigvec );
+
+	// delete S2;
+	// delete T2;
 
 	delete Q;		
-	delete Q1;
+	// delete Q1;
 
 	delete [] t_data;
 
