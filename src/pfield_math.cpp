@@ -337,7 +337,7 @@ void PFieldEigenPair( PFieldComplexVector_t &eigen_value, PFieldComplexTensor_t 
 
 	for( int m=0; m<PFIELD_NDIMS; m++ ) {
 		for( int n=0; n<PFIELD_NDIMS; n++ ) {
-			A_elem[m*PFIELD_NDIMS+n] = lapack_make_complex_double(a[m][n]->getDataLocal()[_index],0.0L);
+			A_elem[m*PFIELD_NDIMS+n] = lapack_make_complex_double(a[m][n]->data_local[_index],0.0L);
 		}
 	}
 
@@ -353,14 +353,14 @@ void PFieldEigenPair( PFieldComplexVector_t &eigen_value, PFieldComplexTensor_t 
 		
 	for( int m=0; m<PFIELD_NDIMS; m++ ) {
 
-		eigen_value[0][m]->setDataLocal( _index, creal(eigen_value_elem[m]) );
-		eigen_value[1][m]->setDataLocal( _index, cimag(eigen_value_elem[m]) );
+		eigen_value[0][m]->data_local[_index] = creal(eigen_value_elem[m]);
+		eigen_value[1][m]->data_local[_index] = cimag(eigen_value_elem[m]);
 
 		for( int n=0; n<PFIELD_NDIMS; n++ ) {
 						
 			// Careful the eigenvectors are given as columns; need to store them in eigen_vector along rows.
-			eigen_vector[0][m][n]->setDataLocal( _index, creal(eigen_vector_elem[m+n*PFIELD_NDIMS]) );
-			eigen_vector[1][m][n]->setDataLocal( _index, cimag(eigen_vector_elem[m+n*PFIELD_NDIMS]) );
+			eigen_vector[0][m][n]->data_local[_index] = creal(eigen_vector_elem[m+n*PFIELD_NDIMS]);
+			eigen_vector[1][m][n]->data_local[_index] = cimag(eigen_vector_elem[m+n*PFIELD_NDIMS]); 
 
 		}
 	}
@@ -408,7 +408,7 @@ void PFieldEigenPairVortex( PFieldVector_t &eigen_value, PFieldTensor_t &eigen_v
 	for (int m=0; m<PFIELD_NDIMS; m++ ) {
 
 		// Checking the imaginary part of the eigenvalue
-		if( fabs( eigen_value_complex[1][m]->getDataLocal()[_index] ) <= ZERO ) {
+		if( fabs( eigen_value_complex[1][m]->data_local[_index] ) <= ZERO ) {
 			real_eigval.push_back( m );
 		} else {
 			complex_eigval.push_back( m );
@@ -418,23 +418,23 @@ void PFieldEigenPairVortex( PFieldVector_t &eigen_value, PFieldTensor_t &eigen_v
 	if( real_eigval.size() == 1 && complex_eigval.size() == 2 ) {
 		// Check if they are complex conjugates
 
-		const double e1_real = eigen_value_complex[0][complex_eigval[0]]->getDataLocal()[_index];
-		const double e1_imag = eigen_value_complex[1][complex_eigval[0]]->getDataLocal()[_index];
-		const double e2_real = eigen_value_complex[0][complex_eigval[1]]->getDataLocal()[_index];
-		const double e2_imag = eigen_value_complex[1][complex_eigval[1]]->getDataLocal()[_index];
+		const double e1_real = eigen_value_complex[0][complex_eigval[0]]->data_local[_index];
+		const double e1_imag = eigen_value_complex[1][complex_eigval[0]]->data_local[_index];
+		const double e2_real = eigen_value_complex[0][complex_eigval[1]]->data_local[_index];
+		const double e2_imag = eigen_value_complex[1][complex_eigval[1]]->data_local[_index];
 
-		if( e1_real - e2_real <= ZERO && 
-		    e1_imag + e2_imag <= ZERO ) {
+		if( fabs( e1_real - e2_real ) <= ZERO && 
+		    fabs( e1_imag + e2_imag ) <= ZERO ) {
 			// These are complex conjugates
 			//std::cout << "Complex conjugates: " << e1 << ", " << e2 << std::endl;	 
-			eigen_value[0]->setDataLocal( _index, eigen_value_complex[0][real_eigval[0]]->getDataLocal()[_index] );
-			eigen_value[1]->setDataLocal( _index, eigen_value_complex[0][complex_eigval[0]]->getDataLocal()[_index] ); // Real part of the first complex eigenvalue
-			eigen_value[2]->setDataLocal( _index, eigen_value_complex[1][complex_eigval[0]]->getDataLocal()[_index] ); // Imaginary part of the firt complex eigenvalue
+			eigen_value[0]->data_local[_index] =eigen_value_complex[0][real_eigval[0]]->data_local[_index];
+			eigen_value[1]->data_local[_index] =eigen_value_complex[0][complex_eigval[0]]->data_local[_index]; // Real part of the first complex eigenvalue
+			eigen_value[2]->data_local[_index] =eigen_value_complex[1][complex_eigval[0]]->data_local[_index]; // Imaginary part of the firt complex eigenvalue
 
 			for( int n=0; n<PFIELD_NDIMS; n++ ) {
-				eigen_vector[0][n]->setDataLocal( _index, eigen_vector_complex[0][real_eigval[0]][n]->getDataLocal()[_index] );
-				eigen_vector[1][n]->setDataLocal( _index, eigen_vector_complex[0][complex_eigval[0]][n]->getDataLocal()[_index] );
-				eigen_vector[2][n]->setDataLocal( _index, eigen_vector_complex[1][complex_eigval[1]][n]->getDataLocal()[_index] );
+				eigen_vector[0][n]->data_local[_index] = eigen_vector_complex[0][real_eigval[0]][n]->data_local[_index];
+				eigen_vector[1][n]->data_local[_index] = eigen_vector_complex[0][complex_eigval[0]][n]->data_local[_index];
+				eigen_vector[2][n]->data_local[_index] = eigen_vector_complex[1][complex_eigval[1]][n]->data_local[_index];
 			}
 			continue;
 		} else {
@@ -445,9 +445,9 @@ void PFieldEigenPairVortex( PFieldVector_t &eigen_value, PFieldTensor_t &eigen_v
 
  set_all_zero:
 	for (int m=0; m<PFIELD_NDIMS; m++ ) {
-		eigen_value[m]->setDataLocal( _index, 0.0L );
+		eigen_value[m]->data_local[_index] = 0.0L ;
 		for (int n=0; n<PFIELD_NDIMS; n++ ) {
-			eigen_vector[m][n]->setDataLocal( _index, 0.0L );
+			eigen_vector[m][n]->data_local[_index] = 0.0L ;
 		}
 	}
 
