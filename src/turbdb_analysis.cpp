@@ -2,6 +2,7 @@
 #include <sstream>
 //#include <stdlib.h>
 #include <stdlib.h>
+#include <mpi.h>
 #include "esio/esio.h"
 #include "mpi_topology.hpp"
 #include "pfield.hpp"
@@ -17,13 +18,24 @@
 // #define FIELD_NY 256
 // #define FIELD_NX 512
 
-#define FIELD_NZ 256
-#define FIELD_NY 256
-#define FIELD_NX 256
+#define FIELD_NZ 128
+#define FIELD_NY 128
+#define FIELD_NX 128
 
 #define NSTEPS 5
 
-#define H5_OUTPUT_PATH "/datascope/tdbchannel/analysis/cache-eigen"
+#define H5_OUTPUT_PATH "/datascope/tdbchannel/analysis/test"
+
+class Clock {
+	double start_;
+	double stop_;
+public:
+	Clock(): start_(0.0L), stop_(0.0L){};
+
+	void start(){ MPI_Barrier(MPI_COMM_WORLD); this->start_ = MPI_Wtime(); }
+	void stop(){ MPI_Barrier(MPI_COMM_WORLD); this->stop_ = MPI_Wtime(); }
+	double time(){ return this->stop_ - this->start_; }	
+};
 
 using namespace std;
 using namespace pturbdb;
@@ -44,7 +56,7 @@ int main(int argc, char *argv[]) {
 	u->PFieldInit(db_field_offset, field_dims, FIELD_DECOMP_PENCIL, periodic, 8);
 	
 	// Turn on caching
-	//u->setPCHIPCaching(true);
+	u->setPCHIPCaching(true);
 
 	int rank = u->getMPITopology()->rank;
 	int nproc = u->getMPITopology()->nproc;
@@ -141,6 +153,11 @@ int main(int argc, char *argv[]) {
 	// Temporary data buffer
 	double *t_data = new double[u->getSizeOperation()];
 
+	Clock clock;
+	Clock clock_data_read;
+	Clock clock_calcs;
+	Clock clock_data_write;
+
 	for (int n=0; n<NSTEPS; n++) {
 
 		if( mpi_topology->rank == 0 ) {
@@ -153,49 +170,83 @@ int main(int argc, char *argv[]) {
 		if( mpi_topology->rank == 0 ) {
 			cout << "Reading u from DB";
 			if( u->getPCHIPCaching() ) cout << " (cached)";
-			cout << endl;
 		}
+
+		clock_data_read.start();
+		clock.start(); 
 		u->readDBField( time, "u" );
+		clock.stop();
+		if( mpi_topology->rank == 0 ) cout << ": " << clock.time() << "(s)\n";
 
 		if( mpi_topology->rank == 0 ) {
-			cout << "Reading V from DB";
+			cout << "Reading v from DB";
 			if( v->getPCHIPCaching() ) cout << " (cached)";
-			cout << endl;
 		}
+		clock.start();
 		v->readDBField( time, "v" );
+		clock.stop();
+		if( mpi_topology->rank == 0 ) cout << ": " << clock.time() << "(s)\n";
 
 		if( mpi_topology->rank == 0 ) {
 			cout << "Reading w from DB";
 			if( w->getPCHIPCaching() ) cout << " (cached)";
-			cout << endl;
 		}
+		clock.start();
 		w->readDBField( time, "w" );
+		clock.stop();
+		if( mpi_topology->rank == 0 ) cout << ": " << clock.time() << "(s)\n";
 
 		if( mpi_topology->rank == 0 ) {
 			cout << "Reading p from DB";
 			if( p->getPCHIPCaching() ) cout << " (cached)";
-			cout << endl;
 		}
+		clock.start();
 		p->readDBField( time, "p" );
+		clock.stop();
+		if( mpi_topology->rank == 0 ) cout << ": " << clock.time() << "(s)\n";
+
+		clock_data_read.stop();
+
+		clock_calcs.start();
 
 		// Assign pointers to the velocity vector
 		PFieldVectorAssign( vel, u, v, w );
 
 		// Velocity gradients
-		if( mpi_topology->rank == 0 ) cout << "Computing u gradient" << endl;
+		if( mpi_topology->rank == 0 ) cout << "Computing u gradient: ... ";
+		clock.start();
 		PFieldVectorGradient( grad_u, *u );
-		if( mpi_topology->rank == 0 ) cout << "Computing v gradient" << endl;
-		PFieldVectorGradient( grad_v, *v );
-		if( mpi_topology->rank == 0 ) cout << "Computing w gradient" << endl;
-		PFieldVectorGradient( grad_w, *w );
+		clock.stop();
+		if( mpi_topology->rank == 0 ) cout << clock.time() << "(s)\n";
 
+		if( mpi_topology->rank == 0 ) cout << "Computing v gradient: ... ";
+		clock.start();
+		PFieldVectorGradient( grad_v, *v );		      
+		clock.stop();
+		if( mpi_topology->rank == 0 ) cout << clock.time() << "(s)\n";
+
+		if( mpi_topology->rank == 0 ) cout << "Computing w gradient: ... ";
+		clock.start();
+		PFieldVectorGradient( grad_w, *w );
+		clock.stop();
+		if( mpi_topology->rank == 0 ) cout << clock.time() << "(s)\n";
+
+		if( mpi_topology->rank == 0 ) cout << "Computing vorticity: ... ";
+		clock.start();
 		PFieldVectorCurl( vorticity, vel ) ;
+		clock.stop();
+		if( mpi_topology->rank == 0 ) cout << clock.time() << "(s)\n";
+
+
 		PFieldTensorAssign( Aij, grad_u, grad_v, grad_w );
 
 		// Compute the vortex eigen pair for Aij
 		MPI_Barrier( mpi_topology->comm );
-		if( mpi_topology->rank == 0 ) cout << "Computing the vortex eigenpair of the velocity gradient tensor" << endl;
+		if( mpi_topology->rank == 0 ) cout << "Computing the vortex eigenpair of the velocity gradient tensor: ... ";
+		clock.start();
 		PFieldEigenPairVortex( lambda, eigvec, Aij );
+		clock.stop();
+		if( mpi_topology->rank == 0 ) cout << clock.time() << "(s)\n";
 
 		// MPI_Barrier( mpi_topology->comm );
 		// if( mpi_topology->rank == 0 ) cout << "Computing symmetric velocity gradient tensor" << endl;
@@ -219,14 +270,24 @@ int main(int argc, char *argv[]) {
 
 		MPI_Barrier( mpi_topology->comm );
 
-		if( mpi_topology->rank == 0 ) cout << "Computing Q invariant" << endl;
+		if( mpi_topology->rank == 0 ) cout << "Computing Q invariant: ... ";
+		clock.start();
 		// Q->sub( *T2, *S2 ) *= 0.5;
 		PFieldTensorDotDot( *Q, Aij, Aij ) *= (double)-0.5L; // Apply the -1/2 factor
-		
-		if( mpi_topology->rank == 0 ) cout << "Computing R invariant" << endl;
+		clock.stop();
+		if( mpi_topology->rank == 0 ) cout << clock.time() << "(s)\n";
+
+		if( mpi_topology->rank == 0 ) cout << "Computing R invariant: ... ";
+		clock.start();
 		PFieldTensorDeterminant( *R, Aij ) *= (double) -1.0L; // Apply the -1 factor
+		clock.stop();
+		if( mpi_topology->rank == 0 ) cout << clock.time() << "(s)\n";
 
 		MPI_Barrier(mpi_topology->comm);
+
+		clock_calcs.stop();
+		clock_data_write.start();
+
 		if( mpi_topology->rank == 0 ) cout << "Writing output" << endl;
 		
 		// Output data
@@ -350,8 +411,17 @@ int main(int argc, char *argv[]) {
 	
 		esio_file_close(h);
 		esio_handle_finalize(h);
-
- 
+		
+		clock_data_write.stop();
+		
+		double total_time = clock_data_read.time() + clock_calcs.time() + clock_data_write.time();
+		if( mpi_topology->rank == 0 ) {
+			cout << endl;
+			cout << "Total times:\n";
+			cout << "    reads: " << clock_data_read.time() << " (" << 100*clock_data_read.time() / total_time << "%)" << endl;
+			cout << "    calcs: " << clock_calcs.time() << " (" << 100*clock_calcs.time() / total_time << "%)" << endl;
+			cout << "    writes: " << clock_data_write.time() << " (" << 100*clock_data_write.time() / total_time << "%)" << endl;
+		}
 	}
 
 
