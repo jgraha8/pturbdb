@@ -3,6 +3,7 @@
 #include <complex.h>
 #include <cmath>
 #include "lapacke.h"
+#include "clock.hpp"
 #include "pfield_math.hpp"
 
 #define ZERO 1.0e-12L
@@ -328,29 +329,42 @@ PFieldTensor_t &PFieldTensorDiv( PFieldTensor_t &a, double b )
  */ 
 void PFieldEigenPair( PFieldComplexVector_t &eigen_value, PFieldComplexTensor_t &eigen_vector, const PFieldTensor_t &a ) 
 {
+
+	Clock clock_compute;
+	Clock clock_set_matrix;
+	Clock clock_set_eigenpair;
 	// Local matrix for each element in the field
 	lapack_complex_double *A_elem            = (lapack_complex_double *)calloc(PFIELD_NDIMS*PFIELD_NDIMS,sizeof(lapack_complex_double));
 	lapack_complex_double *eigen_value_elem  = (lapack_complex_double *)calloc(PFIELD_NDIMS,             sizeof(lapack_complex_double));
 	lapack_complex_double *eigen_vector_elem = (lapack_complex_double *)calloc(PFIELD_NDIMS*PFIELD_NDIMS,sizeof(lapack_complex_double));
 
+	if( a[0][0]->getMPITopology()->rank == 0 )
+		cout << "        PFieldEigenPair times:\n";
+
 	PFIELD_LOOP_OPERATION_TO_LOCAL(a[0][0])
 
+        clock_set_matrix.resume();
 	for( int m=0; m<PFIELD_NDIMS; m++ ) {
 		for( int n=0; n<PFIELD_NDIMS; n++ ) {
-			A_elem[m*PFIELD_NDIMS+n] = lapack_make_complex_double(a[m][n]->data_local[_index],0.0L);
+			// A_elem is in column major order
+			A_elem[m + n*PFIELD_NDIMS] = lapack_make_complex_double(a[m][n]->data_local[_index],0.0L);
 		}
 	}
+	clock_set_matrix.stop();
 
-	lapack_int info = LAPACKE_zgeev(LAPACK_ROW_MAJOR,'N','V', PFIELD_NDIMS, A_elem, PFIELD_NDIMS, 
+	clock_compute.resume();
+	lapack_int info = LAPACKE_zgeev(LAPACK_COL_MAJOR,'N','V', PFIELD_NDIMS, A_elem, PFIELD_NDIMS, 
 					eigen_value_elem, NULL, PFIELD_NDIMS, eigen_vector_elem, PFIELD_NDIMS );
-	
+	clock_compute.stop();
+
 	/* Check for convergence */
 	if( info > 0 ) {
 		printf( "PFieldEigenPair: failed to compute eigenvalues.\n" );
 		int ierr=0;
 		MPI_Abort( a[0][0]->getMPITopology()->comm, ierr );
 	}
-		
+	
+	clock_set_eigenpair.resume();
 	for( int m=0; m<PFIELD_NDIMS; m++ ) {
 
 		eigen_value[0][m]->data_local[_index] = creal(eigen_value_elem[m]);
@@ -358,15 +372,21 @@ void PFieldEigenPair( PFieldComplexVector_t &eigen_value, PFieldComplexTensor_t 
 
 		for( int n=0; n<PFIELD_NDIMS; n++ ) {
 						
-			// Careful the eigenvectors are given as columns; need to store them in eigen_vector along rows.
-			eigen_vector[0][m][n]->data_local[_index] = creal(eigen_vector_elem[m+n*PFIELD_NDIMS]);
-			eigen_vector[1][m][n]->data_local[_index] = cimag(eigen_vector_elem[m+n*PFIELD_NDIMS]); 
+			// Careful the eigenvectors are given as rows;
+			eigen_vector[0][m][n]->data_local[_index] = creal(eigen_vector_elem[m*PFIELD_NDIMS+n]);
+			eigen_vector[1][m][n]->data_local[_index] = cimag(eigen_vector_elem[m*PFIELD_NDIMS+n]); 
 
 		}
 	}
+	clock_set_eigenpair.stop();
 
 	PFIELD_LOOP_END
 
+	if( a[0][0]->getMPITopology()->rank == 0 ) {
+		cout << "            setting A: " << clock_set_matrix.time() << "(s)\n";
+		cout << "            computing eigenpair: " << clock_compute.time() << "(s)\n";
+		cout << "            setting eigenpair: " << clock_set_eigenpair.time() << "(s)\n";
+	}
 }
 
 /*
@@ -397,8 +417,19 @@ void PFieldEigenPairVortex( PFieldVector_t &eigen_value, PFieldTensor_t &eigen_v
 	PFieldComplexVector_t eigen_value_complex  = PFieldComplexVectorNew( *a[0][0] );
 	PFieldComplexTensor_t eigen_vector_complex = PFieldComplexTensorNew( *a[0][0] );
 
+	Clock clock_eigen_pair;
+	Clock clock_calcs;
+
+	if( a[0][0]->getMPITopology()->rank == 0 )
+		cout << "    PFieldEigenPairVortex times: \n";
+
+	clock_eigen_pair.start();
 	// Compute the eigen pair
 	PFieldEigenPair( eigen_value_complex, eigen_vector_complex, a );
+	clock_eigen_pair.stop();
+
+
+	clock_calcs.start();
 
 	PFIELD_LOOP_OPERATION_TO_LOCAL(a[0][0])
 
@@ -452,6 +483,12 @@ void PFieldEigenPairVortex( PFieldVector_t &eigen_value, PFieldTensor_t &eigen_v
 	}
 
 	PFIELD_LOOP_END
+
+	clock_calcs.stop();
+	if( a[0][0]->getMPITopology()->rank == 0 ) {
+		cout << "        PFieldEigenPair call: " << clock_eigen_pair.time() << "(s)\n";
+		cout << "        calculations: " << clock_calcs.time() << "(s)\n";
+	}
 
 	PFieldVectorDelete( eigen_value_complex );
 	PFieldTensorDelete( eigen_vector_complex );

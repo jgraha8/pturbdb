@@ -4,6 +4,7 @@
 #include <stdlib.h>
 #include <mpi.h>
 #include "esio/esio.h"
+#include "clock.hpp"
 #include "mpi_topology.hpp"
 #include "pfield.hpp"
 #include "pturbdb_field.hpp"
@@ -14,28 +15,18 @@
 #define DB_NX 2048
 
 #define DB_DT 0.0065
-// #define FIELD_NZ 384
-// #define FIELD_NY 256
-// #define FIELD_NX 512
+#define FIELD_NZ 384
+#define FIELD_NY 256
+#define FIELD_NX 512
 
-#define FIELD_NZ 128
-#define FIELD_NY 128
-#define FIELD_NX 128
+// #define FIELD_NZ 128
+// #define FIELD_NY 128
+// #define FIELD_NX 128
 
 #define NSTEPS 5
 
 #define H5_OUTPUT_PATH "/datascope/tdbchannel/analysis/test"
 
-class Clock {
-	double start_;
-	double stop_;
-public:
-	Clock(): start_(0.0L), stop_(0.0L){};
-
-	void start(){ MPI_Barrier(MPI_COMM_WORLD); this->start_ = MPI_Wtime(); }
-	void stop(){ MPI_Barrier(MPI_COMM_WORLD); this->stop_ = MPI_Wtime(); }
-	double time(){ return this->stop_ - this->start_; }	
-};
 
 using namespace std;
 using namespace pturbdb;
@@ -123,7 +114,7 @@ int main(int argc, char *argv[]) {
 	PFIELD_LOOP_END
 	     
 	// Set the starting time and the time step
-	const double start_time = u->getDBTimeMax()/3;
+	const double start_time = u->getDBTimeMax()/3.3;
 	static const double dt = DB_DT/2;
 
 	PTurbDBField *v = new PTurbDBField( *u, false ); // Do not copy u field data
@@ -167,43 +158,59 @@ int main(int argc, char *argv[]) {
 
 		double time = start_time - dt * n;
 
+		clock_data_read.start();
+
 		if( mpi_topology->rank == 0 ) {
 			cout << "Reading u from DB";
-			if( u->getPCHIPCaching() ) cout << " (cached)";
+			if( u->getPCHIPCaching() ) {
+				cout << " (cached) ... ";
+			} else {
+				cout << " ... ";
+			}
 		}
-
-		clock_data_read.start();
 		clock.start(); 
 		u->readDBField( time, "u" );
 		clock.stop();
-		if( mpi_topology->rank == 0 ) cout << ": " << clock.time() << "(s)\n";
+		if( mpi_topology->rank == 0 ) cout << clock.time() << "(s)\n";
 
 		if( mpi_topology->rank == 0 ) {
 			cout << "Reading v from DB";
-			if( v->getPCHIPCaching() ) cout << " (cached)";
+			if( v->getPCHIPCaching() ) {
+				cout << " (cached) ... ";
+			} else {
+				cout << " ... ";
+			}
 		}
 		clock.start();
 		v->readDBField( time, "v" );
 		clock.stop();
-		if( mpi_topology->rank == 0 ) cout << ": " << clock.time() << "(s)\n";
+		if( mpi_topology->rank == 0 ) cout << clock.time() << "(s)\n";
 
 		if( mpi_topology->rank == 0 ) {
 			cout << "Reading w from DB";
-			if( w->getPCHIPCaching() ) cout << " (cached)";
+			if( w->getPCHIPCaching() ) {
+				cout << " (cached) ... ";
+			} else {
+				cout << " ... ";
+			}
 		}
 		clock.start();
 		w->readDBField( time, "w" );
 		clock.stop();
-		if( mpi_topology->rank == 0 ) cout << ": " << clock.time() << "(s)\n";
+		if( mpi_topology->rank == 0 ) cout << clock.time() << "(s)\n";
 
 		if( mpi_topology->rank == 0 ) {
 			cout << "Reading p from DB";
-			if( p->getPCHIPCaching() ) cout << " (cached)";
+			if( p->getPCHIPCaching() ) {
+				cout << " (cached) ... ";
+			} else {
+				cout << " ... ";
+			}
 		}
 		clock.start();
 		p->readDBField( time, "p" );
 		clock.stop();
-		if( mpi_topology->rank == 0 ) cout << ": " << clock.time() << "(s)\n";
+		if( mpi_topology->rank == 0 ) cout << clock.time() << "(s)\n";
 
 		clock_data_read.stop();
 
@@ -213,25 +220,25 @@ int main(int argc, char *argv[]) {
 		PFieldVectorAssign( vel, u, v, w );
 
 		// Velocity gradients
-		if( mpi_topology->rank == 0 ) cout << "Computing u gradient: ... ";
+		if( mpi_topology->rank == 0 ) cout << "Computing u gradient ... ";
 		clock.start();
 		PFieldVectorGradient( grad_u, *u );
 		clock.stop();
 		if( mpi_topology->rank == 0 ) cout << clock.time() << "(s)\n";
 
-		if( mpi_topology->rank == 0 ) cout << "Computing v gradient: ... ";
+		if( mpi_topology->rank == 0 ) cout << "Computing v gradient ... ";
 		clock.start();
 		PFieldVectorGradient( grad_v, *v );		      
 		clock.stop();
 		if( mpi_topology->rank == 0 ) cout << clock.time() << "(s)\n";
 
-		if( mpi_topology->rank == 0 ) cout << "Computing w gradient: ... ";
+		if( mpi_topology->rank == 0 ) cout << "Computing w gradient ... ";
 		clock.start();
 		PFieldVectorGradient( grad_w, *w );
 		clock.stop();
 		if( mpi_topology->rank == 0 ) cout << clock.time() << "(s)\n";
 
-		if( mpi_topology->rank == 0 ) cout << "Computing vorticity: ... ";
+		if( mpi_topology->rank == 0 ) cout << "Computing vorticity ... ";
 		clock.start();
 		PFieldVectorCurl( vorticity, vel ) ;
 		clock.stop();
@@ -242,11 +249,11 @@ int main(int argc, char *argv[]) {
 
 		// Compute the vortex eigen pair for Aij
 		MPI_Barrier( mpi_topology->comm );
-		if( mpi_topology->rank == 0 ) cout << "Computing the vortex eigenpair of the velocity gradient tensor: ... ";
+		if( mpi_topology->rank == 0 ) cout << "Computing the vortex eigenpair of the velocity gradient tensor ... \n";
 		clock.start();
 		PFieldEigenPairVortex( lambda, eigvec, Aij );
 		clock.stop();
-		if( mpi_topology->rank == 0 ) cout << clock.time() << "(s)\n";
+		if( mpi_topology->rank == 0 ) cout << "    total: " << clock.time() << "(s)\n";
 
 		// MPI_Barrier( mpi_topology->comm );
 		// if( mpi_topology->rank == 0 ) cout << "Computing symmetric velocity gradient tensor" << endl;
@@ -270,14 +277,14 @@ int main(int argc, char *argv[]) {
 
 		MPI_Barrier( mpi_topology->comm );
 
-		if( mpi_topology->rank == 0 ) cout << "Computing Q invariant: ... ";
+		if( mpi_topology->rank == 0 ) cout << "Computing Q invariant ... ";
 		clock.start();
 		// Q->sub( *T2, *S2 ) *= 0.5;
 		PFieldTensorDotDot( *Q, Aij, Aij ) *= (double)-0.5L; // Apply the -1/2 factor
 		clock.stop();
 		if( mpi_topology->rank == 0 ) cout << clock.time() << "(s)\n";
 
-		if( mpi_topology->rank == 0 ) cout << "Computing R invariant: ... ";
+		if( mpi_topology->rank == 0 ) cout << "Computing R invariant ... ";
 		clock.start();
 		PFieldTensorDeterminant( *R, Aij ) *= (double) -1.0L; // Apply the -1 factor
 		clock.stop();
@@ -286,6 +293,8 @@ int main(int argc, char *argv[]) {
 		MPI_Barrier(mpi_topology->comm);
 
 		clock_calcs.stop();
+
+		continue;
 		clock_data_write.start();
 
 		if( mpi_topology->rank == 0 ) cout << "Writing output" << endl;
