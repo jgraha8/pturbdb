@@ -9,6 +9,18 @@
 
 namespace pturbdb {
 
+
+void VortexSet( Vortex_t &vortex, size_t index, double strength, double compactness ) 
+{
+	vortex.index = index;
+	vortex.strength = strength;
+	vortex.compactness = compactness;
+}
+void VortexCopy( Vortex_t &a, const Vortex_t &b )
+{
+	VortexSet( a, b.index, b.strength, b.compactness );
+}
+
 /*
  * Searches for the point list on the local domain which contain vortices according to:
  *
@@ -17,46 +29,53 @@ namespace pturbdb {
  *
  * Sets the vector vortex_index with the point indices of the local domain
  */
-void VortexSearch( std::vector<size_t> &vortex_index, PFieldVector_t &lambda, PFieldTensor_t &eigvec, double strength_threshold, double compactness_threshold )
+void VortexSearch( std::vector<Vortex_t> &vortex, PFieldVector_t &lambda, PFieldTensor_t &eigvec, double strength_threshold, double compactness_threshold )
 {
 
 	// Clear the in comming vortex
-	vortex_index.clear();
+	vortex.clear();
 
 	// Synchronize the needed fields
 	lambda[1]->synchronize(); // \lambda_{cr}
 	lambda[2]->synchronize(); // \lambda_{ci}
 
-	const size_t N = lambda[0]->getSizeLocal();
+	//	const size_t N = lambda[0]->getSizeLocal();
+	const size_t N = lambda[0]->getSizeOperation();
 
 	/// Generate Vortex_t class for the local domain
-	Vortex_t *vortex = new Vortex_t[N];
+	Vortex_t *vortex_local = new Vortex_t[N];
 
-	for( size_t n=0; n<N; n++ ) {
-		double _cache = lambda[2]->getDataLocal()[n];
-		vortex[n] = Vortex_t(n, _cache, lambda[1]->getDataLocal()[n] / _cache );
-	}
+	PFIELD_LOOP_OPERATION_TO_LOCAL(lambda[0])
+	//for( size_t n=0; n<N; n++ ) {
+		// double _cache = lambda[2]->getDataLocal()[n];
+		// VortexSet( vortex_local[n], n, _cache, lambda[1]->getDataLocal()[n] / _cache );
+        double _cache = lambda[2]->getDataLocal()[_index];
+	size_t _index_operation = lambda[0]->indexOperation(_i,_j,_k);
+	VortexSet( vortex_local[_index_operation], _index_operation, _cache, lambda[1]->getDataLocal()[_index] / _cache );
+		//	}
+        PFIELD_LOOP_END
 
 	// Create the vortex classes for the thresholds
-	Vortex_t vortex_strength_threshold(0, strength_threshold, 0.0);
-        Vortex_t vortex_compactness_threshold_first(0,0.0,-compactness_threshold);
-        Vortex_t vortex_compactness_threshold_last(0,0.0,compactness_threshold);
+	Vortex_t vortex_strength_threshold; VortexSet(vortex_strength_threshold, 0, strength_threshold, 0.0);
+        Vortex_t vortex_compactness_threshold_first; VortexSet(vortex_compactness_threshold_first, 0, 0.0, -compactness_threshold);
+        Vortex_t vortex_compactness_threshold_last; VortexSet(vortex_compactness_threshold_last, 0, 0.0, compactness_threshold);
 	Vortex_t *vortex_first, *vortex_last;
+	size_t N_strong;
+	size_t N_vortex;
 
 	// Now sort based on vortex strength
-	qsort(vortex,N,sizeof(Vortex_t),Vortex_tSortCompareStrength) ;
+	qsort(vortex_local,N,sizeof(Vortex_t),VortexSortCompareStrength) ;
 
 	// Now have to find the first index that is less than or equal to the threshold strength value
 	// Returns the first value that at or above the threshold
-	Vortex_t *vortex_strong = (Vortex_t *)bsearch( &vortex_strength_threshold, vortex+1, N-1, sizeof(Vortex_t), VortexSearchCompareStrength);
+	Vortex_t *vortex_strong = (Vortex_t *)bsearch( &vortex_strength_threshold, vortex_local+1, N-1, sizeof(Vortex_t), VortexSearchCompareStrength);
 
-	if( vortex_strong == NULL ) goto clean_up;
+	assert( vortex_strong != NULL );
 
 	// Can now sort based on compactness ratio
-	const size_t N_strong = (vortex + N) - vortex_strong;
-	assert( vortex_strong + N_strong - 1 == vortex + N - 1 );
+	N_strong = (vortex_local + N) - vortex_strong;
+	assert( vortex_strong + N_strong - 1 == vortex_local + N - 1 );
 	qsort(vortex_strong, N_strong, sizeof(Vortex_t), VortexSortCompareCompactness);
-
 
 	if( vortex_compactness_threshold_first.compactness > (vortex_strong + N_strong - 1)->compactness &&
 	    vortex_compactness_threshold_last.compactness < vortex_strong->compactness ) {
@@ -67,28 +86,29 @@ void VortexSearch( std::vector<size_t> &vortex_index, PFieldVector_t &lambda, PF
 			vortex_first = vortex_strong;
 		} else {
 			vortex_first = (Vortex_t*)bsearch( &vortex_compactness_threshold_first, vortex_strong+1, N_strong - 1, sizeof(Vortex_t), VortexSearchCompareCompactnessFirst);
+			assert(vortex_first != NULL);
 		}
 	
 		if( vortex_compactness_threshold_last.compactness >= (vortex_strong+N_strong-1)->compactness ) {
 			vortex_last =  vortex_strong + N_strong - 1;
 		} else  {
 			vortex_last = (Vortex_t*)bsearch( &vortex_compactness_threshold_last, vortex_strong, N_strong-1, sizeof(Vortex_t), VortexSearchCompareCompactnessLast);
+			assert(vortex_first != NULL);
 		}
 	}
 	
 	// Peform linear search for points with abs(c2) <= threshold.c2 
-	const size_t N_vortex = vortex_last - vortex_first + 1;
-
+	N_vortex = vortex_last - vortex_first + 1;
 	// Finally sort into assending index values
 	qsort(vortex_first, N_vortex, sizeof(Vortex_t), VortexSortCompareIndex);
 
-	vortex_index.assign(N_vortex,-1);
+	vortex.resize(N_vortex);
 	for( size_t n=0; n<N_vortex; n++ ) 
-		vortex_index[n] = (vortex_first+n)->index; 
+		VortexCopy( vortex[n], *(vortex_first+n) );
 		
  clean_up:
 
-	delete [] vortex;
+	delete [] vortex_local;
 	
 }
 

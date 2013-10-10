@@ -9,25 +9,11 @@ typedef struct {
 	double compactness;
 } Vortex_t;
 
-// public:
-// 	Vortex(): index_(0), strength_(0.0), compactness_(0.0) {};
-// 	Vortex( size_t index, double strength, double compactness ) 
-// 	{
-// 		this->index_ = index;
-// 		this->strength_ = strength;
-// 		this->compactness_ = compactness;
-// 	}
-// 	~Vortex(){};
+void VortexSet( Vortex_t &vortex, size_t index, double strength, double compactness );
+void VortexCopy( Vortex_t &a, const Vortex_t &b );
+void VortexSearch( std::vector<Vortex_t> &vortex, PFieldVector_t &lambda, PFieldTensor_t &eigvec, double strength_threshold, double compactness_threshold);
 
-// 	size_t getIndex()       const {return this->index_; }
-// 	double getStrength()    const {return this->strength_; }
-// 	double getCompactness() const {return this->compactness_; }
-
-// 	void setIndex( size_t index ) { this->index_ = index; };
-// 	void setStrength( double strength ) { this->strength__ = strength; };
-// 	void setCompactness( double compactness ) { this->compactness_ = compactness; };
-
-void VortexSearch( std::vector<size_t> &vortex_index, PFieldVector_t &lambda, PFieldTensor_t &eigvec, double strength_threshold, double compactness_threshold)
+int VortexSortCompareIndex(const void *a,const void *b);
 int VortexSortCompareStrength(const void *a,const void *b);
 int VortexSortCompareCompactness(const void *a,const void *b);
 
