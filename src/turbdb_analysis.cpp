@@ -3,30 +3,30 @@
 //#include <stdlib.h>
 #include <stdlib.h>
 #include <mpi.h>
+#include <cmath>
 #include "esio/esio.h"
 #include "clock.hpp"
 #include "mpi_topology.hpp"
 #include "pfield.hpp"
 #include "pturbdb_field.hpp"
 #include "pfield_math.hpp"
+#include "vortex_tracking.hpp"
 
 #define DB_NZ 1536
 #define DB_NY 512
 #define DB_NX 2048
 
 #define DB_DT 0.0065
-#define FIELD_NZ 384
-#define FIELD_NY 256
-#define FIELD_NX 512
 
-// #define FIELD_NZ 128
-// #define FIELD_NY 128
-// #define FIELD_NX 128
+// #define FIELD_NZ 384
+// #define FIELD_NY 256
+// #define FIELD_NX 512
 
+#define FIELD_NZ 128
+#define FIELD_NY 128
+#define FIELD_NX 128
 #define NSTEPS 5
-
 #define H5_OUTPUT_PATH "/datascope/tdbchannel/analysis/test"
-
 
 using namespace std;
 using namespace pturbdb;
@@ -134,7 +134,8 @@ int main(int argc, char *argv[]) {
 	
 	PFieldVector_t lambda = PFieldVectorNew( *u );
 	PFieldTensor_t eigvec = PFieldTensorNew( *u );
-	
+	std::vector<Vortex_t> vortex;
+
 	// PField *S2 = new PField( *u, false );
 	// PField *T2 = new PField( *u, false );
 	PField *Q  = new PField( *u, false );
@@ -248,10 +249,17 @@ int main(int argc, char *argv[]) {
 		PFieldTensorAssign( Aij, grad_u, grad_v, grad_w );
 
 		// Compute the vortex eigen pair for Aij
-		MPI_Barrier( mpi_topology->comm );
 		if( mpi_topology->rank == 0 ) cout << "Computing the vortex eigenpair of the velocity gradient tensor ... \n";
 		clock.start();
 		PFieldEigenPairVortex( lambda, eigvec, Aij );
+		MPI_Barrier( mpi_topology->comm );
+		clock.stop();
+		if( mpi_topology->rank == 0 ) cout << "    total: " << clock.time() << "(s)\n";
+
+		if( mpi_topology->rank == 0 ) cout << "Finding vortices ... \n";
+		clock.start();
+		VortexSearch( vortex, lambda, eigvec, 0.64, 1.0/sqrt(3) );
+		MPI_Barrier( mpi_topology->comm );
 		clock.stop();
 		if( mpi_topology->rank == 0 ) cout << "    total: " << clock.time() << "(s)\n";
 
@@ -294,7 +302,6 @@ int main(int argc, char *argv[]) {
 
 		clock_calcs.stop();
 
-		continue;
 		clock_data_write.start();
 
 		if( mpi_topology->rank == 0 ) cout << "Writing output" << endl;
@@ -390,6 +397,16 @@ int main(int argc, char *argv[]) {
 		esio_field_write_double(h, "vci2", t_data, 0, 0, 0, "vci2");
 		eigvec[2][2]->getDataOperation(t_data);
 		esio_field_write_double(h, "vci3", t_data, 0, 0, 0, "vci3");
+
+		std::fill_n(t_data, u->getSizeOperation(), 0.0);
+		for( std::vector<Vortex_t>::iterator v=vortex.begin(); v != vortex.end(); v++ )
+			t_data[v->index] = v->strength;
+		esio_field_write_double(h, "vortex_strength", t_data, 0, 0, 0, "vortex_strength");
+
+		std::fill_n(t_data, u->getSizeOperation(), -1.0);
+		for( std::vector<Vortex_t>::iterator v=vortex.begin(); v != vortex.end(); v++ )
+			t_data[v->index] = v->compactness;
+		esio_field_write_double(h, "vortex_compactness", t_data, 0, 0, 0, "vortex_compactness");
 
 		// Aij[0][0]->getDataOperation(t_data);
 		// esio_field_write_double(h, "dudx", t_data, 0, 0, 0, "dudx");
