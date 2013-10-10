@@ -1665,6 +1665,7 @@ void PField::synchronize()
         printf("%d: PField::synchronize\n",this->mpi_topology_->rank);
 	printf("%d:     field_decomp = %d\n", this->mpi_topology_->rank, this->field_decomp_);
 #endif
+	if( this->synchronized_ == true ) return;
 
 	// x pass
 	if (this->field_decomp_ == FIELD_DECOMP_SLAB || 
