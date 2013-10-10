@@ -166,6 +166,8 @@ public:
 	PField &d2dxy( PField &a );
 	PField &d2dxz( PField &a );
 	PField &d2dyz( PField &a );
+
+	void synchronize();
     
 protected:
 
@@ -181,7 +183,6 @@ protected:
 	double *createRindBuffer( int dim, int location ) const;
 	void packRindBuffer( int dim, int location, double *rind_buffer ) const;
 	void unpackRindBuffer( int dim, int location, const double *rind_buffer );
-	void synchronize();
 	void synchronizeDimension(int coord_dim);
 
 	void dndxn( void (FiniteDiff::*dd)(int, int, const double *, int, double *), PField &a );
