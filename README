@@ -33,7 +33,7 @@ A couple of notes and things to consider:
        database fields, which is an I/O bound problem, most CPU optimizations
        have not been implemented. 
 
-    3. The PField class should probably be reimplented as a class library which
+    3. The PField class should probably be reimplented as a class template which
        will give much more flexibility. This would allow not only its use with
        various standard C++ types, but also things like Blitz++, Eigen,
        etc. vectors or arrays may also be used. For example, the pfield_math
