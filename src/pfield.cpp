@@ -1470,6 +1470,151 @@ void PField::dndzn(void (FiniteDiff::*dd)(int, int, const double *, int, double 
 
 }
 
+// 
+// Procedures used for filtering the field
+// 
+//////////////////////////////////////////////////////////////////////
+/// FILTERING (PUBLIC)
+//////////////////////////////////////////////////////////////////////
+
+PField &PField::filter( const int &filter_width )
+{
+	
+	int ierr=0;
+
+	// First make sure the filter width is an even value
+	if( filter_width % 2 != 0 ) {
+		printf("%d: PField::filter: filter width must be an even, positive integer\n", this->mpi_topology_->rank);
+		MPI_Abort(this->mpi_topology_->comm,ierr);
+	}	    
+	// Also make sure that the filter width is not too wide since overlap data is needed
+	if( filter_width/2 > this->rind_size_ ) {
+		printf("%d: PField::filter: rind size too small to support filter width\n", this->mpi_topology_->rank);
+		MPI_Abort(this->mpi_topology_->comm,ierr);
+	}
+
+	const int filter_width_half = filter_width / 2;
+
+	// Determine which function to used to select the bounds for the filtering
+	const int (PField::*x_filter_width_left)( const int &, const int &, const int &);
+	const int (PField::*x_filter_width_right)( const int &, const int &, const int &);
+
+	if( this->hasRind(0,-1) ) {
+		x_filter_width_left = &PField::filter_width_left_rind;
+	} else {
+		x_filter_width_left = &PField::filter_width_left_boundary;
+	}
+	if( this->hasRind(0,1) ) {
+		x_filter_width_right = &PField::filter_width_right_rind;
+	} else {
+		x_filter_width_right = &PField::filter_width_right_boundary;
+	}
+
+	const int (PField::*y_filter_width_left)( const int &, const int &, const int &);
+	const int (PField::*y_filter_width_right)( const int &, const int &, const int &);
+
+	if( this->hasRind(1,-1) ) {
+		y_filter_width_left = &PField::filter_width_left_rind;
+	} else {
+		y_filter_width_left = &PField::filter_width_left_boundary;
+	}
+	if( this->hasRind(1,1) ) {
+		y_filter_width_right = &PField::filter_width_right_rind;
+	} else {
+		y_filter_width_right = &PField::filter_width_right_boundary;
+	}
+
+	const int (PField::*z_filter_width_left)( const int &, const int &, const int &);
+	const int (PField::*z_filter_width_right)( const int &, const int &, const int &);
+
+	if( this->hasRind(2,-1) ) {
+		z_filter_width_left = &PField::filter_width_left_rind;
+	} else {
+		z_filter_width_left = &PField::filter_width_left_boundary;
+	}
+	if( this->hasRind(2,1) ) {
+		z_filter_width_right = &PField::filter_width_right_rind;
+	} else {
+		z_filter_width_right = &PField::filter_width_right_boundary;
+	}
+
+	static const double eight_inv = 1.0L / 8.0L;
+	
+	// Need a buffer to store the filtered operation domain data
+	double *data_domain = new double[this->getSizeOperation()];
+
+	// Now synchronize the field
+	this->synchronize();
+
+	// Need to loop over the entire operation domain
+	PFIELD_LOOP_OPERATION(this)
+
+		// Obtain the widths of the filter stencil for the left and right parts
+		const int qx_left  = (this->*x_filter_width_left) (0, _i, filter_width_half);
+	        const int qx_right = (this->*x_filter_width_right)(0, _i, filter_width_half);
+		const int qy_left  = (this->*y_filter_width_left) (1, _j, filter_width_half);
+		const int qy_right = (this->*y_filter_width_right)(1, _j, filter_width_half);
+		const int qz_left  = (this->*z_filter_width_left) (2, _k, filter_width_half);
+		const int qz_right = (this->*z_filter_width_right)(2, _k, filter_width_half);
+
+		// Peform summation over the filter stencil
+		data_domain[_index] = 0.0L;
+		for(int i= _i-qx_left; i< _i + qx_right; i++ ) {
+
+			const int i_local = _i + this->offset_operation_[0];
+			const double dx = this->x_local_[i_local+1] - this->x_local_[i_local];
+
+			for(int j= _j-qy_left; j< _j + qy_right; j++ ) {
+
+				const int j_local = _j + this->offset_operation_[1];
+				const double dy = this->y_local_[j_local+1] - this->y_local_[j_local];
+
+				for(int k= _k-qz_left; k< _k + qz_right; k++ ) {
+
+					const int k_local = _k + this->offset_operation_[2];
+					const double dz = this->z_local_[k_local+1] - this->z_local_[k_local];
+
+					data_domain[_index] += 
+						( this->data_local[this->indexLocal(i_local  ,j_local  ,k_local  )] + 
+						  this->data_local[this->indexLocal(i_local  ,j_local  ,k_local+1)] + 
+						  this->data_local[this->indexLocal(i_local  ,j_local+1,k_local  )] + 
+						  this->data_local[this->indexLocal(i_local  ,j_local+1,k_local+1)] + 
+						  this->data_local[this->indexLocal(i_local+1,j_local  ,k_local  )] + 
+						  this->data_local[this->indexLocal(i_local+1,j_local  ,k_local+1)] + 
+						  this->data_local[this->indexLocal(i_local+1,j_local+1,k_local  )] + 
+						  this->data_local[this->indexLocal(i_local+1,j_local+1,k_local+1)] 
+						  ) * dx * dy * dz;
+				}
+			}
+		}
+
+		const double x_filter_left  = this->x_local_[_i - qx_left  + this->offset_operation_[0] ];
+		const double x_filter_right = this->x_local_[_i + qx_right + this->offset_operation_[0] ];
+		const double y_filter_left  = this->y_local_[_j - qy_left  + this->offset_operation_[1] ];
+		const double y_filter_right = this->y_local_[_j + qy_right + this->offset_operation_[1] ];
+		const double z_filter_left  = this->z_local_[_k - qz_left  + this->offset_operation_[2] ];
+		const double z_filter_right = this->z_local_[_k + qz_right + this->offset_operation_[2] ];
+
+		// Now apply the normalization
+		data_domain[_index] *= eight_inv / 
+			               ( x_filter_right - x_filter_left ) / 
+			               ( y_filter_right - y_filter_left ) / 
+			               ( z_filter_right - z_filter_left ); 
+
+
+	PFIELD_LOOP_END
+
+	// Need to loop over the entire operation domain to set data_local
+	PFIELD_LOOP_OPERATION(this)
+		this->data_local[this->indexOperationToLocal(_i,_j,_k)] = data_domain[_index];
+	PFIELD_LOOP_END
+
+	delete [] data_domain;
+
+	return *this;
+}
+
+
 //
 // The computation procedures compute and return information regarding data
 // members of the class

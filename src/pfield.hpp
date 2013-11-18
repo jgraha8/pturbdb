@@ -7,18 +7,16 @@
 #define PFIELD_NDIMS 3
 
 #define PFIELD_LOOP_OPERATION(pfield) \
-	const int *_dims = pfield->getDimsOperation(); \
-	for( int _i=0; _i<_dims[0]; _i++ ) { \
-	        for( int _j=0; _j<_dims[1]; _j++ ) { \
-		        for( int _k=0; _k<_dims[2]; _k++ ) { \
+	for( int _i=0; _i<pfield->getDimsOperation()[0]; _i++ ) {	\
+	        for( int _j=0; _j<pfield->getDimsOperation()[1]; _j++ ) { \
+		        for( int _k=0; _k<pfield->getDimsOperation()[2]; _k++ ) { \
 			        const size_t _index = pfield->indexOperation(_i,_j,_k); 
 
 
 #define PFIELD_LOOP_OPERATION_TO_LOCAL(pfield) \
-	const int *_dims = pfield->getDimsOperation(); \
-	for( int _i=0; _i<_dims[0]; _i++ ) { \
-	        for( int _j=0; _j<_dims[1]; _j++ ) { \
-		        for( int _k=0; _k<_dims[2]; _k++ ) { \
+	for( int _i=0; _i<pfield->getDimsOperation()[0]; _i++ ) { \
+	        for( int _j=0; _j<pfield->getDimsOperation()[1]; _j++ ) { \
+		        for( int _k=0; _k<pfield->getDimsOperation()[2]; _k++ ) { \
 			        const size_t _index = pfield->indexOperationToLocal(_i,_j,_k); 
 #define PFIELD_LOOP_END }}}
 
@@ -167,6 +165,8 @@ public:
 	PField &d2dxz( PField &a );
 	PField &d2dyz( PField &a );
 
+	PField &filter( const int &filter_width );
+
 	void synchronize();
     
 protected:
@@ -188,6 +188,31 @@ protected:
 	void dndxn( void (FiniteDiff::*dd)(int, int, const double *, int, double *), PField &a );
 	void dndyn( void (FiniteDiff::*dd)(int, int, const double *, int, double *), PField &a );
 	void dndzn( void (FiniteDiff::*dd)(int, int, const double *, int, double *), PField &a );
+
+	// The index i is for the operation domain
+	inline const int filter_width_left_boundary( const int &dim, 
+							      const int &i, 
+							      const int &filter_width_half ) {
+		const int i_global = i + this->offset_operation_[dim] + this->offset_local_[dim];	
+		return std::min(i_global, filter_width_half );	
+	}
+	inline const int filter_width_right_boundary( const int &dim, 
+							       const int &i, 
+							       const int &filter_width_half ) {
+		const int i_global = i + this->offset_operation_[dim] + this->offset_local_[dim];	
+		return std::min(this->dims_[dim] - 1 - i_global, filter_width_half );	
+	}
+	inline const int filter_width_left_rind( const int &dim, 
+							  const int &i, 
+							  const int &filter_width_half ) {
+		return filter_width_half;
+	}
+	inline const int filter_width_right_rind( const int &dim, 
+							   const int &i, 
+							   const int &filter_width_half ) {
+		return filter_width_half;
+	}
+
    
 	// Getters/setters
 	void setSynchronized( bool synchronized ); // Making protected since it should only be set by base class or sub-classes.
