@@ -1,6 +1,7 @@
 #ifndef PFIELD_H
 #define PFIELD_H
 
+#include <algorithm>
 #include "derivative.hpp"
 #include "mpi_topology.hpp"
 
@@ -70,7 +71,7 @@ public:
 	PField( const PField &g, bool copy_data_local);
 	PField( const PField &g );
 	// Deconstructor
-	~PField();
+	virtual ~PField();
 
 	// Derivative functions
 	void finiteDiffInit();
