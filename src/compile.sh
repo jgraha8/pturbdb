@@ -1,6 +1,6 @@
 #!/bin/bash
 
-EXEC=turbdb_analysis
+EXEC=channel_q_field
 #SRCS=( derivative.cpp pfield.cpp pfield_math.cpp pturbdb_field.cpp mpi_topology.cpp turbdb_analysis.cpp )
 SRCS=( derivative.cpp pfield.cpp pfield_math.cpp pturbdb_field.cpp mpi_topology.cpp vortex_tracking.cpp ${EXEC}.cpp )
 # Generate the object list
@@ -10,7 +10,7 @@ INCPATH="-I../autofd -I${ESIO_ROOT}/include -I${LAPACK_ROOT}/include"
 LIBPATH="-L../autofd -L../matsolv -L${ESIO_ROOT}/lib -L${HDF5_ROOT}/lib -L${LAPACK_ROOT}/lib"
 LIBS="-lautofd -lmatsolv -lgfortran -lesio -lhdf5_hl -lhdf5 -lz -llapacke -llapack"
 
-CFLAGS="-O2 -Wall -g -DBOUNDS_CHECK"
+CFLAGS="-O3 -msse4.1 -Wall -g -DBOUNDS_CHECK"
 
 for s in ${SRCS[@]}
 do 

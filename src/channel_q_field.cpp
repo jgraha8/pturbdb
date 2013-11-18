@@ -22,9 +22,9 @@
 // #define FIELD_NY 256
 // #define FIELD_NX 512
 
-#define FIELD_NZ 768
+#define FIELD_NZ 384
 #define FIELD_NY 256
-#define FIELD_NX 1024
+#define FIELD_NX 512
 
 #define H5_OUTPUT_PATH "/datascope/tdbchannel/analysis/channel-q-field"
 
@@ -238,7 +238,7 @@ int main(int argc, char *argv[]) {
 	// h5file->precision(8);
 	// *h5file << time << ".h5";
 		
-	static const std::string h5file = "q.h5";
+	static const std::string h5file = std::string(H5_OUTPUT_PATH) + std::string("/q.h5");
 
 	// Open the database file
 	esio_file_create(h, h5file.c_str(), 1);

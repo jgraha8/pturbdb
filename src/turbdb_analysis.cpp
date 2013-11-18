@@ -25,8 +25,9 @@
 #define FIELD_NZ 128
 #define FIELD_NY 128
 #define FIELD_NX 128
-#define NSTEPS 5
-#define H5_OUTPUT_PATH "/datascope/tdbchannel/analysis/test"
+
+#define NSTEPS 300
+#define H5_OUTPUT_PATH "/datascope/tdbchannel/analysis/test-1"
 
 using namespace std;
 using namespace pturbdb;
@@ -38,7 +39,7 @@ int main(int argc, char *argv[]) {
 
 	const int db_dims[] = { DB_NZ, DB_NY, DB_NX };
 	//	int db_field_offset[] = { FIELD_NZ, (DB_NY-FIELD_NY)/2, FIELD_NX };
-	const int db_field_offset[] = { FIELD_NZ, 0, FIELD_NX };
+	const int db_field_offset[] = { 0, 0, 0 };
 	const int field_dims[] = { FIELD_NZ, FIELD_NY, FIELD_NX };
 	const int periodic[] = { 0, 0, 0 };
 
@@ -114,7 +115,7 @@ int main(int argc, char *argv[]) {
 	PFIELD_LOOP_END
 	     
 	// Set the starting time and the time step
-	const double start_time = u->getDBTimeMax()/3.3;
+	const double start_time = u->getDBTimeMax()*7.1L/8.0L;
 	static const double dt = DB_DT/2;
 
 	PTurbDBField *v = new PTurbDBField( *u, false ); // Do not copy u field data
