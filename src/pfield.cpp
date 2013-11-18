@@ -318,18 +318,12 @@ void PField::getZOperation( double *z) const
  */ 
 void PField::getDataOperation( float *a) const
 {
-	size_t index_local, index_operation;
+	size_t index_operation;
 
 	index_operation=0;
-	for (int i = 0; i < this->dims_operation_[0]; i++) {
-		for (int j = 0; j < this->dims_operation_[1]; j++) {
-			for (int k = 0; k < this->dims_operation_[2]; k++) {
-				index_local = this->indexOperationToLocal(i, j, k);
-				a[index_operation] = (float)this->data_local[index_local];
-				++index_operation;
-			}
-		}
-	}
+	PFIELD_LOOP_OPERATION_TO_LOCAL(this)
+		a[index_operation++] = (float)this->data_local[_index];
+	PFIELD_LOOP_END
 }
 
 /*
@@ -338,18 +332,12 @@ void PField::getDataOperation( float *a) const
  */ 
 void PField::getDataOperation( double *a) const
 {
-	size_t index_local, index_operation;
+	size_t index_operation;
 
 	index_operation=0;
-	for (int i = 0; i < this->dims_operation_[0]; i++) {
-		for (int j = 0; j < this->dims_operation_[1]; j++) {
-			for (int k = 0; k < this->dims_operation_[2]; k++) {
-				index_local = this->indexOperationToLocal(i, j, k);
-				a[index_operation] = this->data_local[index_local];
-				++index_operation;
-			}
-		}
-	}
+	PFIELD_LOOP_OPERATION_TO_LOCAL(this)
+		a[index_operation++] = this->data_local[_index];
+	PFIELD_LOOP_END
 }
 
 
@@ -483,17 +471,12 @@ PField& PField::operator=(const PField &a)
 PField &PField::operator=( const double *a)
 /********************************************************************/
 {
-	size_t index_local, index_operation;
+	size_t index_operation;
 
 	index_operation=0;
-	for (int i = 0; i < this->dims_operation_[0]; i++) {
-		for (int j = 0; j < this->dims_operation_[1]; j++) {
-			for (int k = 0; k < this->dims_operation_[2]; k++) {
-				index_local = this->indexOperationToLocal(i, j, k);
-				this->data_local[index_local] = a[index_operation++];
-			}
-		}
-	}
+	PFIELD_LOOP_OPERATION_TO_LOCAL(this)
+		this->data_local[_index] = a[index_operation++];
+	PFIELD_LOOP_END
 
 	// Set unsynchronized
 	this->synchronized_ = false;
@@ -508,17 +491,12 @@ PField &PField::operator=( const double *a)
 PField &PField::operator=( const float *a)
 /********************************************************************/
 {
-	size_t index_local, index_operation;
+	size_t index_operation;
 
 	index_operation=0;
-	for (int i = 0; i < this->dims_operation_[0]; i++) {
-		for (int j = 0; j < this->dims_operation_[1]; j++) {
-			for (int k = 0; k < this->dims_operation_[2]; k++) {
-				index_local = this->indexOperationToLocal(i, j, k);
-				this->data_local[index_local] = (double)a[index_operation++];
-			}
-		}
-	}
+	PFIELD_LOOP_OPERATION_TO_LOCAL(this)
+		this->data_local[_index] = (double)a[index_operation++];
+	PFIELD_LOOP_END
 
 	// Set unsynchronized
 	this->synchronized_ = false;
@@ -550,16 +528,9 @@ PField& PField::operator+=(const PField &a)
 /********************************************************************/
 {
 
-	size_t index;
-
-	for (int i = 0; i < this->dims_operation_[0]; i++) {
-		for (int j = 0; j < this->dims_operation_[1]; j++) {
-			for (int k = 0; k < this->dims_operation_[2]; k++) {
-				index = this->indexOperationToLocal(i, j, k);
-				this->data_local[index] += a.data_local[index];
-			}
-		}
-	}
+	PFIELD_LOOP_OPERATION_TO_LOCAL(this)
+		this->data_local[_index] += a.data_local[_index];
+	PFIELD_LOOP_END
 
 	// Set unsynchronized
 	this->synchronized_ = false;
@@ -574,17 +545,12 @@ PField& PField::operator+=(const PField &a)
 PField &PField::operator+=( const double *a)
 /********************************************************************/
 {
-	size_t index_local, index_operation;
+	size_t index_operation;
 
 	index_operation=0;
-	for (int i = 0; i < this->dims_operation_[0]; i++) {
-		for (int j = 0; j < this->dims_operation_[1]; j++) {
-			for (int k = 0; k < this->dims_operation_[2]; k++) {
-				index_local = this->indexOperationToLocal(i, j, k);
-				this->data_local[index_local] += a[index_operation++];
-			}
-		}
-	}
+	PFIELD_LOOP_OPERATION_TO_LOCAL(this)
+		this->data_local[_index] += a[index_operation++];
+	PFIELD_LOOP_END
 
 	// Set unsynchronized
 	this->synchronized_ = false;
@@ -599,17 +565,12 @@ PField &PField::operator+=( const double *a)
 PField &PField::operator+=( const float *a)
 /********************************************************************/
 {
-	size_t index_local, index_operation;
+	size_t index_operation;
 
 	index_operation=0;
-	for (int i = 0; i < this->dims_operation_[0]; i++) {
-		for (int j = 0; j < this->dims_operation_[1]; j++) {
-			for (int k = 0; k < this->dims_operation_[2]; k++) {
-				index_local = this->indexOperationToLocal(i, j, k);
-				this->data_local[index_local] += (double)a[index_operation++];
-			}
-		}
-	}
+	PFIELD_LOOP_OPERATION_TO_LOCAL(this)
+		this->data_local[_index] += (double)a[index_operation++];
+	PFIELD_LOOP_END
 
 	// Set unsynchronized
 	this->synchronized_ = false;
@@ -620,16 +581,9 @@ PField& PField::operator+=(double c)
 /********************************************************************/
 {
 
-	size_t index;
-
-	for (int i = 0; i < this->dims_operation_[0]; i++) {
-		for (int j = 0; j < this->dims_operation_[1]; j++) {
-			for (int k = 0; k < this->dims_operation_[2]; k++) {
-				index = this->indexOperationToLocal(i, j, k);
-				this->data_local[index] += c;
-			}
-		}
-	}
+	PFIELD_LOOP_OPERATION_TO_LOCAL(this)
+		this->data_local[_index] += c;
+	PFIELD_LOOP_END
 
 	// Set unsynchronized
 	this->synchronized_ = false;
@@ -642,16 +596,9 @@ PField& PField::operator-=(const PField &a)
 /********************************************************************/
 {
 
-	size_t index;
-
-	for (int i = 0; i < this->dims_operation_[0]; i++) {
-		for (int j = 0; j < this->dims_operation_[1]; j++) {
-			for (int k = 0; k < this->dims_operation_[2]; k++) {
-				index = this->indexOperationToLocal(i, j, k);
-				this->data_local[index] -= a.data_local[index];
-			}
-		}
-	}
+	PFIELD_LOOP_OPERATION_TO_LOCAL(this)
+		this->data_local[_index] -= a.data_local[_index];
+	PFIELD_LOOP_END
 
 	// Set unsynchronized
 	this->synchronized_ = false;
@@ -666,17 +613,12 @@ PField& PField::operator-=(const PField &a)
 PField &PField::operator-=( const double *a)
 /********************************************************************/
 {
-	size_t index_local, index_operation;
+	size_t index_operation;
 
 	index_operation=0;
-	for (int i = 0; i < this->dims_operation_[0]; i++) {
-		for (int j = 0; j < this->dims_operation_[1]; j++) {
-			for (int k = 0; k < this->dims_operation_[2]; k++) {
-				index_local = this->indexOperationToLocal(i, j, k);
-				this->data_local[index_local] -= a[index_operation++];
-			}
-		}
-	}
+	PFIELD_LOOP_OPERATION_TO_LOCAL(this)
+		this->data_local[_index] -= a[index_operation++];
+	PFIELD_LOOP_END
 
 	// Set unsynchronized
 	this->synchronized_ = false;
@@ -691,17 +633,12 @@ PField &PField::operator-=( const double *a)
 PField &PField::operator-=( const float *a)
 /********************************************************************/
 {
-	size_t index_local, index_operation;
+	size_t index_operation;
 
 	index_operation=0;
-	for (int i = 0; i < this->dims_operation_[0]; i++) {
-		for (int j = 0; j < this->dims_operation_[1]; j++) {
-			for (int k = 0; k < this->dims_operation_[2]; k++) {
-				index_local = this->indexOperationToLocal(i, j, k);
-				this->data_local[index_local] -= (double)a[index_operation++];
-			}
-		}
-	}
+	PFIELD_LOOP_OPERATION_TO_LOCAL(this)
+		this->data_local[_index] -= (double)a[index_operation++];
+	PFIELD_LOOP_END
 
 	// Set unsynchronized
 	this->synchronized_ = false;
@@ -713,16 +650,9 @@ PField& PField::operator-=(double c)
 /********************************************************************/
 {
 
-	size_t index;
-
-	for (int i = 0; i < this->dims_operation_[0]; i++) {
-		for (int j = 0; j < this->dims_operation_[1]; j++) {
-			for (int k = 0; k < this->dims_operation_[2]; k++) {
-				index = this->indexOperationToLocal(i, j, k);
-				this->data_local[index] -= c;
-			}
-		}
-	}
+	PFIELD_LOOP_OPERATION_TO_LOCAL(this)
+		this->data_local[_index] -= c;
+	PFIELD_LOOP_END
 
 	// Set unsynchronized
 	this->synchronized_ = false;
@@ -734,16 +664,9 @@ PField& PField::operator-=(double c)
 PField& PField::operator*=(const PField &a)
 /********************************************************************/
 {
-	size_t index;
-
-	for (int i = 0; i < this->dims_operation_[0]; i++) {
-		for (int j = 0; j < this->dims_operation_[1]; j++) {
-			for (int k = 0; k < this->dims_operation_[2]; k++) {
-				index = this->indexOperationToLocal(i, j, k);
-				this->data_local[index] *= a.data_local[index];
-			}
-		}
-	}
+	PFIELD_LOOP_OPERATION_TO_LOCAL(this)
+		this->data_local[_index] *= a.data_local[_index];
+	PFIELD_LOOP_END
 
 	// Set unsynchronized
 	this->synchronized_ = false;
@@ -759,17 +682,12 @@ PField& PField::operator*=(const PField &a)
 PField &PField::operator*=( const double *a)
 /********************************************************************/
 {
-	size_t index_local, index_operation;
+	size_t index_operation;
 
 	index_operation=0;
-	for (int i = 0; i < this->dims_operation_[0]; i++) {
-		for (int j = 0; j < this->dims_operation_[1]; j++) {
-			for (int k = 0; k < this->dims_operation_[2]; k++) {
-				index_local = this->indexOperationToLocal(i, j, k);
-				this->data_local[index_local] *= a[index_operation++];
-			}
-		}
-	}
+	PFIELD_LOOP_OPERATION_TO_LOCAL(this)
+		this->data_local[_index] *= a[index_operation++];
+	PFIELD_LOOP_END
 
 	// Set unsynchronized
 	this->synchronized_ = false;
@@ -784,17 +702,12 @@ PField &PField::operator*=( const double *a)
 PField &PField::operator*=( const float *a)
 /********************************************************************/
 {
-	size_t index_local, index_operation;
+	size_t index_operation;
 
 	index_operation=0;
-	for (int i = 0; i < this->dims_operation_[0]; i++) {
-		for (int j = 0; j < this->dims_operation_[1]; j++) {
-			for (int k = 0; k < this->dims_operation_[2]; k++) {
-				index_local = this->indexOperationToLocal(i, j, k);
-				this->data_local[index_local] *= (double)a[index_operation++];
-			}
-		}
-	}
+	PFIELD_LOOP_OPERATION_TO_LOCAL(this)
+		this->data_local[_index] *= (double)a[index_operation++];
+	PFIELD_LOOP_END
 
 	// Set unsynchronized
 	this->synchronized_ = false;
@@ -812,16 +725,10 @@ PField& PField::operator*=(float c)
 PField& PField::operator*=(double c)
 /********************************************************************/
 {
-	size_t index;
 
-	for (int i = 0; i < this->dims_operation_[0]; i++) {
-		for (int j = 0; j < this->dims_operation_[1]; j++) {
-			for (int k = 0; k < this->dims_operation_[2]; k++) {
-				index = this->indexOperationToLocal(i, j, k);
-				this->data_local[index] *= c;
-			}
-		}
-	}
+	PFIELD_LOOP_OPERATION_TO_LOCAL(this)
+		this->data_local[_index] *= c;
+	PFIELD_LOOP_END
 
 	// Set unsynchronized
 	this->synchronized_ = false;
@@ -834,16 +741,9 @@ PField& PField::operator/=(const PField &a)
 /********************************************************************/
 {
 
-	size_t index;
-
-	for (int i = 0; i < this->dims_operation_[0]; i++) {
-		for (int j = 0; j < this->dims_operation_[1]; j++) {
-			for (int k = 0; k < this->dims_operation_[2]; k++) {
-				index = this->indexOperationToLocal(i, j, k);
-				this->data_local[index] /= a.data_local[index];
-			}
-		}
-	}
+	PFIELD_LOOP_OPERATION_TO_LOCAL(this)
+		this->data_local[_index] /= a.data_local[_index];
+	PFIELD_LOOP_END
 
 	// Set unsynchronized
 	this->synchronized_ = false;
@@ -859,17 +759,12 @@ PField& PField::operator/=(const PField &a)
 PField &PField::operator/=( const double *a)
 /********************************************************************/
 {
-	size_t index_local, index_operation;
+	size_t index_operation;
 
 	index_operation=0;
-	for (int i = 0; i < this->dims_operation_[0]; i++) {
-		for (int j = 0; j < this->dims_operation_[1]; j++) {
-			for (int k = 0; k < this->dims_operation_[2]; k++) {
-				index_local = this->indexOperationToLocal(i, j, k);
-				this->data_local[index_local] /= a[index_operation++];
-			}
-		}
-	}
+	PFIELD_LOOP_OPERATION_TO_LOCAL(this)
+		this->data_local[_index] /= a[index_operation++];
+	PFIELD_LOOP_END
 
 	// Set unsynchronized
 	this->synchronized_ = false;
@@ -884,17 +779,12 @@ PField &PField::operator/=( const double *a)
 PField &PField::operator/=( const float *a)
 /********************************************************************/
 {
-	size_t index_local, index_operation;
+	size_t index_operation;
 
 	index_operation=0;
-	for (int i = 0; i < this->dims_operation_[0]; i++) {
-		for (int j = 0; j < this->dims_operation_[1]; j++) {
-			for (int k = 0; k < this->dims_operation_[2]; k++) {
-				index_local = this->indexOperationToLocal(i, j, k);
-				this->data_local[index_local] /= (double)a[index_operation++];
-			}
-		}
-	}
+	PFIELD_LOOP_OPERATION_TO_LOCAL(this)
+		this->data_local[_index] /= (double)a[index_operation++];
+	PFIELD_LOOP_END
 
 	// Set unsynchronized
 	this->synchronized_ = false;
@@ -906,16 +796,9 @@ PField& PField::operator/=(double c)
 /********************************************************************/
 {
 
-	size_t index;
-
-	for (int i = 0; i < this->dims_operation_[0]; i++) {
-		for (int j = 0; j < this->dims_operation_[1]; j++) {
-			for (int k = 0; k < this->dims_operation_[2]; k++) {
-				index = this->indexOperationToLocal(i, j, k);
-				this->data_local[index] /= c;
-			}
-		}
-	}
+	PFIELD_LOOP_OPERATION_TO_LOCAL(this)
+		this->data_local[_index] /= c;
+	PFIELD_LOOP_END
 
 	// Set unsynchronized
 	this->synchronized_ = false;
@@ -941,16 +824,9 @@ PField &PField::add(const PField &a, const PField &b)
 	}
 #endif
 
-	size_t index;
-	for (int i = 0; i < this->dims_operation_[0]; i++) {
-		for (int j = 0; j < this->dims_operation_[1]; j++) {
-			for (int k = 0; k < this->dims_operation_[2]; k++) {
-				index = this->indexOperationToLocal(i, j, k);
-				this->data_local[index] = a.data_local[index]
-					+ b.data_local[index];
-			}
-		}
-	}
+	PFIELD_LOOP_OPERATION_TO_LOCAL(this)
+		this->data_local[_index] = a.data_local[_index] + b.data_local[_index];
+	PFIELD_LOOP_END
 
 	// Set unsynchronized
 	this->synchronized_ = false;
@@ -971,16 +847,9 @@ PField &PField::sub(const PField &a, const PField &b)
 	}
 #endif
 
-	size_t index;
-	for (int i = 0; i < this->dims_operation_[0]; i++) {
-		for (int j = 0; j < this->dims_operation_[1]; j++) {
-			for (int k = 0; k < this->dims_operation_[2]; k++) {
-				index = this->indexOperationToLocal(i, j, k);
-				this->data_local[index] = a.data_local[index]
-					- b.data_local[index];
-			}
-		}
-	}
+	PFIELD_LOOP_OPERATION_TO_LOCAL(this)
+		this->data_local[_index] = a.data_local[_index] - b.data_local[_index];
+	PFIELD_LOOP_END
 
 	// Set unsynchronized
 	this->synchronized_ = false;
@@ -1001,16 +870,9 @@ PField &PField::mul(const PField &a, const PField &b)
 	}
 #endif
 
-	size_t index;
-	for (int i = 0; i < this->dims_operation_[0]; i++) {
-		for (int j = 0; j < this->dims_operation_[1]; j++) {
-			for (int k = 0; k < this->dims_operation_[2]; k++) {
-				index = this->indexOperationToLocal(i, j, k);
-				this->data_local[index] = a.data_local[index]
-					* b.data_local[index];
-			}
-		}
-	}
+	PFIELD_LOOP_OPERATION_TO_LOCAL(this)
+		this->data_local[_index] = a.data_local[_index] * b.data_local[_index];
+	PFIELD_LOOP_END
 
 	// Set unsynchronized
 	this->synchronized_ = false;
@@ -1031,16 +893,9 @@ PField &PField::div(const PField &a, const PField &b)
 	}
 #endif
 
-	size_t index;
-	for (int i = 0; i < this->dims_operation_[0]; i++) {
-		for (int j = 0; j < this->dims_operation_[1]; j++) {
-			for (int k = 0; k < this->dims_operation_[2]; k++) {
-				index = this->indexOperationToLocal(i, j, k);
-				this->data_local[index] = a.data_local[index]
-					/ b.data_local[index];
-			}
-		}
-	}
+	PFIELD_LOOP_OPERATION_TO_LOCAL(this)
+		this->data_local[_index] = a.data_local[_index] / b.data_local[_index];
+	PFIELD_LOOP_END
 
 	// Set unsynchronized
 	this->synchronized_ = false;
@@ -1061,15 +916,9 @@ PField &PField::sqrt(const PField &a)
 	}
 #endif
 
-	size_t index;
-	for (int i = 0; i < this->dims_operation_[0]; i++) {
-		for (int j = 0; j < this->dims_operation_[1]; j++) {
-			for (int k = 0; k < this->dims_operation_[2]; k++) {
-				index = this->indexOperationToLocal(i, j, k);
-				this->data_local[index] = std::sqrt(a.data_local[index]);
-			}
-		}
-	}
+	PFIELD_LOOP_OPERATION_TO_LOCAL(this)
+		this->data_local[_index] = std::sqrt(a.data_local[_index]);
+	PFIELD_LOOP_END
 
 	// Set unsynchronized
 	this->synchronized_ = false;
@@ -1605,8 +1454,9 @@ PField &PField::filter( const int &filter_width )
 	PFIELD_LOOP_END
 
 	// Need to loop over the entire operation domain to set data_local
-	PFIELD_LOOP_OPERATION(this)
-		this->data_local[this->indexOperationToLocal(_i,_j,_k)] = data_domain[_index];
+	size_t index_operation=0;
+	PFIELD_LOOP_OPERATION_TO_LOCAL(this)
+		this->data_local[_index] = data_domain[index_operation++];
 	PFIELD_LOOP_END
 
 	delete [] data_domain;
