@@ -1346,6 +1346,10 @@ PField &PField::filter( const int &filter_width )
 	
 	int ierr=0;
 
+	// If a filter width of zero has been provided we simply return
+	if( filter_width == 0 )
+		return *this;
+
 	// First make sure the filter width is an even value
 	if( filter_width % 2 != 0 ) {
 		printf("%d: PField::filter: filter width must be an even, positive integer\n", this->mpi_topology_->rank);
@@ -1356,6 +1360,15 @@ PField &PField::filter( const int &filter_width )
 		printf("%d: PField::filter: rind size too small to support filter width\n", this->mpi_topology_->rank);
 		MPI_Abort(this->mpi_topology_->comm,ierr);
 	}
+
+	// Also make sure that the filter width is not too wide since it must fit in the local domain
+	if( filter_width > this->dims_local_[0] ||
+	    filter_width > this->dims_local_[1] || 
+	    filter_width > this->dims_local_[2] ) {
+		printf("%d: PField::filter: local domain too small to support filter width\n", this->mpi_topology_->rank);
+		MPI_Abort(this->mpi_topology_->comm,ierr);
+	}
+
 
 	// Currently, the rind data does not include overlap data on
 	// the diagonals for multi-dimensional decomposition. Only the
@@ -1495,7 +1508,7 @@ PField &PField::filter( const int &filter_width )
 	delete [] data_domain;
 
 	// Now set the synchronized flag to false
-	this->synchronize();	
+	this->synchronized_ = false;
 
 	return *this;
 }
