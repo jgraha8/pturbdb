@@ -37,15 +37,13 @@ int main(int argc, char *argv[]) {
 	MPI_Init(&argc, &argv);
 
 	const int db_dims[] = { DB_NZ, DB_NY, DB_NX };
-	//	int db_field_offset[] = { FIELD_NZ, (DB_NY-FIELD_NY)/2, FIELD_NX };
 	const int db_field_offset[] = { 0, 0, 0 };
 	const int field_dims[] = { FIELD_NZ, FIELD_NY, FIELD_NX };
 	const int periodic[] = { 0, 0, 0 };
 
 	PTurbDBField *u = new PTurbDBField("turbdb.conf", db_dims);
 
-	//u->PFieldInit(db_field_offset, field_dims, FIELD_DECOMP_SLAB, periodic, 6);
-	u->PFieldInit(db_field_offset, field_dims, FIELD_DECOMP_PENCIL, periodic, 6);
+	u->PFieldInit(db_field_offset, field_dims, FIELD_DECOMP_SLAB, periodic, 6);
 	
 	// Turn on caching
 	u->setPCHIPCaching(true);
@@ -263,7 +261,7 @@ int main(int argc, char *argv[]) {
 	// h5file->precision(8);
 	// *h5file << time << ".h5";
 		
- 	static const std::string h5file = std::string(H5_OUTPUT_PATH) + std::string("/q-fd6-filtered-6-pencil.h5");
+ 	static const std::string h5file = std::string(H5_OUTPUT_PATH) + std::string("/q-fd6-filtered-6-slab.h5");
 
 	// Open the database file
 	esio_file_create(h, h5file.c_str(), 1);
