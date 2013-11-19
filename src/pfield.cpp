@@ -3,6 +3,7 @@
 #include <cstring>
 #include <cmath>
 #include <cstdio>
+#include <cassert>
 #include "pfield.hpp"
 
 using namespace std;
@@ -378,15 +379,15 @@ size_t PField::indexOperationToLocal(const int &i, const int &j, const int &k) c
 	const size_t kk = (size_t) k + (size_t) this->offset_operation_[2];
 
 #ifdef DEBUG
-	for( int n=0; n<this->mpi_topology_->nproc; n++ ) {
-		if( n == this->mpi_topology_->rank ) {
-			printf("%d: PField::indexOperationToLocal\n", n);
-			printf("  i, j, k = %d, %d, %d\n", i,j,k);
-			printf("  (size_t)i, (size_t)j, (size_t)k = %ld, %ld, %ld\n", (size_t)i,(size_t)j,(size_t)k);
-			printf("  ii, jj, kk = %ld, %ld, %ld\n", ii,jj,kk);
-		}
-		MPI_Barrier(this->mpi_topology_->comm);
-	}
+	// for( int n=0; n<this->mpi_topology_->nproc; n++ ) {
+	// 	if( n == this->mpi_topology_->rank ) {
+	// 		printf("%d: PField::indexOperationToLocal\n", n);
+	// 		printf("  i, j, k = %d, %d, %d\n", i,j,k);
+	// 		printf("  (size_t)i, (size_t)j, (size_t)k = %ld, %ld, %ld\n", (size_t)i,(size_t)j,(size_t)k);
+	// 		printf("  ii, jj, kk = %ld, %ld, %ld\n", ii,jj,kk);
+	// 	}
+	// 	MPI_Barrier(this->mpi_topology_->comm);
+	// }
 #endif
 	return ((size_t) this->dims_local_[1] * ii + jj) * (size_t) this->dims_local_[2] + kk;
 }
@@ -1172,6 +1173,9 @@ void PField::dndxn(void (FiniteDiff::*dd)(int, int, const double *, int, double 
 					printf("    nx_operation = %d\n", nx_operation);
 					printf("    ny           = %d\n", ny);
 					printf("    nz           = %d\n", nz);
+					printf("    x_offset     = %d\n", x_offset);
+					printf("    y_offset     = %d\n", y_offset);
+					printf("    z_offset     = %d\n", z_offset);
 					for (int i = 0; i < nx_local; i++) {
 						printf("    ax[%d] = %lf\n", i, ax[i]);
 					}
@@ -1179,7 +1183,18 @@ void PField::dndxn(void (FiniteDiff::*dd)(int, int, const double *, int, double 
 				MPI_Barrier(this->mpi_topology_->comm);
 			}
 #endif
-			(this->finite_diff_->*dd)(x_offset, nx_local, ax, nx_operation,	dax);
+
+#ifdef DEBUG
+			for(int p=0; p<this->mpi_topology_->nproc; p++) {
+				if( p == this->mpi_topology_->rank ) {
+					printf("%d:PField::dndxn: calling finite_diff->*dd\n", p);
+#endif
+					(this->finite_diff_->*dd)(x_offset, nx_local, ax, nx_operation,	dax);
+#ifdef DEBUG
+				}
+				MPI_Barrier(this->mpi_topology_->comm);
+			}
+#endif
 			// Unpack buffer
 			for (int i = 0; i < nx_operation; i++)
 				this->data_local[this->indexOperationToLocal(i, j, k)] = dax[i];
@@ -1342,6 +1357,17 @@ PField &PField::filter( const int &filter_width )
 		MPI_Abort(this->mpi_topology_->comm,ierr);
 	}
 
+	// Currently, the rind data does not include overlap data on
+	// the diagonals for multi-dimensional decomposition. Only the
+	// slab decomposition will work.
+	if( this->field_decomp_ == FIELD_DECOMP_PENCIL || 
+	    this->field_decomp_ == FIELD_DECOMP_CUBE ) {
+		if( this->mpi_topology_->rank == 0 ) {
+			printf("PField::filter: warning, only slab domain decomposition currently supports filtering--not filtering.\n");
+		}
+		return *this;
+	}
+
 	const int filter_width_half = filter_width / 2;
 
 	// Determine which function to used to select the bounds for the filtering
@@ -1364,7 +1390,7 @@ PField &PField::filter( const int &filter_width )
 
 	if( this->hasRind(1,-1) ) {
 		y_filter_width_left = &PField::filter_width_left_rind;
-	} else {
+	} else {		
 		y_filter_width_left = &PField::filter_width_left_boundary;
 	}
 	if( this->hasRind(1,1) ) {
@@ -1410,18 +1436,25 @@ PField &PField::filter( const int &filter_width )
 		data_domain[_index] = 0.0L;
 		for(int i= _i-qx_left; i< _i + qx_right; i++ ) {
 
-			const int i_local = _i + this->offset_operation_[0];
+			const int i_local = i + this->offset_operation_[0];
 			const double dx = this->x_local_[i_local+1] - this->x_local_[i_local];
 
 			for(int j= _j-qy_left; j< _j + qy_right; j++ ) {
 
-				const int j_local = _j + this->offset_operation_[1];
+				const int j_local = j + this->offset_operation_[1];
 				const double dy = this->y_local_[j_local+1] - this->y_local_[j_local];
 
 				for(int k= _k-qz_left; k< _k + qz_right; k++ ) {
 
-					const int k_local = _k + this->offset_operation_[2];
+					const int k_local = k + this->offset_operation_[2];
 					const double dz = this->z_local_[k_local+1] - this->z_local_[k_local];
+
+					assert( i_local >= 0 );
+					assert( i_local+1 < this->dims_local_[0] );
+					assert( j_local >= 0 );
+					assert( j_local+1 < this->dims_local_[1] );
+					assert( k_local >= 0 );
+					assert( k_local+1 < this->dims_local_[2] );
 
 					data_domain[_index] += 
 						( this->data_local[this->indexLocal(i_local  ,j_local  ,k_local  )] + 
@@ -1452,7 +1485,7 @@ PField &PField::filter( const int &filter_width )
 
 
 	PFIELD_LOOP_END
-
+		
 	// Need to loop over the entire operation domain to set data_local
 	size_t index_operation=0;
 	PFIELD_LOOP_OPERATION_TO_LOCAL(this)
@@ -1460,6 +1493,9 @@ PField &PField::filter( const int &filter_width )
 	PFIELD_LOOP_END
 
 	delete [] data_domain;
+
+	// Now set the synchronized flag to false
+	this->synchronize();	
 
 	return *this;
 }
