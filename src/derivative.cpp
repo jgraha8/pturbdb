@@ -2,6 +2,7 @@
 #include <cstdlib>
 #include <cstdio>
 #include <string.h>
+#include <mpi.h>
 #include "derivative.hpp"
 
 using namespace std;
@@ -46,6 +47,30 @@ void FiniteDiff::FiniteDiffInit( int nx, const double *x, int ny, const double *
 	this->fd_d2dx2 = this->fdCreateD2( nx, x, order );
 	this->fd_d2dy2 = this->fdCreateD2( ny, y, order );
 	this->fd_d2dz2 = this->fdCreateD2( nz, z, order );
+
+	// Now make sure that the stencil sizes do not exceed the range of the local grid
+	bool abort=false;
+	if( this->fd_ddx->ssize > nx ) {
+		printf("FiniteDiff::FiniteDiffInit: fd_ddx stencil size exceeds the size of the local grid\n");
+		abort=true;
+	} else if( this->fd_ddy->ssize > ny ) {
+		printf("FiniteDiff::FiniteDiffInit: fd_ddy stencil size exceeds the size of the local grid\n");
+		abort=true;
+	} else if( this->fd_ddz->ssize > nz ) {
+		printf("FiniteDiff::FiniteDiffInit: fd_ddz stencil size exceeds the size of the local grid\n");
+		abort=true;
+	} else if( this->fd_d2dx2->ssize > nx ) {
+		printf("FiniteDiff::FiniteDiffInit: fd_d2dx2 stencil size exceeds the size of the local grid\n");
+		abort=true;
+	} else if( this->fd_d2dy2->ssize > ny ) {
+		printf("FiniteDiff::FiniteDiffInit: fd_d2dy2 stencil size exceeds the size of the local grid\n");
+		abort=true;
+	} else if( this->fd_d2dz2->ssize > nz ) {
+		printf("FiniteDiff::FiniteDiffInit: fd_d2dz2 stencil size exceeds the size of the local grid\n");
+		abort=true;
+	}
+	int ierr=0;
+	if( abort ) MPI_Abort(MPI_COMM_WORLD,ierr);
 
 #ifdef VERBOSE
 	printf("FiniteDiff::FiniteDiffInit: exiting\n");
@@ -466,7 +491,17 @@ void FiniteDiff::ddx( int offset, int na, const double *a, int nda, double *da )
 		printf("FiniteDiff::fdOp: received null finite difference struct\n");
 	}
 
+#ifdef DEBUG
+	printf("PField::dndxn\n");
+	printf("    fd_ddx->ssize = %d\n", this->fd_ddx->ssize);
+	for (int i = 0; i < this->fd_ddx->ssize; i++) {
+		printf("    fd_ddx->stencil[%d], fd_ddx->ds[%d], fd_ddx->coef[%d] = %d, %lf, %lf\n", 
+		       i, i, i, fd_ddx->stencil[i], (double)fd_ddx->ds[i], (double)fd_ddx->coef[i]);
+	}
+#endif
+
 	this->fdOp( this->fd_ddx, offset, na, a, nda, da );
+
 #ifdef VERBOSE
 	printf("FiniteDiff::ddx: exiting\n");
 #endif
