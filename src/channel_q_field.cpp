@@ -18,13 +18,13 @@
 
 #define DB_DT 0.0065
 
-// #define FIELD_NZ 384
-// #define FIELD_NY 256
-// #define FIELD_NX 512
-
 #define FIELD_NZ 384
 #define FIELD_NY 256
 #define FIELD_NX 512
+
+// #define FIELD_NZ 64
+// #define FIELD_NY 64
+// #define FIELD_NX 64
 
 #define H5_OUTPUT_PATH "/datascope/tdbchannel/analysis/channel-q-field"
 
@@ -44,7 +44,8 @@ int main(int argc, char *argv[]) {
 
 	PTurbDBField *u = new PTurbDBField("turbdb.conf", db_dims);
 
-	u->PFieldInit(db_field_offset, field_dims, FIELD_DECOMP_PENCIL, periodic, 8);
+	//u->PFieldInit(db_field_offset, field_dims, FIELD_DECOMP_SLAB, periodic, 6);
+	u->PFieldInit(db_field_offset, field_dims, FIELD_DECOMP_PENCIL, periodic, 6);
 	
 	// Turn on caching
 	u->setPCHIPCaching(true);
@@ -191,6 +192,30 @@ int main(int argc, char *argv[]) {
 
 	clock_calcs.start();
 
+	// Filter the fields read from file
+	if( mpi_topology->rank == 0 ) {
+		cout << "Filtering u, v, w ... ";
+	}
+	clock.start();
+	u->filter( 6 ); 
+	v->filter( 6 ); 
+	w->filter( 6 ); 
+	clock.stop();
+	if( mpi_topology->rank == 0 ) cout << clock.time() << "(s)\n";
+
+	// for(int p=0; p<u->getMPITopology()->nproc; p++) {
+	// 	if( p == u->getMPITopology()->rank) {
+	// 		printf("================================================================================\n");
+	// 		printf("Process %d\n", u->getMPITopology()->rank);
+	// 		printf("dims = %d, %d, %d\n", u->getDims()[0], u->getDims()[1], u->getDims()[2]);
+	// 		printf("dims_local = %d, %d, %d\n", u->getDimsLocal()[0], u->getDimsLocal()[1], u->getDimsLocal()[2]);
+	// 		printf("dims_operation = %d, %d, %d\n", u->getDimsOperation()[0], u->getDimsOperation()[1], u->getDimsOperation()[2]);
+	// 		printf("offset_local = %d, %d, %d\n", u->getOffsetLocal()[0], u->getOffsetLocal()[1], u->getOffsetLocal()[2]);
+	// 		printf("offset_operation = %d, %d, %d\n", u->getOffsetOperation()[0], u->getOffsetOperation()[1], u->getOffsetOperation()[2]);
+	// 		printf("rind_size = %d\n", u->getRindSize());
+	// 	}
+	// 	MPI_Barrier(u->getMPITopology()->comm);
+	// }
 	// Assign pointers to the velocity vector
 	PFieldVectorAssign( vel, u, v, w );
 
@@ -238,7 +263,7 @@ int main(int argc, char *argv[]) {
 	// h5file->precision(8);
 	// *h5file << time << ".h5";
 		
-	static const std::string h5file = std::string(H5_OUTPUT_PATH) + std::string("/q.h5");
+ 	static const std::string h5file = std::string(H5_OUTPUT_PATH) + std::string("/q-fd6-filtered-6-pencil.h5");
 
 	// Open the database file
 	esio_file_create(h, h5file.c_str(), 1);
