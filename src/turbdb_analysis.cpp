@@ -26,8 +26,9 @@
 #define FIELD_NY 128
 #define FIELD_NX 128
 
-#define NSTEPS 300
-#define H5_OUTPUT_PATH "/datascope/tdbchannel/analysis/test-1"
+#define NSTEPS 1
+#define FILTER_WIDTH 4 
+#define H5_OUTPUT_PATH "/datascope/tdbchannel/analysis/filtered-vortex-field"
 
 using namespace std;
 using namespace pturbdb;
@@ -45,7 +46,7 @@ int main(int argc, char *argv[]) {
 
 	PTurbDBField *u = new PTurbDBField("turbdb.conf", db_dims);
 
-	u->PFieldInit(db_field_offset, field_dims, FIELD_DECOMP_PENCIL, periodic, 8);
+	u->PFieldInit(db_field_offset, field_dims, FIELD_DECOMP_SLAB, periodic, 6);
 	
 	// Turn on caching
 	u->setPCHIPCaching(true);
@@ -135,7 +136,7 @@ int main(int argc, char *argv[]) {
 	
 	PFieldVector_t lambda = PFieldVectorNew( *u );
 	PFieldTensor_t eigvec = PFieldTensorNew( *u );
-	std::vector<Vortex_t> vortex;
+	std::vector<Vortex_t> vortex_points;
 
 	// PField *S2 = new PField( *u, false );
 	// PField *T2 = new PField( *u, false );
@@ -218,6 +219,17 @@ int main(int argc, char *argv[]) {
 
 		clock_calcs.start();
 
+		// Filter the fields read from file
+		if( mpi_topology->rank == 0 ) {
+			cout << "Filtering u, v, w ... ";
+		}
+		clock.start();
+		u->filter( FILTER_WIDTH ); 
+		v->filter( FILTER_WIDTH ); 
+		w->filter( FILTER_WIDTH ); 
+		clock.stop();
+		if( mpi_topology->rank == 0 ) cout << clock.time() << "(s)\n";
+
 		// Assign pointers to the velocity vector
 		PFieldVectorAssign( vel, u, v, w );
 
@@ -257,9 +269,16 @@ int main(int argc, char *argv[]) {
 		clock.stop();
 		if( mpi_topology->rank == 0 ) cout << "    total: " << clock.time() << "(s)\n";
 
-		if( mpi_topology->rank == 0 ) cout << "Finding vortices ... \n";
+		if( mpi_topology->rank == 0 ) cout << "Finding vortex points ... \n";
 		clock.start();
-		VortexSearch( vortex, lambda, eigvec, 0.64, 1.0/sqrt(3) );
+		VortexSearch( vortex_points, lambda, eigvec, 0.64, 1.0/sqrt(3) );
+		MPI_Barrier( mpi_topology->comm );
+		clock.stop();
+		if( mpi_topology->rank == 0 ) cout << "    total: " << clock.time() << "(s)\n";
+
+		if( mpi_topology->rank == 0 ) cout << "Assembling vortex regions ... \n";
+		clock.start();
+		VortexRegion( vortex_region, vortex_points );
 		MPI_Barrier( mpi_topology->comm );
 		clock.stop();
 		if( mpi_topology->rank == 0 ) cout << "    total: " << clock.time() << "(s)\n";
@@ -289,13 +308,13 @@ int main(int argc, char *argv[]) {
 		if( mpi_topology->rank == 0 ) cout << "Computing Q invariant ... ";
 		clock.start();
 		// Q->sub( *T2, *S2 ) *= 0.5;
-		PFieldTensorDotDot( *Q, Aij, Aij ) *= (double)-0.5L; // Apply the -1/2 factor
+		PFieldTensorDotDot( *Q, Aij, Aij ) *= -(double)0.5L; // Apply the -1/2 factor
 		clock.stop();
 		if( mpi_topology->rank == 0 ) cout << clock.time() << "(s)\n";
 
 		if( mpi_topology->rank == 0 ) cout << "Computing R invariant ... ";
 		clock.start();
-		PFieldTensorDeterminant( *R, Aij ) *= (double) -1.0L; // Apply the -1 factor
+		PFieldTensorDeterminant( *R, Aij ) *= -(double)1.0L; // Apply the -1 factor
 		clock.stop();
 		if( mpi_topology->rank == 0 ) cout << clock.time() << "(s)\n";
 
@@ -331,8 +350,8 @@ int main(int argc, char *argv[]) {
 		delete h5file;
 		
 		esio_field_establish(h, field_dims[0], offset_local[0]+offset_operation[0], dims_operation[0],
-				     field_dims[1], offset_local[1]+offset_operation[1], dims_operation[1],
-				     field_dims[2], offset_local[2]+offset_operation[2], dims_operation[2]);
+				        field_dims[1], offset_local[1]+offset_operation[1], dims_operation[1],
+				        field_dims[2], offset_local[2]+offset_operation[2], dims_operation[2]);
 
 		if( mpi_topology->rank == 0 ) cout << "Writing grid" << endl;
 	
@@ -473,7 +492,7 @@ int main(int argc, char *argv[]) {
 	// delete T2;
 
 	delete Q;		
-	// delete Q1;
+	delete R;
 
 	delete [] t_data;
 
@@ -482,6 +501,8 @@ int main(int argc, char *argv[]) {
 	delete v;
 	delete w;
 	delete p;
+
+	MPI_Barrier(MPI_COMM_WORLD);
 
 	if (rank == 0) {
 		wtime = MPI_Wtime();
