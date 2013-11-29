@@ -32,14 +32,14 @@ void VortexCopy( Vortex_t &a, const Vortex_t &b )
 void VortexSearch( std::vector<Vortex_t> &vortex, PFieldVector_t &lambda, PFieldTensor_t &eigvec, double strength_threshold, double compactness_threshold )
 {
 
-	// Clear the in comming vortex
+	// Clear the in coming vortex
 	vortex.clear();
 
 	// Synchronize the needed fields
 	lambda[1]->synchronize(); // \lambda_{cr}
 	lambda[2]->synchronize(); // \lambda_{ci}
 
-	//	const size_t N = lambda[0]->getSizeLocal();
+	//	const size_t N = lambda[0]->getSizeLocal();	
 	const size_t N = lambda[0]->getSizeOperation();
 
 	/// Generate Vortex_t class for the local domain
