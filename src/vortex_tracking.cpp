@@ -2,6 +2,9 @@
 #include <cassert>
 #include <cstdlib>
 #include <cstdio>
+#include <vector>
+#include <deque>
+#include <map>
 #include "core.hpp"
 #include "pfield.hpp"
 #include "pfield_math.hpp"
@@ -29,7 +32,8 @@ void VortexCopy( Vortex_t &a, const Vortex_t &b )
  *
  * Sets the vector vortex_index with the point indices of the local domain
  */
-void VortexSearch( std::vector<Vortex_t> &vortex, PFieldVector_t &lambda, PFieldTensor_t &eigvec, double strength_threshold, double compactness_threshold )
+void VortexSearch( std::vector<Vortex_t> &vortex, const PFieldVector_t &lambda, const PFieldTensor_t &eigvec, 
+		   double strength_threshold, double compactness_threshold )
 {
 
 	// Clear the in coming vortex
@@ -186,5 +190,43 @@ int  VortexSearchCompareCompactnessLast(const void *a,const void *b)
 	}
 
 }
+
+void VortexRegionSet( VortexRegion_t &vortex_region, const size_t &tag, const std::deque<Vortex_t> &vortex_list )
+{
+	vortex_region.tag = tag;
+	vortex_region.vortex_list = vortex_list;
+}
+
+void VortexRegionAppend( VortexRegion_t &vortex_region, const Vortex_t &vortex )
+{
+	vortex_region.vortex_list.push_back(vortex);
+}
+
+void VortexRegionCopy( VortexRegion_t &a, const VortexRegion_t &b )
+{
+	a.tag = b.tag;
+	a.vortex_list = b.vortex_list;
+}
+
+void VortexRegionSearch( std::vector<VortexRegion_t> &vortex_region, const std::vector<Vortex_t> &vortex )
+{
+
+	// Clear the in coming vortex region
+	vortex_region.clear();
+
+	// First generate a map of the vortex points Maps the
+	// operation grid index to the vortex index such that for a
+	// given operation grid index, the vortex at the index can be
+	// retrieved with: 
+	//     vortex[vortex_map[index]]
+	std::map<size_t,size_t> vortex_map; 
+
+	for( size_t i=0; i<vortex.size(); i++ ) 
+		vortex_map[vortex[i].index]=i;
+    
+
+
+}
+
 
 }
