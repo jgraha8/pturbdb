@@ -369,6 +369,8 @@ size_t PField::indexOperation(const int &i, const int &j, const int &k) const
 		* (size_t) this->dims_operation_[2] + (size_t) k;
 }
 
+
+
 // Array index for 3D indexing
 /********************************************************************/
 size_t PField::indexOperationToLocal(const int &i, const int &j, const int &k) const
@@ -391,6 +393,46 @@ size_t PField::indexOperationToLocal(const int &i, const int &j, const int &k) c
 #endif
 	return ((size_t) this->dims_local_[1] * ii + jj) * (size_t) this->dims_local_[2] + kk;
 }
+
+/********************************************************************/
+std::vector<int> PField::ijk( const size_t &index ) const 
+/********************************************************************/
+{
+	std::vector<int> ijk(3);
+	const size_t d1xd2 = this->dims_[1] * this->dims_[2];
+	const size_t index2 = index % d1xd2;
+	ijk[0] = index / d1xd2;
+	ijk[1] = index2 / this->dims_[2];
+	ijk[2] = index2 % this->dims_[2];
+	return ijk;
+}
+
+/********************************************************************/
+std::vector<int> PField::ijkLocal( const size_t &index ) const 
+/********************************************************************/
+{
+	std::vector<int> ijk(3);
+	const size_t d1xd2 = this->dims_local_[1] * this->dims_local_[2];
+	const size_t index2 = index % d1xd2;
+	ijk[0] = index / d1xd2;
+	ijk[1] = index2 / this->dims_local_[2];
+	ijk[2] = index2 % this->dims_local_[2];
+	return ijk;
+}
+
+/********************************************************************/
+std::vector<int> PField::ijkOperation( const size_t &index ) const 
+/********************************************************************/
+{
+	std::vector<int> ijk(3);
+	const size_t d1xd2 = this->dims_operation_[1] * this->dims_operation_[2];
+	const size_t index2 = index % d1xd2;
+	ijk[0] = index / d1xd2;
+	ijk[1] = index2 / this->dims_operation_[2];
+	ijk[2] = index2 % this->dims_operation_[2];
+	return ijk;
+}
+
 
 void PField::setSynchronized( bool synchronized )
 {

@@ -1,7 +1,9 @@
 #ifndef PFIELD_H
 #define PFIELD_H
 
+
 #include <algorithm>
+#include <vector>
 #include "derivative.hpp"
 #include "mpi_topology.hpp"
 
@@ -113,6 +115,10 @@ public:
 	size_t indexLocal( const int &i, const int &j, const int &k ) const;
 	size_t indexOperation( const int &i, const int &j, const int &k ) const;
 	size_t indexOperationToLocal( const int &i, const int &j, const int &k ) const;
+
+	std::vector<int> ijk( const size_t &index ) const;
+	std::vector<int> ijkLocal( const size_t &index ) const;
+	std::vector<int> ijkOperation( const size_t &index ) const;
 
 	void setGridLocal( const double *x_local, const double *y_local, const double *z_local );
 	void setDataLocal( const size_t &index, const double &a );
