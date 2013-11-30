@@ -2,6 +2,7 @@
 #include <cassert>
 #include <cstdlib>
 #include <cstdio>
+#include <cstring>
 #include <vector>
 #include <deque>
 #include <map>
@@ -12,6 +13,13 @@
 
 namespace pturbdb {
 
+size_t vortex_region_tag=0;
+	
+void VortexInit( Vortex_t &vortex ) {
+	vortex.index=-1;
+	vortex.strength=0.0L;
+	vortex.compactness=0.0L;
+}
 
 void VortexSet( Vortex_t &vortex, size_t index, double strength, double compactness ) 
 {
@@ -19,10 +27,10 @@ void VortexSet( Vortex_t &vortex, size_t index, double strength, double compactn
 	vortex.strength = strength;
 	vortex.compactness = compactness;
 }
-void VortexCopy( Vortex_t &a, const Vortex_t &b )
-{
-	VortexSet( a, b.index, b.strength, b.compactness );
-}
+// void VortexCopy( Vortex_t &a, const Vortex_t &b )
+// {
+// 	VortexSet( a, b.index, b.strength, b.compactness );
+// }
 
 /*
  * Searches for the point list on the local domain which contain vortices according to:
@@ -30,9 +38,9 @@ void VortexCopy( Vortex_t &a, const Vortex_t &b )
  *     \lambda_{ci} >= strength_threshold
  *     | \lambda_{cr} / \lambda_{ci} | <= compactness_threshold
  *
- * Sets the vector vortex_index with the point indices of the local domain
+ * Sets the vector vortex_index with the point indices of the global domain
  */
-void VortexSearch( std::vector<Vortex_t> &vortex, const PFieldVector_t &lambda, const PFieldTensor_t &eigvec, 
+void VortexSearch( VortexMap_t &vortex, const PFieldVector_t &lambda, const PFieldTensor_t &eigvec, 
 		   double strength_threshold, double compactness_threshold )
 {
 
@@ -43,26 +51,41 @@ void VortexSearch( std::vector<Vortex_t> &vortex, const PFieldVector_t &lambda, 
 	lambda[1]->synchronize(); // \lambda_{cr}
 	lambda[2]->synchronize(); // \lambda_{ci}
 
-	//	const size_t N = lambda[0]->getSizeLocal();	
-	const size_t N = lambda[0]->getSizeOperation();
+	const size_t N = lambda[0]->getSizeLocal();	
 
 	/// Generate Vortex_t class for the local domain
 	Vortex_t *vortex_local = new Vortex_t[N];
 
+	const int *offset_operation = lambda[0]->getOffsetOperation();
+	const int *offset_local     = lambda[0]->getOffsetLocal();
+	const int offset_operation_to_global[] = { offset_operation[0] + offset_local[0], 
+						   offset_operation[1] + offset_local[1], 
+						   offset_operation[2] + offset_local[2] };
+
 	PFIELD_LOOP_OPERATION_TO_LOCAL(lambda[0])
-	//for( size_t n=0; n<N; n++ ) {
-		// double _cache = lambda[2]->getDataLocal()[n];
-		// VortexSet( vortex_local[n], n, _cache, lambda[1]->getDataLocal()[n] / _cache );
-        double _cache = lambda[2]->getDataLocal()[_index];
-	size_t _index_operation = lambda[0]->indexOperation(_i,_j,_k);
-	VortexSet( vortex_local[_index_operation], _index_operation, _cache, lambda[1]->getDataLocal()[_index] / _cache );
-		//	}
-        PFIELD_LOOP_END
+
+	const int ijk_global[] = { _i + offset_operation_to_global[0], 
+				   _j + offset_operation_to_global[1], 
+				   _k + offset_operation_to_global[2] };
+
+	const size_t index_global = lambda[0]->index( ijk_global[0], ijk_global[1], ijk_global[2] );
+
+	const double lambda_cr = lambda[1]->getDataLocal()[_index];
+	const double lambda_ci = lambda[2]->getDataLocal()[_index];
+
+	//VortexSet( vortex_local[index], index, &(ijk[0]), lambda_ci, lambda_cr / lambda_ci );
+	VortexSet( vortex_local[_index], index_global, lambda_ci, lambda_cr / lambda_ci );
+	PFIELD_LOOP_END
 
 	// Create the vortex classes for the thresholds
-	Vortex_t vortex_strength_threshold; VortexSet(vortex_strength_threshold, 0, strength_threshold, 0.0);
-        Vortex_t vortex_compactness_threshold_first; VortexSet(vortex_compactness_threshold_first, 0, 0.0, -compactness_threshold);
-        Vortex_t vortex_compactness_threshold_last; VortexSet(vortex_compactness_threshold_last, 0, 0.0, compactness_threshold);
+	Vortex_t vortex_strength_threshold; 
+        Vortex_t vortex_compactness_threshold_first; 
+        Vortex_t vortex_compactness_threshold_last; 
+
+	VortexSet(vortex_strength_threshold, 0, strength_threshold, 0.0);
+	VortexSet(vortex_compactness_threshold_first, 0, 0.0, -compactness_threshold);
+	VortexSet(vortex_compactness_threshold_last, 0, 0.0, compactness_threshold);
+
 	Vortex_t *vortex_first, *vortex_last;
 	size_t N_strong;
 	size_t N_vortex;
@@ -89,14 +112,16 @@ void VortexSearch( std::vector<Vortex_t> &vortex, const PFieldVector_t &lambda, 
 		if( vortex_compactness_threshold_first.compactness <= vortex_strong->compactness ) {
 			vortex_first = vortex_strong;
 		} else {
-			vortex_first = (Vortex_t*)bsearch( &vortex_compactness_threshold_first, vortex_strong+1, N_strong - 1, sizeof(Vortex_t), VortexSearchCompareCompactnessFirst);
+			vortex_first = (Vortex_t*)bsearch( &vortex_compactness_threshold_first, vortex_strong+1, 
+							   N_strong - 1, sizeof(Vortex_t), VortexSearchCompareCompactnessFirst);
 			assert(vortex_first != NULL);
 		}
 	
 		if( vortex_compactness_threshold_last.compactness >= (vortex_strong+N_strong-1)->compactness ) {
 			vortex_last =  vortex_strong + N_strong - 1;
 		} else  {
-			vortex_last = (Vortex_t*)bsearch( &vortex_compactness_threshold_last, vortex_strong, N_strong-1, sizeof(Vortex_t), VortexSearchCompareCompactnessLast);
+			vortex_last = (Vortex_t*)bsearch( &vortex_compactness_threshold_last, vortex_strong, 
+							  N_strong-1, sizeof(Vortex_t), VortexSearchCompareCompactnessLast);
 			assert(vortex_first != NULL);
 		}
 	}
@@ -106,10 +131,9 @@ void VortexSearch( std::vector<Vortex_t> &vortex, const PFieldVector_t &lambda, 
 	// Finally sort into assending index values
 	qsort(vortex_first, N_vortex, sizeof(Vortex_t), VortexSortCompareIndex);
 
-	vortex.resize(N_vortex);
-	for( size_t n=0; n<N_vortex; n++ ) 
-		VortexCopy( vortex[n], *(vortex_first+n) );
-		
+	for( Vortex_t *v = vortex_first; v != vortex_last + 1; v++ )
+		vortex[v->index] = *v;
+
  clean_up:
 
 	delete [] vortex_local;
@@ -191,40 +215,133 @@ int  VortexSearchCompareCompactnessLast(const void *a,const void *b)
 
 }
 
-void VortexRegionSet( VortexRegion_t &vortex_region, const size_t &tag, const std::deque<Vortex_t> &vortex_list )
+
+void VortexRegionInit( VortexRegion_t &vortex_region ) {
+	vortex_region.tag = -1;
+	vortex_region.vortex_list.clear();
+}
+
+void VortexRegionSet( VortexRegion_t &vortex_region, const size_t &tag, VortexMap_t &vortex_list )
 {
 	vortex_region.tag = tag;
-	vortex_region.vortex_list = vortex_list;
+	for (VortexMap_t::iterator v = vortex_list.begin(); v != vortex_list.end(); v++ ) 
+		vortex_region.vortex_list[v->first] = v->second;
 }
 
-void VortexRegionAppend( VortexRegion_t &vortex_region, const Vortex_t &vortex )
-{
-	vortex_region.vortex_list.push_back(vortex);
-}
+// void VortexRegionAppend( VortexRegion_t &vortex_region, const Vortex_t &vortex )
+// {
+// 	vortex_region.vortex_list.push_back(vortex);
+// }
 
-void VortexRegionCopy( VortexRegion_t &a, const VortexRegion_t &b )
-{
-	a.tag = b.tag;
-	a.vortex_list = b.vortex_list;
-}
+// void VortexRegionCopy( VortexRegion_t &a, const VortexRegion_t &b )
+// {
+// 	VortexRegionSet( a, b.tag, b.vortex_list );
+// }
 
-void VortexRegionSearch( std::vector<VortexRegion_t> &vortex_region, const std::vector<Vortex_t> &vortex )
+void VortexRegionSearch( VortexRegionMap_t &vortex_region, const VortexMap_t &vortex, const PField &host)
 {
 
 	// Clear the in coming vortex region
 	vortex_region.clear();
 
-	// First generate a map of the vortex points Maps the
-	// operation grid index to the vortex index such that for a
-	// given operation grid index, the vortex at the index can be
-	// retrieved with: 
-	//     vortex[vortex_map[index]]
-	std::map<size_t,size_t> vortex_map; 
+	VortexMap_t vortex_worker = vortex; // Make a copy of the vortex map
 
-	for( size_t i=0; i<vortex.size(); i++ ) 
-		vortex_map[vortex[i].index]=i;
-    
+	// Now for each vortex in the vector point list 
+	while( vortex_worker.size() != 0 ) {
 
+		// Create a new vortex_region
+		VortexRegion_t vr;
+		VortexRegionInit(vr);
+		vr.tag = ++vortex_region_tag; // Starts with 1
+
+		// Get the vortex iterator for the map
+		VortexMap_t::iterator vm = vortex_worker.begin();
+		
+		// Add the vortex
+		size_t index = vm->first;
+		vr.vortex_list[index] = vm->second;
+
+		// Erase the vortex that has been added to the region
+		vortex_worker.erase(vm);
+
+		// Populates the vortex list in vr for contigous vortex points
+		// starting with the first vortex point added above
+		VortexRegionSearchNeighbors( vr, index, vortex_worker, host );
+		
+		// Insert vortex region into the map
+		vortex_region[vr.tag] = vr;
+		
+	}
+
+}
+
+void VortexRegionSearchNeighbors( VortexRegion_t &vortex_region, const size_t &vortex_index, 
+				  VortexMap_t &vortex_map, const PField &host ) 
+{
+
+	// Get the operation domain ijk values
+	const std::vector<int> ijk_global = host.ijk( vortex_index );
+
+	const int *offset_local = host.getOffsetLocal();
+
+	const int ijk_local[] = { ijk_global[0] - offset_local[0],
+	                          ijk_global[1] - offset_local[1],
+				  ijk_global[2] - offset_local[2] };
+
+	const int *dims_local = host.getDimsLocal();
+
+	size_t _index;
+	VortexMap_t::iterator vm;
+
+	// Have to check that the host field has a rind
+	if( ijk_local[0] + 1 < dims_local[0] ) {
+		// Get the global index
+		_index = host.index( ijk_local[0] + 1 + offset_local[0], 
+				     ijk_local[1]     + offset_local[1],
+				     ijk_local[2]     + offset_local[2] );
+#include "vortex_region_search_neighbors.cpp"
+	}
+
+	if( 0 <= ijk_local[0] - 1 ) {
+		// Get the global index
+		_index = host.index( ijk_local[0] - 1 + offset_local[0], 
+				     ijk_local[1]     + offset_local[1],
+				     ijk_local[2]     + offset_local[2] );
+#include "vortex_region_search_neighbors.cpp"
+	}
+
+	if( ijk_local[1] + 1 < dims_local[1] ) {
+		// Get the global index
+		_index = host.index( ijk_local[0]     + offset_local[0], 
+				     ijk_local[1] + 1 + offset_local[1],
+				     ijk_local[2]     + offset_local[2] );
+#include "vortex_region_search_neighbors.cpp"
+	}
+
+	if( 0 <= ijk_local[1] - 1 ) {
+		// Get the global index
+		_index = host.index( ijk_local[0]     + offset_local[0], 
+				     ijk_local[1] - 1 + offset_local[1],
+				     ijk_local[2]     + offset_local[2] );
+#include "vortex_region_search_neighbors.cpp"
+	}
+
+	if( ijk_local[2] + 1 < dims_local[2] ) {
+		// Get the global index
+		_index = host.index( ijk_local[0]     + offset_local[0], 
+				     ijk_local[1]     + offset_local[1],
+				     ijk_local[2] + 1 + offset_local[2] );
+#include "vortex_region_search_neighbors.cpp"
+	}
+
+	if( 0 <= ijk_local[2] - 1 ) {
+
+		// Get the global index
+		_index = host.index( ijk_local[0]     + offset_local[0], 
+				     ijk_local[1]     + offset_local[1],
+				     ijk_local[2] - 1 + offset_local[2] );
+#include "vortex_region_search_neighbors.cpp"
+	}
 
 }
 
