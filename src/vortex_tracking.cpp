@@ -273,6 +273,10 @@ void VortexRegionSearch( VortexRegionMap_t &vortex_region, const VortexMap_t &vo
 		
 	}
 
+	// Now have to synchronize the tags across the processes and renumber
+	// them using a global convention
+	VortexRegionSynchronize( vortex_region, host );
+	
 }
 
 void VortexRegionSearchNeighbors( VortexRegion_t &vortex_region, const size_t &vortex_index, 
@@ -343,6 +347,11 @@ void VortexRegionSearchNeighbors( VortexRegion_t &vortex_region, const size_t &v
 #include "vortex_region_search_neighbors.cpp"
 	}
 
+}
+
+void VortexRegionSynchronize( VortexRegionMap_t &vortex_region, const PField &host )
+{
+	
 }
 
 
