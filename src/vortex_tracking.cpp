@@ -3,9 +3,11 @@
 #include <cstdlib>
 #include <cstdio>
 #include <cstring>
+#include <iostream>
 #include <vector>
 #include <deque>
 #include <map>
+#include <utility>
 #include "core.hpp"
 #include "pfield.hpp"
 #include "pfield_math.hpp"
@@ -15,18 +17,24 @@ namespace pturbdb {
 
 size_t vortex_region_tag=0;
 	
-void VortexInit( Vortex_t &vortex ) {
+/****************************************************************************************/
+void VortexInit( Vortex_t &vortex )
+/****************************************************************************************/
+{
 	vortex.index=-1;
 	vortex.strength=0.0L;
 	vortex.compactness=0.0L;
 }
 
+/****************************************************************************************/
 void VortexSet( Vortex_t &vortex, size_t index, double strength, double compactness ) 
+/****************************************************************************************/
 {
 	vortex.index = index;
 	vortex.strength = strength;
 	vortex.compactness = compactness;
 }
+
 // void VortexCopy( Vortex_t &a, const Vortex_t &b )
 // {
 // 	VortexSet( a, b.index, b.strength, b.compactness );
@@ -40,8 +48,11 @@ void VortexSet( Vortex_t &vortex, size_t index, double strength, double compactn
  *
  * Sets the vector vortex_index with the point indices of the global domain
  */
-void VortexSearch( VortexMap_t &vortex, const PFieldVector_t &lambda, const PFieldTensor_t &eigvec, 
-		   double strength_threshold, double compactness_threshold )
+/****************************************************************************************/
+void VortexSearch( VortexMap_t &vortex, const PFieldVector_t &lambda, 
+		   const PFieldTensor_t &eigvec, double strength_threshold, 
+		   double compactness_threshold )
+/****************************************************************************************/
 {
 
 	// Clear the in coming vortex
@@ -140,7 +151,9 @@ void VortexSearch( VortexMap_t &vortex, const PFieldVector_t &lambda, const PFie
 	
 }
 
+/****************************************************************************************/
 int VortexSortCompareIndex(const void *a,const void *b)
+/****************************************************************************************/
 {
 	if ( ((Vortex_t*)a)->index == ((Vortex_t*)b)->index )
 		return 0;
@@ -151,7 +164,9 @@ int VortexSortCompareIndex(const void *a,const void *b)
 		return 1;
 	}
 }
+/****************************************************************************************/
 int VortexSortCompareStrength(const void *a,const void *b)
+/****************************************************************************************/
 {
 	if ( ((Vortex_t*)a)->strength == ((Vortex_t*)b)->strength )
 		return 0;
@@ -163,7 +178,9 @@ int VortexSortCompareStrength(const void *a,const void *b)
 	}
 }
 
+/****************************************************************************************/
 int VortexSortCompareCompactness(const void *a,const void *b)
+/****************************************************************************************/
 {
 	if ( ((Vortex_t*)a)->compactness == ((Vortex_t*)b)->compactness )
 		return 0;
@@ -175,7 +192,9 @@ int VortexSortCompareCompactness(const void *a,const void *b)
 	}
 }
 
+/****************************************************************************************/
 int  VortexSearchCompareStrength(const void *a,const void *b)
+/****************************************************************************************/
 {
 	if ( ((Vortex_t*)b-1)->strength < ((Vortex_t*)a)->strength && 
 	     ((Vortex_t*)a)->strength <= ((Vortex_t*)b)->strength ) 
@@ -188,7 +207,10 @@ int  VortexSearchCompareStrength(const void *a,const void *b)
 	}
 
 }
+
+/****************************************************************************************/
 int  VortexSearchCompareCompactnessFirst(const void *a,const void *b)
+/****************************************************************************************/
 {
 	if ( ((Vortex_t*)b-1)->compactness < ((Vortex_t*)a)->compactness && 
 	     ((Vortex_t*)a)->compactness <= ((Vortex_t*)b)->compactness ) 
@@ -201,7 +223,10 @@ int  VortexSearchCompareCompactnessFirst(const void *a,const void *b)
 	}
 
 }
+
+/****************************************************************************************/
 int  VortexSearchCompareCompactnessLast(const void *a,const void *b)
+/****************************************************************************************/
 {
 	if ( ((Vortex_t*)b)->compactness <= ((Vortex_t*)a)->compactness && 
 	     ((Vortex_t*)a)->compactness <  ((Vortex_t*)b+1)->compactness ) 
@@ -215,13 +240,18 @@ int  VortexSearchCompareCompactnessLast(const void *a,const void *b)
 
 }
 
-
-void VortexRegionInit( VortexRegion_t &vortex_region ) {
+/****************************************************************************************/
+void VortexRegionInit( VortexRegion_t &vortex_region ) 
+/****************************************************************************************/
+{
 	vortex_region.tag = -1;
 	vortex_region.vortex_list.clear();
 }
 
-void VortexRegionSet( VortexRegion_t &vortex_region, const size_t &tag, VortexMap_t &vortex_list )
+/****************************************************************************************/
+void VortexRegionSet( VortexRegion_t &vortex_region, const size_t &tag, 
+		      VortexMap_t &vortex_list )
+/****************************************************************************************/
 {
 	vortex_region.tag = tag;
 	for (VortexMap_t::iterator v = vortex_list.begin(); v != vortex_list.end(); v++ ) 
@@ -238,7 +268,10 @@ void VortexRegionSet( VortexRegion_t &vortex_region, const size_t &tag, VortexMa
 // 	VortexRegionSet( a, b.tag, b.vortex_list );
 // }
 
-void VortexRegionSearch( VortexRegionMap_t &vortex_region, const VortexMap_t &vortex, const PField &host)
+/****************************************************************************************/
+void VortexRegionSearch( VortexRegionMap_t &vortex_region, const VortexMap_t &vortex, 
+			 const PField &host)
+/****************************************************************************************/
 {
 
 	// Clear the in coming vortex region
@@ -279,8 +312,11 @@ void VortexRegionSearch( VortexRegionMap_t &vortex_region, const VortexMap_t &vo
 	
 }
 
-void VortexRegionSearchNeighbors( VortexRegion_t &vortex_region, const size_t &vortex_index, 
-				  VortexMap_t &vortex_map, const PField &host ) 
+/****************************************************************************************/
+void VortexRegionSearchNeighbors( VortexRegion_t &vortex_region, 
+				  const size_t &vortex_index, VortexMap_t &vortex_map, 
+				  const PField &host ) 
+/****************************************************************************************/
 {
 
 	// Get the operation domain ijk values
@@ -349,10 +385,247 @@ void VortexRegionSearchNeighbors( VortexRegion_t &vortex_region, const size_t &v
 
 }
 
+/****************************************************************************************/
 void VortexRegionSynchronize( VortexRegionMap_t &vortex_region, const PField &host )
+/****************************************************************************************/
 {
+
+	int ierr=0;
+	MPI_Status status;
+	const MPI_Comm comm = host.getMPITopology()->comm;
+
+	// First create the index to tag map for the vortex region
+	std::map<size_t,size_t> vr_index_to_tag;
+	VortexRegionIndexToTag( vr_index_to_tag, vortex_region );
+
+	if( host.getFieldDecomp() != FIELD_DECOMP_SLAB ) {
+		std::cout << "VortexRegionSynchronize: currently only FIELD_DECOMP_SLAB decomposition supported\n";
+		MPI_Abort(comm,ierr);
+	}
+
+	int imin, imax;
+	int request=0;
+	int tag_global=0;
+
+	const int *dims_operation   = host.getDimsOperation();
+	//const int *dims_local       = host.getDimsLocal();
+	const int *offset_operation = host.getOffsetOperation();
+	const int *offset_local     = host.getOffsetLocal();
+	const int rind_size         = host.getRindSize();
+
+	const MPITopology_t *mpi_topology = host.getMPITopology();
+
+	size_t N;
+	std::map<size_t,size_t> rind_vr_tag_to_index;
+	std::vector<size_t>     rind_vr_index_and_tag;
+
+	VortexRegionMap_t vortex_region_retag; 
+
+	////////////////////////////////////////////////////////////////////////////////
+	// 1. Receive updated rind region from "prev" process
+        //////////////////////////////////////////////////////////////////////////////// 
+
+	if( mpi_topology->coords[0] != 0 ) {
+
+		// First receive the size of the rind vortex region tag to index vector
+		// Wait for the global tag to return
+		MPI_Recv(&N, 1, MPI_UNSIGNED_LONG, mpi_topology->neighbor_prev[0], 1, mpi_topology->comm, &status);
+		// Resize the rind index and tag vector
+		rind_vr_index_and_tag.resize(N);
+		// Wait for the vector 
+		MPI_Recv(&rind_vr_index_and_tag[0], N, MPI_UNSIGNED_LONG, mpi_topology->neighbor_prev[0], 2, mpi_topology->comm, &status);
+
+		////////////////////////////////////////////////////////////////////////////////
+		// 1.1 Update rind region received from "prev"
+		//////////////////////////////////////////////////////////////////////////////// 
+		
+		// Now loop through the rind vortex region index and tag vector
+		for( size_t n=0; n < N; n+=2 ) {
+
+			size_t index = rind_vr_index_and_tag[n];
+			size_t tag   = rind_vr_index_and_tag[n+1]; // New tag
+
+			size_t tag_orig = vr_index_to_tag[index];
+
+			// Now modify the original vortex region tag
+			VortexRegionMap_t::iterator vr = vortex_region.find(tag_orig); 
+			vr->second.tag = tag; // modifying the origin tag value of the
+			// vortex region in the origin map with
+			// the new tag
+
+			// Update the new map with the updated vortex region
+			vortex_region_retag[tag] = vr->second;
+
+			// Now delete the vortex region from the origin vortex region map
+			vortex_region.erase(vr);
+
+		}
+
+		////////////////////////////////////////////////////////////////////////////////
+		// 1.2 Retrieve and update global tag index
+		//////////////////////////////////////////////////////////////////////////////// 
+
+		// Send request for global tag
+		request = 1;
+		MPI_Send(&request, 1, MPI_INT, 0, 1, mpi_topology->comm);
+
+		// Wait for the global tag to return
+		MPI_Recv(&tag_global, 1, MPI_UNSIGNED_LONG, 0, 2, mpi_topology->comm, &status);
+	  
+		size_t tag_global_start = tag_global + 1;
+
+		// Reserve next set of tags from the remaining number of vortex
+		// regions in the original list;
+		tag_global += vortex_region.size();
+
+		////////////////////////////////////////////////////////////////////////////////
+		// 1.3 Send the updated global tag index back
+		//////////////////////////////////////////////////////////////////////////////// 
+	  
+		// Send back the global tag
+		MPI_Send(&tag_global, 1, MPI_UNSIGNED_LONG, 0, 3, mpi_topology->comm);	  
+
+		// Send request that we are done
+		request = 0;
+		MPI_Send(&request, 1, MPI_INT, 0, 1, MPI_COMM_WORLD);
+
+		////////////////////////////////////////////////////////////////////////////////
+		// 1.4 Update all other vortex region tags
+		//////////////////////////////////////////////////////////////////////////////// 
+
+		for( VortexRegionMap_t::iterator vr = vortex_region.begin(); vr != vortex_region.end(); vr++ ) {
+			vr->second.tag = tag_global_start; // modifying the origin tag value of the
+			// vortex region in the origin map with
+			// the new tag
+
+			// Update the new map with the updated vortex region
+			vortex_region_retag[tag_global_start] = vr->second;			
+			tag_global_start++;
+		}
+
+		vortex_region.clear();
+
+		// Reassign the vortex region map
+		vortex_region = vortex_region_retag;
+
+		vortex_region_retag.clear();
+
+		// Regenerate the vortex region index to tag mapping with the new tags; used for packing 
+		vr_index_to_tag.clear();
+		VortexRegionIndexToTag( vr_index_to_tag, vortex_region );
+
+	}
+
+
+	////////////////////////////////////////////////////////////////////////////////
+	// 2. Send updated rind region to "next" process
+        //////////////////////////////////////////////////////////////////////////////// 
+
+	// Now loop over the rind region if sending to "next" process
+	if( mpi_topology->coords[0] < mpi_topology->dims[0] - 1 ) {
+
+		imin = dims_operation[0] - rind_size;
+		imax = imin + rind_size - 1;
+
+		for( int i=imin; i<=imax; i++ ) {
+			for (int j=0; j<dims_operation[1]; j++ ) {
+				for (int k=0; k<dims_operation[2]; k++ ) {
+
+					int ijk_global[] = { i + offset_operation[0] + offset_local[0],
+							     j + offset_operation[1] + offset_local[1],
+							     k + offset_operation[2] + offset_local[2] };
+					// global index
+					size_t index = host.index( ijk_global[0], ijk_global[1], ijk_global[2] );
+
+					// Now search for the tag in the rind vortex region
+					std::map<size_t,size_t>::iterator vr = vr_index_to_tag.find(index);				
+					if( vr != vr_index_to_tag.end() ) {
+						// It is a vortex point
+						size_t tag = vr->second;
+						// Now check if the updated tag has been inserted in to the map
+						std::map<size_t,size_t>::iterator rvr = rind_vr_tag_to_index.find(tag);
+						if( rvr == rind_vr_tag_to_index.end() ) {
+							// The tag,index pair has not been inserted yet
+							rind_vr_tag_to_index[tag]=index;
+						}
+					}
+
+				}
+			}
+		}
+
+		// Create the vector to send to "next" process
+		// Now pack the index + tag vector; interleaved; pre-allocated to maximum size
+		N = 2*rind_vr_tag_to_index.size();
+		rind_vr_index_and_tag.resize(N);
+
+		size_t n=0;
+		for( std::map<size_t,size_t>::iterator rvr = rind_vr_tag_to_index.begin(); rvr != rind_vr_tag_to_index.end(); rvr++ ) {
+			rind_vr_index_and_tag[n]   = rvr->second; // index
+			rind_vr_index_and_tag[n+1] = rvr->first;  // tag
+			n+=2;
+		};
+
+		// Send the rind index and tag vector
+		MPI_Send(&N, 1, MPI_UNSIGNED_LONG, mpi_topology->neighbor_next[0], 1, mpi_topology->comm);
+		// Send the rind index and tag vector
+		MPI_Send(&rind_vr_index_and_tag[0], N, MPI_UNSIGNED_LONG, mpi_topology->neighbor_next[0], 2, mpi_topology->comm);
+
+	}
+
+	////////////////////////////////////////////////////////////////////////////////
+	// Master process serve global tag value to workers
+        ////////////////////////////////////////////////////////////////////////////////
+	if( mpi_topology->coords[0] == 0 ) {
+
+		// Set the global tag to the number of vortex regions in the
+		// master process. This assumes that the votex regions have tags
+		// that start at and are incremented by 1
+		tag_global = vortex_region.size(); 
+
+		int nworkers = mpi_topology->dims[0] - 1;
+		// Master process
+		while( nworkers != 0 ) {
+			// Wait for message
+			MPI_Recv(&request, 1, MPI_INT, MPI_ANY_SOURCE, 1, mpi_topology->comm, &status);
+			int rank_worker = status.MPI_SOURCE;
+			if( request == 1 ) {
+				// Send the global tag
+				MPI_Send(&tag_global, 1, MPI_UNSIGNED_LONG, rank_worker, 2, mpi_topology->comm);
+				// Wait for the global tag to return
+				MPI_Recv(&tag_global, 1, MPI_UNSIGNED_LONG, rank_worker, 3, mpi_topology->comm, &status);
+			} else {
+				// The worker is finished; take it from the pool
+				nworkers--;
+			}	  
+		}
+
+	} 
 	
 }
 
+/****************************************************************************************/
+void VortexRegionIndexToTag( std::map<size_t,size_t> &vr_index_to_tag, 
+			     VortexRegionMap_t &vortex_region ) 
+/****************************************************************************************/
+{
+
+	// Clear the incoming map
+	vr_index_to_tag.clear();
+
+	std::map<size_t,size_t>::iterator hint = vr_index_to_tag.begin();
+
+	for (VortexRegionMap_t::iterator vr = vortex_region.begin(); vr != vortex_region.end(); vr++ ) {
+		for (VortexMap_t::iterator v = vr->second.vortex_list.begin(); v != vr->second.vortex_list.end(); v++ ) {
+
+			size_t index = v->first;
+			size_t tag   = vr->first;
+
+			hint = vr_index_to_tag.insert( hint, std::pair<size_t,size_t>(index,tag) );
+
+		}
+	}
+
+}
 
 }

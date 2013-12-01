@@ -26,17 +26,17 @@ typedef std::map<size_t,VortexRegion_t> VortexRegionMap_t;
 
 void VortexInit( Vortex_t &vortex );
 void VortexSet( Vortex_t &vortex, size_t index, double strength, double compactness );
-//void VortexCopy( Vortex_t &a, const Vortex_t &b );
 void VortexSearch( VortexMap_t &vortex, const PFieldVector_t &lambda, const PFieldTensor_t &eigvec, 
 		   double strength_threshold, double compactness_threshold);
 
 void VortexRegionInit( VortexRegion_t &vortex_region );
 void VortexRegionSet( VortexRegion_t &vortex_region, const size_t &tag, VortexMap_t &vortex_list );
 void VortexRegionAppend( VortexRegion_t &vortex_region, const Vortex_t &vortex );
-//void VortexRegionCopy( VortexRegion_t &a, const VortexRegion_t &b );
 void VortexRegionSearch( VortexRegionMap_t &vortex_region, const VortexMap_t &vortex_list, const PField &host );
 void VortexRegionSearchNeighbors( VortexRegion_t &vortex_region, const size_t &vortex_index, 
 				  VortexMap_t &vortex_map, const PField &host );
+void VortexRegionSynchronize( VortexRegionMap_t &vortex_region, const PField &host );
+void VortexRegionIndexToTag( std::map<size_t,size_t> &vr_index_to_tag, VortexRegionMap_t &vortex_region );
 
 int VortexSortCompareIndex(const void *a,const void *b);
 int VortexSortCompareStrength(const void *a,const void *b);
