@@ -136,7 +136,6 @@ int main(int argc, char *argv[]) {
 	
 	PFieldVector_t lambda = PFieldVectorNew( *u );
 	PFieldTensor_t eigvec = PFieldTensorNew( *u );
-	std::vector<Vortex_t> vortex_points;
 
 	// PField *S2 = new PField( *u, false );
 	// PField *T2 = new PField( *u, false );
@@ -261,6 +260,9 @@ int main(int argc, char *argv[]) {
 
 		PFieldTensorAssign( Aij, grad_u, grad_v, grad_w );
 
+		VortexMap_t vortex_points;
+		VortexRegionMap_t vortex_region;
+
 		// Compute the vortex eigen pair for Aij
 		if( mpi_topology->rank == 0 ) cout << "Computing the vortex eigenpair of the velocity gradient tensor ... \n";
 		clock.start();
@@ -278,7 +280,7 @@ int main(int argc, char *argv[]) {
 
 		if( mpi_topology->rank == 0 ) cout << "Assembling vortex regions ... \n";
 		clock.start();
-		VortexRegion( vortex_region, vortex_points );
+		VortexRegionSearch( vortex_region, vortex_points, *u );
 		MPI_Barrier( mpi_topology->comm );
 		clock.stop();
 		if( mpi_topology->rank == 0 ) cout << "    total: " << clock.time() << "(s)\n";
@@ -419,14 +421,22 @@ int main(int argc, char *argv[]) {
 		esio_field_write_double(h, "vci3", t_data, 0, 0, 0, "vci3");
 
 		std::fill_n(t_data, u->getSizeOperation(), 0.0);
-		for( std::vector<Vortex_t>::iterator v=vortex.begin(); v != vortex.end(); v++ )
-			t_data[v->index] = v->strength;
+		for( VortexMap_t::iterator v=vortex_points.begin(); v != vortex_points.end(); v++ )
+			t_data[v->first] = v->second.strength;
 		esio_field_write_double(h, "vortex_strength", t_data, 0, 0, 0, "vortex_strength");
 
 		std::fill_n(t_data, u->getSizeOperation(), -1.0);
-		for( std::vector<Vortex_t>::iterator v=vortex.begin(); v != vortex.end(); v++ )
-			t_data[v->index] = v->compactness;
+		for( VortexMap_t::iterator v=vortex_points.begin(); v != vortex_points.end(); v++ )
+			t_data[v->first] = v->second.compactness;
 		esio_field_write_double(h, "vortex_compactness", t_data, 0, 0, 0, "vortex_compactness");
+
+		std::fill_n(t_data, u->getSizeOperation(), 0.0);
+		for( VortexRegionMap_t::iterator vr=vortex_region.begin(); vr != vortex_region.end(); vr++ ) {
+			for( VortexMap_t::iterator v=vr->second.vortex_list.begin(); v != vr->second.vortex_list.end(); v++ ) {
+				t_data[v->first] = (double)vr->first;
+			}
+		}
+		esio_field_write_double(h, "vortex_tag", t_data, 0, 0, 0, "vortex_tag");
 
 		// Aij[0][0]->getDataOperation(t_data);
 		// esio_field_write_double(h, "dudx", t_data, 0, 0, 0, "dudx");
