@@ -15,12 +15,17 @@
 		        for( int _k=0; _k<pfield->getDimsOperation()[2]; _k++ ) { \
 			        const size_t _index = pfield->indexOperation(_i,_j,_k); 
 
-
 #define PFIELD_LOOP_OPERATION_TO_LOCAL(pfield) \
 	for( int _i=0; _i<pfield->getDimsOperation()[0]; _i++ ) { \
 	        for( int _j=0; _j<pfield->getDimsOperation()[1]; _j++ ) { \
 		        for( int _k=0; _k<pfield->getDimsOperation()[2]; _k++ ) { \
 			        const size_t _index = pfield->indexOperationToLocal(_i,_j,_k); 
+#define PFIELD_LOOP_LOCAL(pfield) \
+	for( int _i=0; _i<pfield->getDimsLocal()[0]; _i++ ) {	\
+	        for( int _j=0; _j<pfield->getDimsLocal()[1]; _j++ ) { \
+		        for( int _k=0; _k<pfield->getDimsLocal()[2]; _k++ ) { \
+			        const size_t _index = pfield->indexLocal(_i,_j,_k); 
+
 #define PFIELD_LOOP_END }}}
 
 namespace pturbdb {
@@ -119,6 +124,10 @@ public:
 	std::vector<int> ijk( const size_t &index ) const;
 	std::vector<int> ijkLocal( const size_t &index ) const;
 	std::vector<int> ijkOperation( const size_t &index ) const;
+
+	bool inDomain( const int &i, const int &j, const int &k ) const;
+	bool inDomainLocal( const int &i, const int &j, const int &k ) const;
+	bool inDomainOperation( const int &i, const int &j, const int &k ) const;
 
 	void setGridLocal( const double *x_local, const double *y_local, const double *z_local );
 	void setDataLocal( const size_t &index, const double &a );

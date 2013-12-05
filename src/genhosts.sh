@@ -1,7 +1,8 @@
 #!/bin/bash
 
 #NODES=( "dsp033" "dsp034" "dsp035" "dsp040" )
-NODES=( "dsp034" "dsp035" "dsp040" )
+#NODES=( "dsp034" "dsp035" "dsp040" )
+NODES=( "dsp034" )
 PPN="$1"
 
 echo -n > hostfile

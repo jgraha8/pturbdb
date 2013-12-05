@@ -1,6 +1,7 @@
 #include <iostream>
 #include <sstream>
 //#include <stdlib.h>
+#include <cassert>
 #include <stdlib.h>
 #include <mpi.h>
 #include <cmath>
@@ -145,6 +146,7 @@ int main(int argc, char *argv[]) {
 
 	// Temporary data buffer
 	double *t_data = new double[u->getSizeOperation()];
+	std::vector<double> v_data(u->getSizeOperation());
 
 	Clock clock;
 	Clock clock_data_read;
@@ -264,26 +266,13 @@ int main(int argc, char *argv[]) {
 		VortexRegionMap_t vortex_region;
 
 		// Compute the vortex eigen pair for Aij
-		if( mpi_topology->rank == 0 ) cout << "Computing the vortex eigenpair of the velocity gradient tensor ... \n";
-		clock.start();
-		PFieldEigenPairVortex( lambda, eigvec, Aij );
-		MPI_Barrier( mpi_topology->comm );
-		clock.stop();
-		if( mpi_topology->rank == 0 ) cout << "    total: " << clock.time() << "(s)\n";
+		// if( mpi_topology->rank == 0 ) cout << "Computing the vortex eigenpair of the velocity gradient tensor ... \n";
+		// clock.start();
+		// PFieldEigenPairVortex( lambda, eigvec, Aij );
+		// MPI_Barrier( mpi_topology->comm );
+		// clock.stop();
+		// if( mpi_topology->rank == 0 ) cout << "    total: " << clock.time() << "(s)\n";
 
-		if( mpi_topology->rank == 0 ) cout << "Finding vortex points ... \n";
-		clock.start();
-		VortexSearch( vortex_points, lambda, eigvec, 0.64, 1.0/sqrt(3) );
-		MPI_Barrier( mpi_topology->comm );
-		clock.stop();
-		if( mpi_topology->rank == 0 ) cout << "    total: " << clock.time() << "(s)\n";
-
-		if( mpi_topology->rank == 0 ) cout << "Assembling vortex regions ... \n";
-		clock.start();
-		VortexRegionSearch( vortex_region, vortex_points, *u );
-		MPI_Barrier( mpi_topology->comm );
-		clock.stop();
-		if( mpi_topology->rank == 0 ) cout << "    total: " << clock.time() << "(s)\n";
 
 		// MPI_Barrier( mpi_topology->comm );
 		// if( mpi_topology->rank == 0 ) cout << "Computing symmetric velocity gradient tensor" << endl;
@@ -319,6 +308,22 @@ int main(int argc, char *argv[]) {
 		PFieldTensorDeterminant( *R, Aij ) *= -(double)1.0L; // Apply the -1 factor
 		clock.stop();
 		if( mpi_topology->rank == 0 ) cout << clock.time() << "(s)\n";
+
+		if( mpi_topology->rank == 0 ) cout << "Finding vortex points ... \n";
+		clock.start();
+		//VortexSearch( vortex_points, lambda, 5.0L, 1.0/sqrt(3) );
+		VortexSearchQ( vortex_points, *Q, 5.0L );
+		MPI_Barrier( mpi_topology->comm );
+		clock.stop();
+		if( mpi_topology->rank == 0 ) cout << "    total: " << clock.time() << "(s)\n";
+
+		if( mpi_topology->rank == 0 ) cout << "Assembling vortex regions ... \n";
+		clock.start();
+		VortexRegionSearch( vortex_region, vortex_points, *u );
+		MPI_Barrier( mpi_topology->comm );
+		clock.stop();
+		if( mpi_topology->rank == 0 ) cout << "    total: " << clock.time() << "(s)\n";
+
 
 		MPI_Barrier(mpi_topology->comm);
 
@@ -420,23 +425,78 @@ int main(int argc, char *argv[]) {
 		eigvec[2][2]->getDataOperation(t_data);
 		esio_field_write_double(h, "vci3", t_data, 0, 0, 0, "vci3");
 
-		std::fill_n(t_data, u->getSizeOperation(), 0.0);
-		for( VortexMap_t::iterator v=vortex_points.begin(); v != vortex_points.end(); v++ )
-			t_data[v->first] = v->second.strength;
-		esio_field_write_double(h, "vortex_strength", t_data, 0, 0, 0, "vortex_strength");
+		MPI_Barrier( mpi_topology->comm );
+		if( mpi_topology->rank == 0 ) 
+			printf("  writing vortex strength ...\n");
 
-		std::fill_n(t_data, u->getSizeOperation(), -1.0);
-		for( VortexMap_t::iterator v=vortex_points.begin(); v != vortex_points.end(); v++ )
-			t_data[v->first] = v->second.compactness;
-		esio_field_write_double(h, "vortex_compactness", t_data, 0, 0, 0, "vortex_compactness");
+		// std::fill_n(t_data, u->getSizeOperation(), 0.0L);
+		std::fill_n(&v_data[0], u->getSizeOperation(), 0.0L);		
+		for( VortexMap_t::iterator v=vortex_points.begin(); v != vortex_points.end(); v++ ) {
+			// Need to map the global index to the local index
+			std::vector<int> _ijk = u->ijk(v->first);
+			assert( v->first == v->second.index );
+			int _ijk_operation[] = { _ijk[0]-offset_local[0]-offset_operation[0], 
+						 _ijk[1]-offset_local[1]-offset_operation[1], 
+						 _ijk[2]-offset_local[2]-offset_operation[2] };
 
-		std::fill_n(t_data, u->getSizeOperation(), 0.0);
-		for( VortexRegionMap_t::iterator vr=vortex_region.begin(); vr != vortex_region.end(); vr++ ) {
-			for( VortexMap_t::iterator v=vr->second.vortex_list.begin(); v != vr->second.vortex_list.end(); v++ ) {
-				t_data[v->first] = (double)vr->first;
+			if( u->inDomainOperation( _ijk_operation[0], _ijk_operation[1], _ijk_operation[2] ) ) {			
+				const size_t _index_operation = 
+					u->indexOperation( _ijk_operation[0], _ijk_operation[1], _ijk_operation[2] );
+				v_data.at(_index_operation) = v->second.strength;
 			}
 		}
-		esio_field_write_double(h, "vortex_tag", t_data, 0, 0, 0, "vortex_tag");
+		esio_field_write_double(h, "vortex_strength", &v_data[0], 0, 0, 0, "vortex_strength");
+
+		MPI_Barrier( mpi_topology->comm );
+		if( mpi_topology->rank == 0 ) 
+			printf("  writing vortex compactness ...\n");
+
+		//std::fill_n(t_data, u->getSizeOperation(), -1.0);
+		std::fill_n(&v_data[0], u->getSizeOperation(), -1.0);
+		for( VortexMap_t::iterator v=vortex_points.begin(); v != vortex_points.end(); v++ ) {
+			std::vector<int> _ijk = u->ijk(v->first);
+			int _ijk_operation[] = { _ijk[0]-offset_local[0]-offset_operation[0], 
+						 _ijk[1]-offset_local[1]-offset_operation[1], 
+						 _ijk[2]-offset_local[2]-offset_operation[2] };
+
+			if( u->inDomainOperation( _ijk_operation[0], _ijk_operation[1], _ijk_operation[2] ) ) {			
+				const size_t _index_operation = 
+					u->indexOperation( _ijk_operation[0], _ijk_operation[1], _ijk_operation[2] );
+				v_data.at(_index_operation) = v->second.compactness;
+			}
+		}
+		esio_field_write_double(h, "vortex_compactness", &v_data[0], 0, 0, 0, "vortex_compactness");
+
+		MPI_Barrier( mpi_topology->comm );
+		if( mpi_topology->rank == 0 ) 
+			printf("  writing vortex tags ...\n");
+
+		//std::fill_n(t_data, u->getSizeOperation(), 0.0);
+		std::fill_n(&v_data[0], u->getSizeOperation(), -1000000000000.0L);
+		for( VortexRegionMap_t::iterator vr=vortex_region.begin(); vr != vortex_region.end(); vr++ ) {
+			if( mpi_topology->rank == 0 ) {
+				printf("%d: number of vortex regions = %zd in tag = %zd\n", 0, vr->second.vortex_list.size(), vr->second.tag);
+			}
+			for( VortexMap_t::iterator v=vr->second.vortex_list.begin(); v != vr->second.vortex_list.end(); v++ ) {
+				std::vector<int> _ijk = u->ijk(v->first);
+				int _ijk_operation[] = { _ijk[0]-offset_local[0]-offset_operation[0], 
+							 _ijk[1]-offset_local[1]-offset_operation[1], 
+							 _ijk[2]-offset_local[2]-offset_operation[2] };
+
+				if( u->inDomainOperation( _ijk_operation[0], _ijk_operation[1], _ijk_operation[2] ) ) {			
+					const size_t _index_operation = 
+						u->indexOperation( _ijk_operation[0], _ijk_operation[1], _ijk_operation[2] );
+					v_data.at(_index_operation) = (double)vr->first;
+				}
+				// const size_t _index = u->indexOperation( _ijk[0]-offset_local[0]-offset_operation[0], 
+				// 					 _ijk[1]-offset_local[1]-offset_operation[1], 
+				// 					 _ijk[2]-offset_local[2]-offset_operation[2] );
+				// // t_data[_index] = (double)vr->first;
+				// v_data.at(_index) = (double)vr->first;
+
+			}
+		}
+		esio_field_write_double(h, "vortex_tag", &v_data[0], 0, 0, 0, "vortex_tag");
 
 		// Aij[0][0]->getDataOperation(t_data);
 		// esio_field_write_double(h, "dudx", t_data, 0, 0, 0, "dudx");

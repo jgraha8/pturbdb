@@ -347,8 +347,9 @@ void PField::getDataOperation( double *a) const
 size_t PField::index( const int &i, const int &j, const int &k ) const
 /********************************************************************/
 {
-	return ((size_t) this->dims_[1] * (size_t) i + (size_t) j) * (size_t) this->dims_[2]
+	const size_t index = ((size_t) this->dims_[1] * (size_t) i + (size_t) j) * (size_t) this->dims_[2]
 		+ (size_t) k;
+	return index;
 }
 
 // Array index for 3D indexing
@@ -404,6 +405,12 @@ std::vector<int> PField::ijk( const size_t &index ) const
 	ijk[0] = index / d1xd2;
 	ijk[1] = index2 / this->dims_[2];
 	ijk[2] = index2 % this->dims_[2];
+
+#ifdef SANITY_CHECK
+	// Check index calculation
+	assert( index == this->index( ijk[0], ijk[1], ijk[2] ) );
+#endif
+
 	return ijk;
 }
 
@@ -417,6 +424,12 @@ std::vector<int> PField::ijkLocal( const size_t &index ) const
 	ijk[0] = index / d1xd2;
 	ijk[1] = index2 / this->dims_local_[2];
 	ijk[2] = index2 % this->dims_local_[2];
+
+#ifdef SANITY_CHECK
+	// Check index calculation
+	assert( index == this->indexLocal( ijk[0], ijk[1], ijk[2] ) );
+#endif
+
 	return ijk;
 }
 
@@ -430,9 +443,44 @@ std::vector<int> PField::ijkOperation( const size_t &index ) const
 	ijk[0] = index / d1xd2;
 	ijk[1] = index2 / this->dims_operation_[2];
 	ijk[2] = index2 % this->dims_operation_[2];
+
+#ifdef SANITY_CHECK
+	// Check index calculation
+	assert( index == this->indexOperation( ijk[0], ijk[1], ijk[2] ) );
+#endif
+
 	return ijk;
 }
 
+bool PField::inDomain( const int &i, const int &j, const int &k ) const
+{
+	if( ( 0 <= i && i < this->dims_[0] ) &&
+	    ( 0 <= j && j < this->dims_[1] ) &&
+	    ( 0 <= k && k < this->dims_[2] ) )
+		return true;
+
+	return false;
+}
+
+bool PField::inDomainLocal( const int &i, const int &j, const int &k ) const
+{
+	if( ( 0 <= i && i < this->dims_local_[0] ) &&
+	    ( 0 <= j && j < this->dims_local_[1] ) &&
+	    ( 0 <= k && k < this->dims_local_[2] ) )
+		return true;
+
+	return false;
+}
+
+bool PField::inDomainOperation( const int &i, const int &j, const int &k ) const 
+{
+	if( ( 0 <= i && i < this->dims_operation_[0] ) &&
+	    ( 0 <= j && j < this->dims_operation_[1] ) &&
+	    ( 0 <= k && k < this->dims_operation_[2] ) )
+		return true;
+
+	return false;
+}
 
 void PField::setSynchronized( bool synchronized )
 {
