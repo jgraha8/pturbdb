@@ -8,6 +8,7 @@
 #include <deque>
 #include <map>
 #include <utility>
+#include "emap.hpp"
 #include "core.hpp"
 #include "pfield.hpp"
 #include "pfield_math.hpp"
@@ -189,7 +190,7 @@ void VortexSearch( VortexMap_t &vortex, const PFieldVector_t &lambda,
 		} else  {
 			vortex_last = (Vortex_t*)bsearch( &vortex_compactness_threshold_last, vortex_strong, 
 							  N_strong-1, sizeof(Vortex_t), VortexSearchCompareCompactnessLast);
-			assert(vortex_first != NULL);
+			assert(vortex_last != NULL);
 		}
 	}
 	
@@ -439,8 +440,9 @@ void VortexRegionSearchNeighbors( VortexRegion_t &vortex_region,
 
 	while( search_points.size() > 0 ) {
 
-		if( host.getMPITopology()->rank == 0 )
-			printf("%d: number of search points = %zd for tag %zd\n", host.getMPITopology()->rank, search_points.size(), vortex_region.tag );
+		// if( host.getMPITopology()->rank == 0 )
+		// 	printf("%d: number of search points = %zd for tag %zd\n", 
+		// 	       host.getMPITopology()->rank, search_points.size(), vortex_region.tag );
 
 		// new search points
 		std::deque<point_t> new_search_points;
@@ -472,71 +474,12 @@ void VortexRegionSearchNeighbors( VortexRegion_t &vortex_region,
 				}
 			}
 
-
-			// // Have to check that the host field has a rind
-			// //	printf("VortexRegionSearchNeighbors: 1\n");
-			// if( _ijk_local[0] < dims_local[0] - 1 ) {
-
-				
-			// 	neighbor_points.push_back( _p );
-			// }		
-
-			// //	printf("VortexRegionSearchNeighbors: 2\n");
-			// if( 0 < _ijk_local[0] ) {
-			// 	_p.ijk[0] = _sp->ijk[0] - 1;
-			// 	_p.ijk[1] = _sp->ijk[1];
-			// 	_p.ijk[2] = _sp->ijk[2];
-			// 	_p.index = host.index( _p.ijk[0], _p.ijk[1], _p.ijk[2] );
-
-			// 	neighbor_points.push_back( _p );					
-			// }
-
-			// //	printf("VortexRegionSearchNeighbors: 3\n");
-			// if( _ijk_local[1] < dims_local[1] - 1 ) {
-			// 	_p.ijk[0] = _sp->ijk[0];
-			// 	_p.ijk[1] = _sp->ijk[1] + 1;
-			// 	_p.ijk[2] = _sp->ijk[2];
-			// 	_p.index = host.index( _p.ijk[0], _p.ijk[1], _p.ijk[2] );
-
-			// 	neighbor_points.push_back( _p );
-			// }
-
-			// //	printf("VortexRegionSearchNeighbors: 4\n");
-			// if( 0 < _ijk_local[1] ) {
-			// 	_p.ijk[0] = _sp->ijk[0];
-			// 	_p.ijk[1] = _sp->ijk[1] - 1;
-			// 	_p.ijk[2] = _sp->ijk[2];
-			// 	_p.index = host.index( _p.ijk[0], _p.ijk[1], _p.ijk[2] );
-
-			// 	neighbor_points.push_back( _p );
-			// }
-
-			// //	printf("VortexRegionSearchNeighbors: 5\n");
-			// if( _ijk_local[2] < dims_local[2] - 1 ) {
-			// 	_p.ijk[0] = _sp->ijk[0];
-			// 	_p.ijk[1] = _sp->ijk[1];
-			// 	_p.ijk[2] = _sp->ijk[2] + 1;
-			// 	_p.index = host.index( _p.ijk[0], _p.ijk[1], _p.ijk[2] );
-
-			// 	neighbor_points.push_back( _p );
-			// }
-
-			// //	printf("VortexRegionSearchNeighbors: 6\n");
-			// if( 0 < _ijk_local[2] ) {
-			// 	_p.ijk[0] = _sp->ijk[0];
-			// 	_p.ijk[1] = _sp->ijk[1];
-			// 	_p.ijk[2] = _sp->ijk[2] - 1;
-			// 	_p.index = host.index( _p.ijk[0], _p.ijk[1], _p.ijk[2] );
-
-			// 	neighbor_points.push_back( _p );
-			// }
-
-			if( host.getMPITopology()->rank == 0 )
-				printf("%d: number of neighboring points = %zd\n", host.getMPITopology()->rank, neighbor_points.size() );
+			// if( host.getMPITopology()->rank == 0 )
+			// 	printf("%d: number of neighboring points = %zd\n", host.getMPITopology()->rank, neighbor_points.size() );
 			// Now check the new neighbor points
 			VortexRegionCheckPoints( vortex_region, vortex_map, neighbor_points, host );
-			if( host.getMPITopology()->rank == 0 )
-				printf("%d: number of neighboring vortex points = %zd\n", host.getMPITopology()->rank, neighbor_points.size() );
+			// if( host.getMPITopology()->rank == 0 )
+			// 	printf("%d: number of neighboring vortex points = %zd\n", host.getMPITopology()->rank, neighbor_points.size() );
 
 			// Append the new neighbor points from the current sample point
 			for( std::deque<point_t>::iterator _np = neighbor_points.begin(); _np != neighbor_points.end(); _np++ )
@@ -571,8 +514,9 @@ void VortexRegionCheckPoints( VortexRegion_t &vortex_region, VortexMap_t &vortex
 			}
 			vortex_points.push_back( *_p ); // Add the point 
 			vortex_map.erase(_vm);
-			// if( vortex_map.empty() ) // no more items in the vortex map
-			// 	goto finalize;
+			
+			if( vortex_map.empty() ) // no more items in the vortex map
+				goto finalize;
 		}
 				
 	}
@@ -598,7 +542,7 @@ void VortexRegionSynchronize( VortexRegionMap_t &vortex_region, const PField &ho
 	//	printf("%d, -1...\n", rank);
 	// First create the index to tag map for the vortex region
 	std::map<size_t,size_t> vr_index_to_tag; // for a given vortex point with global index, the tag is given
-	VortexRegionIndexToTag( vr_index_to_tag, vortex_region );
+	VortexRegionIndexToTag( vr_index_to_tag, vortex_region ); // Generates mapping with unique tag values
 
 	//printf("%d: 0...\n", rank);
 
@@ -650,15 +594,15 @@ void VortexRegionSynchronize( VortexRegionMap_t &vortex_region, const PField &ho
 		// Now loop through the rind vortex region index and tag vector
 		for( size_t n=0; n < N; n+=2 ) {
 
-			size_t index = rind_vr_index_and_tag[n];
-			size_t tag   = rind_vr_index_and_tag[n+1]; // New tag
+			size_t index = rind_vr_index_and_tag.at(n);
+			size_t tag   = rind_vr_index_and_tag.at(n+1); // New tag
 
-			size_t tag_orig = vr_index_to_tag[index];
+			size_t tag_orig = vr_index_to_tag.at(index);
 
 			// Now modify the original vortex region tag
 			VortexRegionMap_t::iterator vr = vortex_region.find(tag_orig); 
 			if( vr == vortex_region.end() ) {
-				printf("%d: VortexRegionSynchronize: vortex region not found in local domain\n",mpi_topology->rank);
+				printf("%d: VortexRegionSynchronize: vortex region %zd not found in local domain\n",mpi_topology->rank,tag_orig);
 				MPI_Abort(mpi_topology->comm, ierr);
 			}
 			vr->second.tag = tag; // modifying the origin tag value of the
@@ -711,7 +655,7 @@ void VortexRegionSynchronize( VortexRegionMap_t &vortex_region, const PField &ho
 
 		//		printf("%d: 5...\n", rank);
 
-		while( vortex_region.size() != 0 ) {
+		while( !vortex_region.empty() ) {
 			
 			VortexRegionMap_t::iterator vr = vortex_region.begin(); 
 			vr->second.tag = tag_global_start; // modifying the origin tag value of the
@@ -719,8 +663,11 @@ void VortexRegionSynchronize( VortexRegionMap_t &vortex_region, const PField &ho
 			// the new tag
 
 			// Update the new map with the updated vortex region
-			vortex_region_retag[tag_global_start++] = vr->second;			
-
+			//vortex_region_retag[tag_global_start++] = vr->second;			
+			if( !vortex_region_retag.insert( std::pair<size_t,VortexRegion_t>(tag_global_start++,vr->second ) ).second ) {
+				printf("VortexRegionSynchronize: unable to insert new vortex region tag to index map--already exists\n");
+				MPI_Abort(host.getMPITopology()->comm,ierr);
+			}
 			// Delete the vortex region from the map
 			vortex_region.erase(vr);
 		}
@@ -731,8 +678,8 @@ void VortexRegionSynchronize( VortexRegionMap_t &vortex_region, const PField &ho
 		vortex_region_retag.clear();
 
 		// Regenerate the vortex region index to tag mapping with the new tags; used for packing 
-		vr_index_to_tag.clear();
-		VortexRegionIndexToTag( vr_index_to_tag, vortex_region );
+		vr_index_to_tag.clear(); // clear the old map
+		VortexRegionIndexToTag( vr_index_to_tag, vortex_region ); // create the new map for generating the rind_vr_index_to_tag map
 
 	}
 
@@ -761,7 +708,7 @@ void VortexRegionSynchronize( VortexRegionMap_t &vortex_region, const PField &ho
 					size_t index = host.index( ijk[0], ijk[1], ijk[2] );
 
 					// Now search for the tag in the rind vortex region
-					std::map<size_t,size_t>::iterator vr = vr_index_to_tag.find(index);				
+					std::map<size_t,size_t>::iterator vr = vr_index_to_tag.find(index);			  
 					if( vr != vr_index_to_tag.end() ) {
 						// It is a vortex point
 						size_t tag = vr->second;
@@ -769,7 +716,7 @@ void VortexRegionSynchronize( VortexRegionMap_t &vortex_region, const PField &ho
 						std::map<size_t,size_t>::iterator rvr = rind_vr_tag_to_index.find(tag);
 						if( rvr == rind_vr_tag_to_index.end() ) {
 							// The tag,index pair has not been inserted yet
-							rind_vr_tag_to_index[tag]=index;
+							//rind_vr_tag_to_index[tag]=index;
 							if( !rind_vr_tag_to_index.insert( std::pair<size_t,size_t>(tag,index) ).second ) {
 								printf("VortexRegionSynchronize: unable to insert new vortex region tag to index map--already exists\n");
 								MPI_Abort(host.getMPITopology()->comm,ierr);
@@ -784,8 +731,9 @@ void VortexRegionSynchronize( VortexRegionMap_t &vortex_region, const PField &ho
 		// Create the vector to send to "next" process
 		// Now pack the index + tag vector; interleaved; pre-allocated to maximum size
 		N = 2*rind_vr_tag_to_index.size();
-		rind_vr_index_and_tag.resize(N);
+		rind_vr_index_and_tag.resize(N); // vector
 
+		// Pack the vector to send to the adjacent process
 		size_t n=0;
 		for( std::map<size_t,size_t>::iterator rvr = rind_vr_tag_to_index.begin(); rvr != rind_vr_tag_to_index.end(); rvr++ ) {
 			rind_vr_index_and_tag[n]   = rvr->second; // index
@@ -836,6 +784,11 @@ void VortexRegionSynchronize( VortexRegionMap_t &vortex_region, const PField &ho
 	
 }
 
+/*******************************************************************************/
+//
+// Generates an (global) index to tag map of the vortex regions.
+//
+/*******************************************************************************/
 /****************************************************************************************/
 void VortexRegionIndexToTag( std::map<size_t,size_t> &vr_index_to_tag, 
 			     VortexRegionMap_t &vortex_region ) 
@@ -846,18 +799,20 @@ void VortexRegionIndexToTag( std::map<size_t,size_t> &vr_index_to_tag,
 	// Clear the incoming map
 	vr_index_to_tag.clear();
 
-	std::map<size_t,size_t>::iterator hint = vr_index_to_tag.begin();
-
 	for (VortexRegionMap_t::iterator vr = vortex_region.begin(); vr != vortex_region.end(); vr++ ) {
 		for (VortexMap_t::iterator v = vr->second.vortex_list.begin(); v != vr->second.vortex_list.end(); v++ ) {
 
 			size_t index = v->first;
 			size_t tag   = vr->first;
 
-			hint = vr_index_to_tag.insert( hint, std::pair<size_t,size_t>(index,tag) );
+			if( !vr_index_to_tag.insert( std::pair<size_t,size_t>(index,tag) ).second ) {
+				printf("VortexRegionIndexToTag: unable to insert new vortex region index to tag map--already exists\n");
+				exit(EXIT_FAILURE);
+			}
 
 		}
 	}
+
 	//printf("WHAT DOWN\n");
 
 }
