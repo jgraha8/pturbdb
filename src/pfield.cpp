@@ -60,6 +60,9 @@ PField::~PField(void)
 #endif
 
 	if( this->mpi_topology_ != NULL ) MPITopologyDelete( &this->mpi_topology_ );
+	if( this->dx_local_ != NULL ) delete [] this->dx_local_;
+	if( this->dy_local_ != NULL ) delete [] this->dy_local_;
+	if( this->dz_local_ != NULL ) delete [] this->dz_local_;
 	if( this->finite_diff_ != NULL ) delete this->finite_diff_;
        	delete[] this->data_local;
 
@@ -104,6 +107,9 @@ void PField::PFieldInit(const int *dims, FieldDecomp_t field_decomp,
 	this->x_local_ = NULL;
 	this->y_local_ = NULL;
 	this->z_local_ = NULL;
+	this->dx_local_ = NULL;
+	this->dy_local_ = NULL;
+	this->dz_local_ = NULL;
 	this->finite_diff_ = NULL;
 
 	// Initalize state variables
@@ -156,6 +162,24 @@ void PField::PFieldCopy( const PField &g, bool copy_data_local )
 	this->x_local_        = g.getXLocal();
 	this->y_local_        = g.getYLocal();
 	this->z_local_        = g.getZLocal();
+	
+	// Set grid spacing pointers to NULL (these will be computed assigned if the grid is set)
+	this->dx_local_ = NULL;
+	this->dy_local_ = NULL;
+	this->dz_local_ = NULL;
+
+	if( g.getDXLocal() != NULL ) {
+		this->dx_local_ = new double[g.getDimsLocal()[0]];
+		memcpy(this->dx_local_, g.getDXLocal(), sizeof(*this->dx_local_)*g.getDimsLocal()[0]);
+	}
+	if( g.getDYLocal() != NULL ) {
+		this->dy_local_ = new double[g.getDimsLocal()[1]];
+		memcpy(this->dy_local_, g.getDYLocal(), sizeof(*this->dy_local_)*g.getDimsLocal()[1]);
+	}
+	if( g.getDZLocal() != NULL ) {
+		this->dz_local_ = new double[g.getDimsLocal()[2]];
+		memcpy(this->dz_local_, g.getDZLocal(), sizeof(*this->dz_local_)*g.getDimsLocal()[2]);
+	}
 
 	// Assign the MPI topology. Cannot copy the pointer value
 	// since if g is deleted we lose the allocated MPI topology
@@ -495,7 +519,106 @@ void PField::setGridLocal(const double *x_local, const double *y_local, const do
 	this->x_local_ = x_local;
 	this->y_local_ = y_local;
 	this->z_local_ = z_local;
+
+	this->computeGridSpacingLocal();
 }
+
+/********************************************************************/
+void PField::computeGridSpacingLocal()
+/********************************************************************/
+{
+
+	int ierr=0;
+
+	if (this->x_local_ == NULL || this->y_local_ == NULL || this->z_local_ == NULL) {
+		printf("%d: PField::finiteDiffInit: requires setGridLocal be called first\n", this->mpi_topology_->rank);
+		MPI_Abort(this->mpi_topology_->comm, ierr);
+	}
+
+	if( this->dx_local_ != NULL ) {
+		delete [] this->dx_local_;
+	}
+	if( this->dy_local_ != NULL ) {
+		delete [] this->dy_local_;
+	}
+	if( this->dz_local_ != NULL ) {
+		delete [] this->dz_local_;
+	}
+	this->dx_local_ = new double[this->dims_local_[0]];
+	this->dy_local_ = new double[this->dims_local_[1]];
+	this->dz_local_ = new double[this->dims_local_[2]];
+	
+	const double *_s[3]  = { this->x_local_,  this->y_local_,  this->z_local_ };
+	double *_ds[3] = { this->dx_local_, this->dy_local_, this->dz_local_ };
+
+	for( int n=0; n<3; n++ ) {
+
+		for( int i=0; i<this->dims_operation_[n]; i++ ) {
+
+			int ii = i + this->offset_operation_[n];
+
+			if( ii == 0 ) {
+				_ds[n][ii] = 0.5L * ( _s[n][ii+1] - _s[n][ii] );
+			} else if( ii == this->dims_local_[n] - 1 ) {
+				_ds[n][ii] = 0.5L * ( _s[n][ii] - _s[n][ii-1] );
+			} else {
+				_ds[n][ii] = 0.5L * ( _s[n][ii+1] - _s[n][ii-1] );
+			}
+			
+		}
+	}
+
+	// Rather than having to perform the MPI operations directly, we set the field data with each grid spacing then 
+	PField *a = new PField( *this, false );
+	
+	int ii,jj,kk;
+	// Initialize the field
+	*a = (double)0.0L;
+	PFIELD_LOOP_LOCAL(a)
+	a->setDataLocal( _index, _ds[0][_i]);
+	PFIELD_LOOP_END
+	// Synchronize the field
+	a->synchronize();
+	// Extract the appropriate line from the field
+	jj = a->getOffsetOperation()[1]; // j = 0
+	kk = a->getOffsetOperation()[2]; // k = 0
+	for( ii=0; ii<a->getDimsLocal()[0]; ii++ ) {
+		_ds[0][ii] = a->getDataLocal()[ a->indexLocal( ii, jj, kk ) ];
+	}
+
+	// Initialize the field
+	*a = (double)0.0L;
+	PFIELD_LOOP_LOCAL(a)
+	a->setDataLocal( _index, _ds[1][_j]);
+	PFIELD_LOOP_END
+	// Synchronize the field
+	a->synchronize();
+	// Extract the appropriate line from the field
+	ii = a->getOffsetOperation()[0]; // i = 0
+	kk = a->getOffsetOperation()[2]; // k = 0
+	for( jj=0; jj<a->getDimsLocal()[1]; jj++ ) {
+		_ds[1][jj] = a->getDataLocal()[ a->indexLocal( ii, jj, kk ) ];
+	}
+
+	// Initialize the field
+	*a = (double)0.0L;
+	PFIELD_LOOP_LOCAL(a)
+	a->setDataLocal( _index, _ds[2][_k]);
+	PFIELD_LOOP_END
+	// Synchronize the field
+	a->synchronize();
+	// Extract the appropriate line from the field 
+	ii = a->getOffsetOperation()[0]; // i = 0
+	jj = a->getOffsetOperation()[1]; // j = 0
+	for( kk=0; kk<a->getDimsLocal()[2]; kk++ ) {
+		_ds[2][kk] = a->getDataLocal()[ a->indexLocal( ii, jj, kk ) ];
+	}
+
+	// Delete the field
+	delete a;
+
+}
+
 
 /********************************************************************/
 void PField::setDataLocal( const size_t &index, const double &a )

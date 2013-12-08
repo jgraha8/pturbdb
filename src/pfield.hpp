@@ -64,6 +64,7 @@ private:
 
 	// Grid pointers; these are not allocated but must be set with setGrid
 	const double *x_local_, *y_local_, *z_local_;
+	double *dx_local_, *dy_local_, *dz_local_;
 
 	bool synchronized_;
 
@@ -96,6 +97,9 @@ public:
 	const double        *getXLocal()      const { return this->x_local_;          };
 	const double        *getYLocal()      const { return this->y_local_;          };
 	const double        *getZLocal()      const { return this->z_local_;          };
+	const double        *getDXLocal()     const { return this->dx_local_;         };
+	const double        *getDYLocal()     const { return this->dy_local_;         };
+	const double        *getDZLocal()     const { return this->dz_local_;         };
 	const int     *getFieldPeriodic()     const { return this->periodic_;         };
 	int            getOperatorOrder()     const { return this->operator_order_;   };
 	const int     *getDims()              const { return this->dims_;             };
@@ -105,7 +109,7 @@ public:
 	const int     *getOffsetOperation()   const { return this->offset_operation_; };
 	int            getRindSize()          const { return this->rind_size_;        };
 	bool           getSynchronized()      const { return this->synchronized_;     };
-	const double  *getDataLocal()         const { return this->data_local;       }
+	const double  *getDataLocal()         const { return this->data_local;       };
 
 	// Data getters; these require a buffer of size given by getDimsOperation()
 	void getXOperation( double *x ) const;
@@ -191,6 +195,7 @@ protected:
 	void PFieldCopy( const PField &g, bool copy_data_local );
 
 	int *computeMPITopologyDims( int nproc, int mpi_decomp_ndims ) const;
+	void computeGridSpacingLocal();
 
 	void assignMPITopology();
 	void assignDimsAndOffsets();
