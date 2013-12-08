@@ -1,6 +1,6 @@
 #!/bin/bash
 
-EXEC=turbdb_analysis
+EXEC=vortex_volume
 #SRCS=( derivative.cpp pfield.cpp pfield_math.cpp pturbdb_field.cpp mpi_topology.cpp turbdb_analysis.cpp )
 SRCS=( derivative.cpp pfield.cpp pfield_math.cpp pturbdb_field.cpp mpi_topology.cpp vortex_tracking.cpp ${EXEC}.cpp )
 # Generate the object list

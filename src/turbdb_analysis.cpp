@@ -27,8 +27,16 @@
 #define FIELD_NY 128
 #define FIELD_NX 128
 
-#define NSTEPS 1
+#define NSTEPS 10
 #define FILTER_WIDTH 4 
+
+#define Q_CRITERION 25.0
+#define VORTEX_VOLUME_BIN_WIDTH 1000.0
+#define VORTEX_VOLUME_NBIN 1000 // starting number of bins
+
+#define U_TAU 0.0499
+#define LENGTH_VISC 0.0010020
+
 #define H5_OUTPUT_PATH "/datascope/tdbchannel/analysis/filtered-vortex-field"
 
 using namespace std;
@@ -117,7 +125,7 @@ int main(int argc, char *argv[]) {
 	PFIELD_LOOP_END
 	     
 	// Set the starting time and the time step
-	const double start_time = u->getDBTimeMax()*7.1L/8.0L;
+	const double start_time = u->getDBTimeMax()*4.1L/8.0L;
 	static const double dt = DB_DT/2;
 
 	PTurbDBField *v = new PTurbDBField( *u, false ); // Do not copy u field data
@@ -147,6 +155,9 @@ int main(int argc, char *argv[]) {
 	// Temporary data buffer
 	double *t_data = new double[u->getSizeOperation()];
 	std::vector<double> v_data(u->getSizeOperation());
+
+	// PDF (only works with single process)
+	std::vector<size_t> hist_vortex_volume(VORTEX_VOLUME_NBIN);
 
 	Clock clock;
 	Clock clock_data_read;
@@ -312,7 +323,7 @@ int main(int argc, char *argv[]) {
 		if( mpi_topology->rank == 0 ) cout << "Finding vortex points ... \n";
 		clock.start();
 		//VortexSearch( vortex_points, lambda, 5.0L, 1.0/sqrt(3) );
-		VortexSearchQ( vortex_points, *Q, 5.0L );
+		VortexSearchQ( vortex_points, *Q, Q_CRITERION );
 		MPI_Barrier( mpi_topology->comm );
 		clock.stop();
 		if( mpi_topology->rank == 0 ) cout << "    total: " << clock.time() << "(s)\n";
@@ -324,9 +335,21 @@ int main(int argc, char *argv[]) {
 		clock.stop();
 		if( mpi_topology->rank == 0 ) cout << "    total: " << clock.time() << "(s)\n";
 
-
 		MPI_Barrier(mpi_topology->comm);
 
+		// Vortex volume pdf
+		for( VortexRegionMap_t::iterator vr = vortex_region.begin(); vr != vortex_region.end(); vr++ ) {
+			// Normalize the volume by the viscous length scale
+			vr->second.volume_global /= pow( 0.0010020, 3 );
+			size_t _n = floor( vr->second.volume_global / VORTEX_VOLUME_BIN_WIDTH );
+
+			if( hist_vortex_volume.size() - 1 < _n ) 
+				hist_vortex_volume.resize( _n + 1, 0 );
+			
+			hist_vortex_volume.at(_n)++;
+
+		}
+		
 		clock_calcs.stop();
 
 		clock_data_write.start();
@@ -467,16 +490,14 @@ int main(int argc, char *argv[]) {
 		}
 		esio_field_write_double(h, "vortex_compactness", &v_data[0], 0, 0, 0, "vortex_compactness");
 
+
 		MPI_Barrier( mpi_topology->comm );
 		if( mpi_topology->rank == 0 ) 
 			printf("  writing vortex tags ...\n");
 
 		//std::fill_n(t_data, u->getSizeOperation(), 0.0);
-		std::fill_n(&v_data[0], u->getSizeOperation(), -1000000000000.0L);
+		std::fill_n(&v_data[0], u->getSizeOperation(), -1.0e23L);
 		for( VortexRegionMap_t::iterator vr=vortex_region.begin(); vr != vortex_region.end(); vr++ ) {
-			if( mpi_topology->rank == 0 ) {
-				printf("%d: number of vortex regions = %zd in tag = %zd\n", 0, vr->second.vortex_list.size(), vr->second.tag);
-			}
 			for( VortexMap_t::iterator v=vr->second.vortex_list.begin(); v != vr->second.vortex_list.end(); v++ ) {
 				std::vector<int> _ijk = u->ijk(v->first);
 				int _ijk_operation[] = { _ijk[0]-offset_local[0]-offset_operation[0], 
@@ -488,15 +509,37 @@ int main(int argc, char *argv[]) {
 						u->indexOperation( _ijk_operation[0], _ijk_operation[1], _ijk_operation[2] );
 					v_data.at(_index_operation) = (double)vr->first;
 				}
-				// const size_t _index = u->indexOperation( _ijk[0]-offset_local[0]-offset_operation[0], 
-				// 					 _ijk[1]-offset_local[1]-offset_operation[1], 
-				// 					 _ijk[2]-offset_local[2]-offset_operation[2] );
-				// // t_data[_index] = (double)vr->first;
-				// v_data.at(_index) = (double)vr->first;
-
 			}
 		}
 		esio_field_write_double(h, "vortex_tag", &v_data[0], 0, 0, 0, "vortex_tag");
+
+		MPI_Barrier( mpi_topology->comm );
+		if( mpi_topology->rank == 0 ) 
+			printf("  writing vortex volume ...\n");
+
+		//std::fill_n(t_data, u->getSizeOperation(), 0.0);
+		std::fill_n(&v_data[0], u->getSizeOperation(), -1.0e23L);
+		for( VortexRegionMap_t::iterator vr=vortex_region.begin(); vr != vortex_region.end(); vr++ ) {
+
+			for( VortexMap_t::iterator v=vr->second.vortex_list.begin(); v != vr->second.vortex_list.end(); v++ ) {
+				std::vector<int> _ijk = u->ijk(v->first);
+				int _ijk_operation[] = { _ijk[0]-offset_local[0]-offset_operation[0], 
+							 _ijk[1]-offset_local[1]-offset_operation[1], 
+							 _ijk[2]-offset_local[2]-offset_operation[2] };
+
+				if( u->inDomainOperation( _ijk_operation[0], _ijk_operation[1], _ijk_operation[2] ) ) {			
+					const size_t _index_operation = 
+						u->indexOperation( _ijk_operation[0], _ijk_operation[1], _ijk_operation[2] );
+					v_data.at(_index_operation) = vr->second.volume_global;
+				}
+			}
+		}
+		esio_field_write_double(h, "vortex_volume", &v_data[0], 0, 0, 0, "vortex_volume");
+
+		vortex_points.clear();
+		vortex_region.clear();
+		
+
 
 		// Aij[0][0]->getDataOperation(t_data);
 		// esio_field_write_double(h, "dudx", t_data, 0, 0, 0, "dudx");
@@ -540,6 +583,38 @@ int main(int argc, char *argv[]) {
 		}
 	}
 
+	// Finish the vortex region volume pdf
+	std::vector<double> pdf_vortex_volume( hist_vortex_volume.size() );
+	std::vector<double> pdf_abscissa( hist_vortex_volume.size() );
+
+	size_t nsamples = 0;
+	for( std::vector<size_t>::iterator h=hist_vortex_volume.begin(); h != hist_vortex_volume.end(); h++ ) {
+		nsamples += *h;
+	}
+
+	double pdf_integ=0.0L;
+	for( size_t n=0; n<hist_vortex_volume.size(); n++ ) {
+		pdf_vortex_volume.at(n) = hist_vortex_volume.at(n) / ( (double)nsamples * VORTEX_VOLUME_BIN_WIDTH ) ;
+		pdf_abscissa.at(n) = ((double)n + (double)0.5L) * VORTEX_VOLUME_BIN_WIDTH;
+		pdf_integ+=pdf_vortex_volume.at(n) * VORTEX_VOLUME_BIN_WIDTH;
+	}
+	printf("pdf_integ = %15.7e\n", pdf_integ);
+
+	FILE *f = fopen("vortex_volume_pdf.txt","w");
+	fprintf(f,"FIELD_NX %d\n", FIELD_NX);
+	fprintf(f,"FIELD_NY %d\n", FIELD_NY);
+	fprintf(f,"FIELD_NZ %d\n", FIELD_NZ);
+	fprintf(f,"NSTEPS %d\n", NSTEPS);
+	fprintf(f,"FILTER_WIDTH %d\n", FILTER_WIDTH);
+	fprintf(f,"Q_CRITERION %15.7e\n", Q_CRITERION);
+	fprintf(f,"VORTEX_VOLUME_BIN_WIDTH %15.7e\n", VORTEX_VOLUME_BIN_WIDTH); 
+        fprintf(f,"VORTEX_VOLUME_NBIN %zd\n", pdf_vortex_volume.size() );
+	fprintf(f,"U_TAU %15.7e\n", U_TAU);
+	fprintf(f,"LENGTH_VISC %15.7e\n", LENGTH_VISC);
+	for( size_t n=0; n<hist_vortex_volume.size(); n++ ) {
+		fprintf(f,"%15.7e\t%15.7e\n", pdf_abscissa.at(n), pdf_vortex_volume.at(n) );
+	}
+	fclose(f);
 
 	// Clear vectors and tensors created with *Assign
 	vel.clear();
