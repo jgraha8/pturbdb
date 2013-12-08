@@ -425,7 +425,7 @@ void VortexRegionSearch( VortexRegionMap_t &vortex_region, const VortexMap_t &vo
 	}
 
 	
-	printf("%d: calling VortexRegionSynchronize ...\n", host.getMPITopology()->rank);
+	//printf("%d: calling VortexRegionSynchronize ...\n", host.getMPITopology()->rank);
 	// Now have to synchronize the tags across the processes and renumber
 	// them using a global convention
 	VortexRegionSynchronize( vortex_region, host );
@@ -560,6 +560,24 @@ void VortexRegionSynchronize( VortexRegionMap_t &vortex_region, const PField &ho
 	const MPI_Comm comm = mpi_topology->comm;
 	const int rank = mpi_topology->rank;
 
+	////////////////////////////////////////////////////////////////////////////////
+	//
+	// THIS SYNCHRONIZATION PROCEDURE IS BROKEN AND NEEDS
+	// FIXING. SET TO ONLY WORK WITH A SINGLE PROCESS FOR NOW
+	// 
+	// Set the global volume to the local one
+	if( mpi_topology->nproc != 1 &&
+	    mpi_topology->rank == 0 ) {
+		printf("%d: VortexRegionSynchronize: currently only works with single process--setting global volume to local and not synching\n", 
+		       mpi_topology->rank);
+	}
+	for( VortexRegionMap_t::iterator vr=vortex_region.begin(); vr != vortex_region.end(); vr++ ) 
+		vr->second.volume_global = VortexRegionGetVolume( vr->second );
+
+	return;
+	////////////////////////////////////////////////////////////////////////////////
+	
+
 	//	printf("%d, -1...\n", rank);
 	// First create the index to tag map for the vortex region
 	std::map<size_t,size_t> vr_index_to_tag; // for a given vortex point with global index, the tag is given
@@ -598,15 +616,15 @@ void VortexRegionSynchronize( VortexRegionMap_t &vortex_region, const PField &ho
 		//printf("%d: 1...\n", rank);
 		// First receive the size of the rind vortex region tag to index vector
 		// Wait for the global tag to return
-		printf("%d: receiving N from %d\n", rank, mpi_topology->neighbor_prev[0]);
+		//printf("%d: receiving N from %d\n", rank, mpi_topology->neighbor_prev[0]);
 		MPI_Recv(&N, 1, MPI_UNSIGNED_LONG, mpi_topology->neighbor_prev[0], 1, mpi_topology->comm, &status);
-		printf("%d: received N=%zd from %d\n", rank, N, mpi_topology->neighbor_prev[0]);
+		//printf("%d: received N=%zd from %d\n", rank, N, mpi_topology->neighbor_prev[0]);
 		// Resize the rind index and tag vector
 		rind_vr_index_and_tag.resize(N);
 		// Wait for the vector
- 		printf("%d: receiving rind_vr_index_and_tag from %d\n", rank, mpi_topology->neighbor_prev[0]);
+ 		//printf("%d: receiving rind_vr_index_and_tag from %d\n", rank, mpi_topology->neighbor_prev[0]);
 		MPI_Recv(&rind_vr_index_and_tag[0], N, MPI_UNSIGNED_LONG, mpi_topology->neighbor_prev[0], 2, mpi_topology->comm, &status);
- 		printf("%d: received rind_vr_index_and_tag from %d\n", rank, mpi_topology->neighbor_prev[0]);
+ 		//printf("%d: received rind_vr_index_and_tag from %d\n", rank, mpi_topology->neighbor_prev[0]);
 		////////////////////////////////////////////////////////////////////////////////
 		// 2. Update rind region received from "prev"
 		//////////////////////////////////////////////////////////////////////////////// 
@@ -675,8 +693,9 @@ void VortexRegionSynchronize( VortexRegionMap_t &vortex_region, const PField &ho
 			// Update the new map with the updated vortex region
 			//vortex_region_retag[tag_global_start++] = vr->second;			
 			if( !vortex_region_retag.insert( std::pair<size_t,VortexRegion_t>(vr->second.tag,vr->second ) ).second ) {
-				printf("VortexRegionSynchronize: unable to insert new vortex region tag to index map--already exists\n");
-				MPI_Abort(host.getMPITopology()->comm,ierr);
+				printf("%d: VortexRegionSynchronize: unable to insert new vortex region--already exists: dropping vortex\n", 
+				       host.getMPITopology()->rank);
+				//MPI_Abort(host.getMPITopology()->comm,ierr);
 			}
 			// Delete the vortex region from the map
 			vortex_region.erase(vr);
@@ -766,7 +785,7 @@ void VortexRegionSynchronize( VortexRegionMap_t &vortex_region, const PField &ho
 		};
 
 		// Wait for the global tag to return
-		printf("%d: sending N=%zd to %d\n", rank, N, mpi_topology->neighbor_next[0]);
+		//printf("%d: sending N=%zd to %d\n", rank, N, mpi_topology->neighbor_next[0]);
 
 		// Send the rind index and tag vector
 		MPI_Send(&N, 1, MPI_UNSIGNED_LONG, mpi_topology->neighbor_next[0], 1, mpi_topology->comm);
@@ -786,11 +805,11 @@ void VortexRegionSynchronize( VortexRegionMap_t &vortex_region, const PField &ho
 
 		int nworkers = mpi_topology->dims[0] - 1;
 
-		printf("%d: VortexRegionSynchronize: tag_global = %d, nworkers = %d\n", mpi_topology->rank, tag_global, nworkers);
-
+		//printf("%d: VortexRegionSynchronize: tag_global = %d, nworkers = %d\n", mpi_topology->rank, tag_global, nworkers);
+		
 		// Master process
 		while( nworkers != 0 ) {
-			printf("%d: VortexRegionSynchronize: nworkers = %d\n", mpi_topology->rank, nworkers);
+			//printf("%d: VortexRegionSynchronize: nworkers = %d\n", mpi_topology->rank, nworkers);
 			// Wait for message
 			MPI_Recv(&request, 1, MPI_INT, MPI_ANY_SOURCE, 11, mpi_topology->comm, &status);
 			int rank_worker = status.MPI_SOURCE;
@@ -807,12 +826,16 @@ void VortexRegionSynchronize( VortexRegionMap_t &vortex_region, const PField &ho
 
 	}
 
+	printf("%d: VortexRegionSynchronize: computing global volume ...\n", mpi_topology->rank);
 	// Finally synchronize the vortex volumes
 	// Get the total number of vortex regions
-	MPI_Bcast( &tag_global, 1, MPI_UNSIGNED_LONG, 0, mpi_topology->comm );
+	//MPI_Bcast( &tag_global, 1, MPI_UNSIGNED_LONG, 0, mpi_topology->comm );
+	size_t N_vr = vortex_region.size();
+	size_t N_vr_global;
+	MPI_Allreduce( &N_vr, &N_vr_global, 1, MPI_UNSIGNED_LONG, MPI_SUM, mpi_topology->comm);
 
 	// Now everybody creates a vector for each vortex region
-	std::vector<double> vr_volume(tag_global);
+	std::vector<double> vr_volume(N_vr_global);
 	// Fill the vector with 0.0
 	std::fill_n(&vr_volume[0], vr_volume.size(), 0.0L);
 
@@ -832,7 +855,7 @@ void VortexRegionSynchronize( VortexRegionMap_t &vortex_region, const PField &ho
 	}
 
 
-	printf("%d: VortexRegionSynchronize: done\n", mpi_topology->rank);
+	//printf("%d: VortexRegionSynchronize: done\n", mpi_topology->rank);
 	
 }
 
