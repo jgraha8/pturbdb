@@ -20,7 +20,8 @@ typedef std::map<size_t,Vortex_t> VortexMap_t;
 // Vortex region structure
 typedef struct {
 	size_t tag;
-	double volume_global;
+	double volume;
+	std::vector<double> barycenter;
 	VortexMap_t vortex_list;
 } VortexRegion_t;
 
@@ -34,6 +35,8 @@ void VortexSearchQ( VortexMap_t &vortex, const PField &Q, double q_threshold );
 void VortexRegionInit( VortexRegion_t &vortex_region );
 void VortexRegionSet( VortexRegion_t &vortex_region, const size_t &tag, VortexMap_t &vortex_list );
 double VortexRegionGetVolume( VortexRegion_t &vortex_region );
+void VortexRegionComputeVolume( VortexRegion_t &vortex_region );
+void VortexRegionComputeBarycenter( VortexRegion_t &vortex_region, const PField &host );
 void VortexRegionAppend( VortexRegion_t &vortex_region, const Vortex_t &vortex );
 void VortexRegionSearch( VortexRegionMap_t &vortex_region, const VortexMap_t &vortex_list, const PField &host );
 void VortexRegionSearchNeighbors( VortexRegion_t &vortex_region, const size_t &vortex_index, 

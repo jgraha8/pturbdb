@@ -361,8 +361,49 @@ double VortexRegionGetVolume( VortexRegion_t &vortex_region )
 	double volume=0.0L;
 	for (VortexMap_t::iterator v = vortex_region.vortex_list.begin(); v != vortex_region.vortex_list.end(); v++ ) 
 		volume += v->second.volume;
-	
+
 	return volume;
+}
+
+/****************************************************************************************/
+void VortexRegionComputeVolume( VortexRegion_t &vortex_region ) 
+/****************************************************************************************/
+{
+	vortex_region.volume=VortexRegionGetVolume( vortex_region );
+	return;
+}
+
+/****************************************************************************************/
+void VortexRegionComputeBarycenter( VortexRegion_t &vortex_region, const PField &host ) 
+/****************************************************************************************/
+{
+	const int *offset_local = host.getOffsetLocal();
+
+	const double *x_local = host.getXLocal();
+	const double *y_local = host.getYLocal();
+	const double *z_local = host.getZLocal();
+
+	vortex_region.barycenter.clear();
+	vortex_region.barycenter.resize(3,0.0L);
+
+	for (VortexMap_t::iterator v = vortex_region.vortex_list.begin(); v != vortex_region.vortex_list.end(); v++ ) {
+		std::vector<int> ijk = host.ijk( v->second.index );
+		const int ijk_local[] = { ijk[0] - offset_local[0], 
+					  ijk[1] - offset_local[1],
+					  ijk[2] - offset_local[2] };
+		const double xyz_local[] = { x_local[ ijk_local[0] ], 
+					     y_local[ ijk_local[1] ],
+					     z_local[ ijk_local[2] ] };
+		for( int i=0; i<3; i++ ) {
+			vortex_region.barycenter[i] += v->second.volume * xyz_local[i];
+		}
+	}
+
+	for( int i=0; i<3; i++ ) {
+		vortex_region.barycenter[i] /= vortex_region.volume;
+	}
+
+	return;
 }
 
 
@@ -571,8 +612,10 @@ void VortexRegionSynchronize( VortexRegionMap_t &vortex_region, const PField &ho
 		printf("%d: VortexRegionSynchronize: currently only works with single process--setting global volume to local and not synching\n", 
 		       mpi_topology->rank);
 	}
-	for( VortexRegionMap_t::iterator vr=vortex_region.begin(); vr != vortex_region.end(); vr++ ) 
-		vr->second.volume_global = VortexRegionGetVolume( vr->second );
+	for( VortexRegionMap_t::iterator vr=vortex_region.begin(); vr != vortex_region.end(); vr++ ) {
+		VortexRegionComputeVolume( vr->second );
+		VortexRegionComputeBarycenter( vr->second, host );
+	}
 
 	return;
 	////////////////////////////////////////////////////////////////////////////////
@@ -851,7 +894,7 @@ void VortexRegionSynchronize( VortexRegionMap_t &vortex_region, const PField &ho
 	// Finally set the volume to the global value
 	for( VortexRegionMap_t::iterator vr=vortex_region.begin(); vr != vortex_region.end(); vr++ ) {
 		const size_t tag = vr->second.tag;
-		vr->second.volume_global = vr_volume_global.at( tag-1 );
+		vr->second.volume = vr_volume_global.at( tag-1 );
 	}
 
 
