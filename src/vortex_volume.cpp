@@ -1,6 +1,10 @@
 #include <iostream>
 #include <sstream>
 //#include <stdlib.h>
+//#include <sys/types.h>
+#include <sys/stat.h>
+//#include <unistd.h>
+
 #include <cassert>
 #include <stdlib.h>
 #include <mpi.h>
@@ -35,21 +39,37 @@
 //#define VORTEX_VOLUME_BIN_WIDTH 1.0e-8L
 //#define VORTEX_VOLUME_Y_BIN_WIDTH 1.0e-2L
 #define VORTEX_VOLUME_NBINS 1000 // starting number of bins
-#define VORTEX_VOLUME_BIN_MAX 1.0e-5L
-#define VORTEX_VOLUME_BIN_MIN 0.0L
+#define VORTEX_VOLUME_BIN_MAX 1.0
+#define VORTEX_VOLUME_BIN_MIN 0.0
 
-#define VORTEX_VOLUME_Y_NBINS 100
-#define VORTEX_VOLUME_Y_BIN_MAX 0.0L
-#define VORTEX_VOLUME_Y_BIN_MIN -1.0L
+#define Y_MIN -1.0
+#define Y_MAX 1.0
+#define VORTEX_VOLUME_Y_NBINS 1000
+#define VORTEX_VOLUME_Y_BIN_MAX 1.0
+#define VORTEX_VOLUME_Y_BIN_MIN 0.0
 
+#define PDF_WRITE_SKIP 10
+
+#define KAPPA 0.4
 #define U_TAU 0.0499
 #define LENGTH_VISC 0.0010020
 
 #define H5_OUTPUT_PATH "/datascope/tdbchannel/analysis/filtered-vortex-field"
 
+#define RUN_DIRECTORY "v2"
+
 using namespace std;
 using namespace pturbdb;
 
+//static const int N_Q_CRITERIA=8;
+static const double q_criteria[] = {0.5, 1.0, 2.0, 4.0, 8.0, 16.0, 32.0, 64.0 };
+//const double q_criteria[] = {4.0};
+static const int N_Q_CRITERIA=sizeof(q_criteria)/sizeof(*q_criteria);
+
+std::vector<std::vector<PDF_t> >pdf_vortex_volume(N_Q_CRITERIA);
+std::vector<std::vector<PDF_2D_t> >pdf_vortex_volume_y(N_Q_CRITERIA);
+
+void pdf_write_all();
 
 int main(int argc, char *argv[]) {
 	double wtime;
@@ -73,6 +93,8 @@ int main(int argc, char *argv[]) {
 	int nproc = u->getMPITopology()->nproc;
 	int *decomp_dims = u->getMPITopology()->dims;
 
+
+
 	for (int n = 0; n < nproc; n++) {
 		if (n == rank) {
 			cout << "Number of global data elements : " << u->getSize() << endl;
@@ -88,6 +110,12 @@ int main(int argc, char *argv[]) {
 
 		}
 		MPI_Barrier(u->getMPITopology()->comm);
+	}
+
+	// Initialize the run directory
+	struct stat st;
+	if (stat(RUN_DIRECTORY, &st) == -1) {
+		mkdir(RUN_DIRECTORY, 0700);
 	}
 
 	// Read the grid
@@ -157,29 +185,28 @@ int main(int argc, char *argv[]) {
 	Clock clock_data_write;
 
 	
-	static const int N_Q_CRITERIA=8;
-	const double q_criteria[N_Q_CRITERIA] = {0.5, 1.0, 2.0, 4.0, 8.0, 16.0, 32.0, 64.0 };
-
-	std::vector<PDF_t> pdf_vortex_volume(N_Q_CRITERIA);
-	std::vector<PDF_2D_t> pdf_vortex_volume_y(N_Q_CRITERIA);
-	
-
 	const double bin_width = ( VORTEX_VOLUME_BIN_MAX - VORTEX_VOLUME_BIN_MIN ) / VORTEX_VOLUME_NBINS;
-	for( std::vector<PDF_t>::iterator p=pdf_vortex_volume.begin(); p != pdf_vortex_volume.end(); p++ )
-		PDFInit( *p, VORTEX_VOLUME_NBINS, bin_width, VORTEX_VOLUME_BIN_MIN );
-
-	for( std::vector<PDF_2D_t>::iterator p=pdf_vortex_volume_y.begin(); p != pdf_vortex_volume_y.end(); p++ ) {
+	
+	for( int q=0; q<N_Q_CRITERIA; q++ ) {
 		
-		const size_t nb_[] = { VORTEX_VOLUME_Y_NBINS, VORTEX_VOLUME_NBINS };
-		const double bw_[] = { ( VORTEX_VOLUME_Y_BIN_MAX - VORTEX_VOLUME_Y_BIN_MIN ) / VORTEX_VOLUME_Y_NBINS,
-				       ( VORTEX_VOLUME_BIN_MAX - VORTEX_VOLUME_BIN_MIN ) / VORTEX_VOLUME_NBINS };
-		const double az_[] = { VORTEX_VOLUME_Y_BIN_MIN, VORTEX_VOLUME_BIN_MIN };
+		pdf_vortex_volume[q].resize(4);
+		pdf_vortex_volume_y[q].resize(4);
 		
-		std::vector<size_t> nbins_(nb_, nb_ + sizeof(nb_)/sizeof(*nb_));
-		std::vector<double> bin_width_(bw_, bw_ + sizeof(bw_)/sizeof(*bw_));
-		std::vector<double> abscissa_zero_(az_, az_ + sizeof(az_)/sizeof(*az_));
+		for( int p=0; p<4; p++ ) {
 
-		PDFInit( *p, nbins_, bin_width_, abscissa_zero_ );
+			PDFInit( pdf_vortex_volume[q][p], VORTEX_VOLUME_NBINS, bin_width, VORTEX_VOLUME_BIN_MIN );
+		
+			const size_t _nb[] = { VORTEX_VOLUME_Y_NBINS, VORTEX_VOLUME_NBINS };
+			const double _bw[] = { ( VORTEX_VOLUME_Y_BIN_MAX - VORTEX_VOLUME_Y_BIN_MIN ) / VORTEX_VOLUME_Y_NBINS,
+					       ( VORTEX_VOLUME_BIN_MAX - VORTEX_VOLUME_BIN_MIN ) / VORTEX_VOLUME_NBINS };
+			const double _az[] = { VORTEX_VOLUME_Y_BIN_MIN, VORTEX_VOLUME_BIN_MIN };
+			
+			std::vector<size_t> _nbins(_nb, _nb + sizeof(_nb)/sizeof(*_nb));
+			std::vector<double> _bin_width(_bw, _bw + sizeof(_bw)/sizeof(*_bw));
+			std::vector<double> _abscissa_min(_az, _az + sizeof(_az)/sizeof(*_az));
+
+			PDFInit( pdf_vortex_volume_y[q][p], _nbins, _bin_width, _abscissa_min );
+		}
 		
 	}
 
@@ -289,12 +316,14 @@ int main(int argc, char *argv[]) {
 		// For each Q criterion find the vortices
 
 		if( mpi_topology->rank == 0 ) cout << "Binning data for each Q criterion ... \n";
-		for (size_t nq=0; nq<pdf_vortex_volume.size(); nq++ ) {
-			if( mpi_topology->rank == 0 ) printf("    Q criterion: %15.7f (%zd of %d)\n", q_criteria[nq], nq+1, N_Q_CRITERIA);
+			
+		for (int q=0; q<N_Q_CRITERIA; q++ ) {
+		
+			if( mpi_topology->rank == 0 ) printf("    Q criterion: %15.7f (%d of %d)\n", q_criteria[q], q+1, N_Q_CRITERIA);
 			if( mpi_topology->rank == 0 ) cout << "    Finding vortex points ... \n";
 			clock.start();
 			//VortexSearch( vortex_points, lambda, 5.0L, 1.0/sqrt(3) );
-			VortexSearchQ( vortex_points, *Q, q_criteria[nq] );
+			VortexSearchQ( vortex_points, *Q, q_criteria[q] );
 			MPI_Barrier( mpi_topology->comm );
 			clock.stop();
 			if( mpi_topology->rank == 0 ) cout << "        total: " << clock.time() << "(s)\n";
@@ -305,100 +334,50 @@ int main(int argc, char *argv[]) {
 			MPI_Barrier( mpi_topology->comm );
 			clock.stop();
 			if( mpi_topology->rank == 0 ) cout << "        total: " << clock.time() << "(s)\n";
-
+			
 			MPI_Barrier(mpi_topology->comm);
 				
 			if( mpi_topology->rank == 0 ) cout << "    Binning vortex data ... \n";
 			clock.start();
+			
 			// Bin the vortex volumes
 			for( VortexRegionMap_t::iterator vr = vortex_region.begin(); vr != vortex_region.end(); vr++ ) {
-				PDFBinSample( pdf_vortex_volume[nq], vr->second.volume );
 
-				printf("y barycenter = %.7e\n", vr->second.barycenter[1]);
+				const double _y = ( vr->second.barycenter[1] < 0.0 ? 
+						    vr->second.barycenter[1] - Y_MIN : 
+						    Y_MAX - vr->second.barycenter[1]);
 
-				double s_[] = { vr->second.barycenter[1], vr->second.volume };
-				std::vector<double> sample_(s_, s_ + sizeof(s_)/sizeof(*s_) );
-				PDFBinSample( pdf_vortex_volume_y[nq], sample_ );
+				for( int p=0; p<4; p++ ) {
+
+					const double _volume = vr->second.volume / pow( KAPPA * _y, p );
+
+					PDFBinSample( pdf_vortex_volume[q][p], _volume );
+
+					//printf("y barycenter = %.7e\n", vr->second.barycenter[1]);
+
+					const double _s[] = { _y, _volume };
+
+					std::vector<double> _sample(_s, _s + sizeof(_s)/sizeof(*_s) );
+					PDFBinSample( pdf_vortex_volume_y[q][p], _sample );
+
+				}
 			}
 			clock.stop();
 			if( mpi_topology->rank == 0 ) cout << "        total: " << clock.time() << "(s)\n";
-			
 
 		}
-		
+
+		// Check if the pdfs should be written
+		if( ( n + 1 ) % PDF_WRITE_SKIP == 0 ) 
+			pdf_write_all();
+
 		clock_calcs.stop();
 
 	}
 
-	for( size_t nq=0; nq<pdf_vortex_volume.size(); nq++ ) {
-		
-		PDFComputeAll( pdf_vortex_volume[nq] );
-		PDFComputeAll( pdf_vortex_volume_y[nq] );
+	// Write the final pdfs
+	pdf_write_all();
 
-		// double pdf_integ=0.0;
-		// for( std::vector<double>::iterator d=pdf_vortex_volume[nq].pdf.begin(); d!=pdf_vortex_volume[nq].pdf.end(); d++ ) {
-		// 	pdf_integ += *d * pdf_vortex_volume[nq].bin_width;
-		// }
-		// printf("pdf_integ = %15.7e\n", pdf_integ);
-
-		// double pdf_integ_y=0.0;
-		// for( size_t i=0; i<pdf_vortex_volume_y[nq].nbins[0]; i++ ) {
-		// 	for( size_t j=0; j<pdf_vortex_volume_y[nq].nbins[1]; j++ ) {
-		// 		pdf_integ_y += pdf_vortex_volume_y[nq].pdf[i][j] * 
-		// 			       pdf_vortex_volume_y[nq].bin_width[0] * 
-                //                                pdf_vortex_volume_y[nq].bin_width[1];
-		// 	}
-		// }
-		// printf("pdf_integ_y = %15.7e\n", pdf_integ_y);
-
-		char fname[80];
-		sprintf(fname,"vortex_volume_pdf_q_%.7f.txt", q_criteria[nq] );
-		FILE *f = fopen(fname,"w");
-		fprintf(f,"FIELD_NX %d\n", FIELD_NX);
-		fprintf(f,"FIELD_NY %d\n", FIELD_NY);
-		fprintf(f,"FIELD_NZ %d\n", FIELD_NZ);
-		fprintf(f,"NSTEPS %d\n", NSTEPS);
-		fprintf(f,"FILTER_WIDTH %d\n", FILTER_WIDTH);
-		fprintf(f,"Q_CRITERION %15.7e\n", q_criteria[nq]);
-		fprintf(f,"VORTEX_VOLUME_BIN_WIDTH %15.7e\n", pdf_vortex_volume[nq].bin_width); 
-		fprintf(f,"VORTEX_VOLUME_NBINS %zd\n", pdf_vortex_volume[nq].nbins );
-		fprintf(f,"VORTEX_VOLUME_NSAMPLES %zd\n", pdf_vortex_volume[nq].nsamples );
-		fprintf(f,"U_TAU %15.7e\n", U_TAU);
-		fprintf(f,"LENGTH_VISC %15.7e\n", LENGTH_VISC);
-		for( size_t n=0; n<pdf_vortex_volume[nq].pdf.size(); n++ ) {
-			fprintf(f,"%15.7e\t%15.7e\n", pdf_vortex_volume[nq].abscissa.at(n), pdf_vortex_volume[nq].pdf.at(n) );
-		}
-		fclose(f);
-
-		sprintf(fname,"vortex_volume_pdf_y_q_%.7f.txt", q_criteria[nq] );
-		f = fopen(fname,"w");
-		fprintf(f,"VARIABLES=\"y\", \"volume\", \"PDF\"\n");
-		fprintf(f,"ZONE DATAPACKING=BLOCK, i=%zd, j=%zd\n", pdf_vortex_volume_y[nq].nbins[1], pdf_vortex_volume_y[nq].nbins[0]);
-		fprintf(f,"DT=(DOUBLE DOUBLE DOUBLE)\n");
-
-
-		size_t line_=0;
-		for( size_t i=0; i<pdf_vortex_volume_y[nq].nbins[0]; i++ ) {
-			for( size_t j=0; j<pdf_vortex_volume_y[nq].nbins[1]; j++ ) {
-				fprintf(f,"%15.7e", pdf_vortex_volume_y[nq].abscissa[0][i]);
-				if( ++line_ % 2048 ==  0 ) fprintf(f,"\n");
-			}
-		}
-		for( size_t i=0; i<pdf_vortex_volume_y[nq].nbins[0]; i++ ) {
-			for( size_t j=0; j<pdf_vortex_volume_y[nq].nbins[1]; j++ ) {
-				fprintf(f,"%15.7e", pdf_vortex_volume_y[nq].abscissa[1][j]);
-				if( ++line_ % 2048 ==  0 ) fprintf(f,"\n");
-			}
-		}
-		for( size_t i=0; i<pdf_vortex_volume_y[nq].nbins[0]; i++ ) {
-			for( size_t j=0; j<pdf_vortex_volume_y[nq].nbins[1]; j++ ) {
-				fprintf(f,"%15.7e", pdf_vortex_volume_y[nq].pdf[i][j]);
-				if( ++line_ % 2048 ==  0 ) fprintf(f,"\n");
-			}
-		}
-		fclose(f);
-
-	}
 	
 	// Clear vectors and tensors created with *Assign
 	vel.clear();
@@ -459,4 +438,69 @@ int main(int argc, char *argv[]) {
 	}
 
 	return 0;
+}
+
+void pdf_write_all()
+{
+
+  	for( int q=0; q<N_Q_CRITERIA; q++ ) {
+
+		for( int p=0; p<4; p++ ) {
+			
+			PDFComputeAll( pdf_vortex_volume[q][p] );
+			PDFComputeAll( pdf_vortex_volume_y[q][p] );
+
+			char fname[80];
+			sprintf(fname,"%s/vortex_volume_pdf_q_%.7f_%d.txt", RUN_DIRECTORY, q_criteria[q], p );
+			FILE *f = fopen(fname,"w");
+			fprintf(f,"FIELD_NX %d\n", FIELD_NX);
+			fprintf(f,"FIELD_NY %d\n", FIELD_NY);
+			fprintf(f,"FIELD_NZ %d\n", FIELD_NZ);
+			fprintf(f,"NSTEPS %d\n", NSTEPS);
+			fprintf(f,"FILTER_WIDTH %d\n", FILTER_WIDTH);
+			fprintf(f,"Q_CRITERION %15.7e\n", q_criteria[q]);
+			fprintf(f,"NBINS %zd\n", pdf_vortex_volume[q][p].nbins); 
+			fprintf(f,"BIN_WIDTH %15.7e\n", pdf_vortex_volume[q][p].bin_width); 
+			fprintf(f,"BIN_MAX %15.7e\n", (double)VORTEX_VOLUME_BIN_MAX ); 
+			fprintf(f,"BIN_MIN %15.7e\n", (double)VORTEX_VOLUME_BIN_MIN ); 
+			fprintf(f,"NSAMPLES %zd\n", pdf_vortex_volume[q][p].nsamples );
+			fprintf(f,"U_TAU %15.7e\n", U_TAU);
+			fprintf(f,"LENGTH_VISC %15.7e\n", LENGTH_VISC);
+			for( size_t n=0; n<pdf_vortex_volume[q][p].nbins; n++ ) {
+				fprintf(f,"%15.7e\t%15.7e\n", pdf_vortex_volume[q][p].abscissa.at(n), pdf_vortex_volume[q][p].pdf.at(n) );
+			}
+			fclose(f);
+
+			sprintf(fname,"%s/vortex_volume_pdf_y_q_%.7f_%d.txt", RUN_DIRECTORY, q_criteria[q], p );
+			f = fopen(fname,"w");
+			fprintf(f,"VARIABLES=\"y\", \"volume\", \"PDF\"\n");
+			fprintf(f,"ZONE DATAPACKING=BLOCK, i=%zd, j=%zd\n", pdf_vortex_volume_y[q][p].nbins[1], pdf_vortex_volume_y[q][p].nbins[0]);
+			fprintf(f,"DT=(DOUBLE DOUBLE DOUBLE)\n");
+
+
+			size_t _line=0;
+			for( size_t i=0; i<pdf_vortex_volume_y[q][p].nbins[0]; i++ ) {
+				for( size_t j=0; j<pdf_vortex_volume_y[q][p].nbins[1]; j++ ) {
+					fprintf(f,"%15.7e", pdf_vortex_volume_y[q][p].abscissa[0][i]);
+					if( ++_line % 2048 ==  0 ) fprintf(f,"\n");
+				}
+			}
+			for( size_t i=0; i<pdf_vortex_volume_y[q][p].nbins[0]; i++ ) {
+				for( size_t j=0; j<pdf_vortex_volume_y[q][p].nbins[1]; j++ ) {
+					fprintf(f,"%15.7e", pdf_vortex_volume_y[q][p].abscissa[1][j]);
+					if( ++_line % 2048 ==  0 ) fprintf(f,"\n");
+				}
+			}
+			for( size_t i=0; i<pdf_vortex_volume_y[q][p].nbins[0]; i++ ) {
+				for( size_t j=0; j<pdf_vortex_volume_y[q][p].nbins[1]; j++ ) {
+					fprintf(f,"%15.7e", pdf_vortex_volume_y[q][p].pdf[i][j]);
+					if( ++_line % 2048 ==  0 ) fprintf(f,"\n");
+				}
+			}
+			fclose(f);
+		}
+
+	}
+
+
 }

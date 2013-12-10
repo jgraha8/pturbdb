@@ -6,7 +6,7 @@
 typedef struct {
 	size_t nbins;
 	double bin_width;
-	double abscissa_zero;
+	double abscissa_min;
 
 	size_t nsamples;
 
@@ -20,7 +20,7 @@ typedef struct {
 
 	std::vector<size_t> nbins;
 	std::vector<double> bin_width;
-	std::vector<double> abscissa_zero;
+	std::vector<double> abscissa_min;
 
 	size_t nsamples_total;
 	std::vector<std::vector<size_t> > nsamples; 
@@ -32,9 +32,9 @@ typedef struct {
 
 } PDF_2D_t;
 
-void PDFInit( PDF_t &_p, size_t _nbins, double _bin_width, double _abscissa_zero );
+void PDFInit( PDF_t &_p, size_t _nbins, double _bin_width, double _abscissa_min );
 void PDFInit( PDF_2D_t &_p, const std::vector<size_t> &_nbins, const std::vector<double> &_bin_width, 
-	      const std::vector<double> &_abscissa_zero );
+	      const std::vector<double> &_abscissa_min );
 
 void PDFResize( PDF_t &_p, size_t _n );
 void PDFResize( PDF_2D_t &_p, const std::vector<size_t> &_n );

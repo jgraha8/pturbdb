@@ -4,21 +4,21 @@
 #include <vector>
 #include "pdf.hpp"
 
-void PDFInit( PDF_t &_p, size_t _nbins, double _bin_width, double _abscissa_zero ) 
+void PDFInit( PDF_t &_p, size_t _nbins, double _bin_width, double _abscissa_min ) 
 {
 	_p.nbins = _nbins;
 	_p.bin_width = _bin_width;
-	_p.abscissa_zero = _abscissa_zero;
+	_p.abscissa_min = _abscissa_min;
 	PDFResize( _p, _nbins );
 }
 
-void PDFInit( PDF_2D_t &_p, const std::vector<size_t> &_nbins, const std::vector<double> &_bin_width, const std::vector<double> &_abscissa_zero ) 
+void PDFInit( PDF_2D_t &_p, const std::vector<size_t> &_nbins, const std::vector<double> &_bin_width, const std::vector<double> &_abscissa_min ) 
 {
-	assert( _nbins.size() == 2 && _nbins.size() == _bin_width.size() && _nbins.size() == _abscissa_zero.size() );
+	assert( _nbins.size() == 2 && _nbins.size() == _bin_width.size() && _nbins.size() == _abscissa_min.size() );
 
 	_p.nbins = _nbins;
 	_p.bin_width = _bin_width;
-	_p.abscissa_zero = _abscissa_zero;
+	_p.abscissa_min = _abscissa_min;
 
 	// Intialize other 2 vector variables
 	_p.nsamples.resize(2);
@@ -52,7 +52,7 @@ void PDFResize( PDF_2D_t &_p, const std::vector<size_t> &_n )
 
 	if( _n[1] > 0 ) {
 		_p.nbins[1] = _n[1] + 1;
-		for( size_t n=0; n< _p.bins.size(); n++ ) {
+		for( size_t n=0; n< _p.nbins[0]; n++ ) {
 			_p.bins[n].resize( _n[1] + 1, 0 );
 			_p.hist[n].resize( _n[1] + 1, 0.0 );
 			_p.pdf[n].resize( _n[1] + 1, 0.0 );
@@ -64,7 +64,7 @@ void PDFResize( PDF_2D_t &_p, const std::vector<size_t> &_n )
 
 size_t PDFGetSampleBin( PDF_t &_p, double _sample )
 {
-	return (size_t)floor( ( _sample - _p.abscissa_zero ) / _p.bin_width );
+	return (size_t)floor( ( _sample - _p.abscissa_min ) / _p.bin_width );
 }
 
 std::vector<size_t> PDFGetSampleBin( PDF_2D_t &_p, const std::vector<double> &_sample )
@@ -74,7 +74,7 @@ std::vector<size_t> PDFGetSampleBin( PDF_2D_t &_p, const std::vector<double> &_s
 
 	std::vector<size_t> n(2);
 	for( int i=0; i<2; i++ ) 
-		n[i] = floor( ( _sample[i] - _p.abscissa_zero[i] ) / _p.bin_width[i] );
+		n[i] = floor( ( _sample[i] - _p.abscissa_min[i] ) / _p.bin_width[i] );
 
 	return n;
 }
@@ -176,7 +176,7 @@ void PDFComputeAbscissa( PDF_t &_p )
 {
 	size_t n=0;
 	for( std::vector<double>::iterator a=_p.abscissa.begin(); a != _p.abscissa.end(); a++ ) {
-		*a = ((double)n + 0.5L) * _p.bin_width + _p.abscissa_zero;
+		*a = ((double)n + 0.5L) * _p.bin_width + _p.abscissa_min;
 		n++;
 	}
 }
@@ -186,7 +186,7 @@ void PDFComputeAbscissa( PDF_2D_t &_p )
 
 	for( int n=0; n<2; n++ ) {
 		for( size_t i=0; i<_p.nbins[n]; i++ ) {
-			_p.abscissa[n][i] = ((double)i + 0.5L) * _p.bin_width[n] + _p.abscissa_zero[n];
+			_p.abscissa[n][i] = ((double)i + 0.5L) * _p.bin_width[n] + _p.abscissa_min[n];
 		}
 	}
 }
