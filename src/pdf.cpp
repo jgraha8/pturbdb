@@ -1,4 +1,4 @@
-
+#include <cstdio>
 #include <cmath>
 #include <cassert>
 #include <vector>
@@ -62,7 +62,7 @@ void PDFResize( PDF_2D_t &_p, const std::vector<size_t> &_n )
 }
 
 
-size_t PDFGetSampleBin( PDF_t &_p, double _sample )
+size_t PDFGetSampleBin( PDF_t &_p, const double &_sample )
 {
 	return (size_t)floor( ( _sample - _p.abscissa_min ) / _p.bin_width );
 }
@@ -79,12 +79,15 @@ std::vector<size_t> PDFGetSampleBin( PDF_2D_t &_p, const std::vector<double> &_s
 	return n;
 }
 
-void PDFBinSample( PDF_t &_p, double _sample ) 
+void PDFBinSample( PDF_t &_p, const double &_sample ) 
 {
 	size_t n = PDFGetSampleBin( _p, _sample );
 
-	if( n <  _p.bins.size() ) 
+	if( n <  _p.bins.size() ) {
 		_p.bins.at(n)++;
+	} else {
+		//printf("bin = %zd greater than number of bins %zd--dropping sample\n", n, _p.bins.size() );
+	}
 
 };
 

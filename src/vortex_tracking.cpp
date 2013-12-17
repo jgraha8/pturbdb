@@ -8,6 +8,7 @@
 #include <deque>
 #include <map>
 #include <utility>
+#include "lapacke.h"
 #include "emap.hpp"
 #include "core.hpp"
 #include "pfield.hpp"
@@ -374,6 +375,72 @@ void VortexRegionComputeVolume( VortexRegion_t &vortex_region )
 }
 
 /****************************************************************************************/
+void VortexRegionComputeInertia( VortexRegion_t &vortex_region, const PField &host ) 
+/****************************************************************************************/
+{
+	const int *offset_local = host.getOffsetLocal();
+
+	const double *x_local = host.getXLocal();
+	const double *y_local = host.getYLocal();
+	const double *z_local = host.getZLocal();
+
+	static const int identity[3][3] = { {1, 0, 0}, 
+					    {0, 1, 0},
+					    {0, 0, 1} };
+
+	Inertia_t *inertia = &vortex_region.inertia;
+
+	// Set the inertia tensor to zero
+	std::fill_n( *inertia->tensor, 9, 0.0);
+
+	// Loop through each vortex point in the vortex region
+	for (VortexMap_t::iterator v = vortex_region.vortex_list.begin(); v != vortex_region.vortex_list.end(); v++ ) {
+		std::vector<int> ijk = host.ijk( v->second.index );
+		const int ijk_local[] = { ijk[0] - offset_local[0], 
+					  ijk[1] - offset_local[1],
+					  ijk[2] - offset_local[2] };
+		const double xyz_local[] = { x_local[ ijk_local[0] ], 
+					     y_local[ ijk_local[1] ],
+					     z_local[ ijk_local[2] ] };
+		
+		const double r[3] = { xyz_local[0] - vortex_region.barycenter[0],
+				      xyz_local[1] - vortex_region.barycenter[1],
+				      xyz_local[2] - vortex_region.barycenter[2] };
+		const double r2 = pow(r[0],2) + pow(r[1],2) + pow(r[2],2);
+		
+		for( int i=0; i<3; i++ ) {
+			for( int j=0; j<3; j++ ) {
+				inertia->tensor[i][j] += ( r2 * identity[i][j] - r[i]*r[j] ) * v->second.volume;
+			}
+		}
+		
+	}
+
+	for( int i=0; i<3; i++ ) {
+		for( int j=0; j<3; j++ ) {
+			inertia->tensor[i][j] /= vortex_region.volume;
+		}
+	}
+
+	// Now get the eigen values of the inertia tensor
+	double _eigenvalue_imag[3]; // Imaginary eigenvalues; these should be zero
+	lapack_int info = LAPACKE_dgeev(LAPACK_ROW_MAJOR,'N','N', 3, *inertia->tensor, 3, 
+					inertia->eigenvalue, _eigenvalue_imag, NULL, 3, NULL, 3);
+
+	assert( info == 0 );
+
+	// Compute the volume of the inertia tensor ellipsoid
+	//     x^2 / ( sqrt( a / I1 ) )^2 + y^2 / ( sqrt( a / I2 ) )^2 + z^2 / ( sqrt( a / I3 ) )^2 = 1
+	// where a=1 and I1, I2, I3 are the eigenvalues of the inertia tensor
+	inertia->ellipsoid_volume = 4.0/3.0 * PI / sqrt( inertia->eigenvalue[0] * 
+							 inertia->eigenvalue[1] *
+							 inertia->eigenvalue[2] );
+
+	return;
+}
+
+
+/****************************************************************************************/
 void VortexRegionComputeBarycenter( VortexRegion_t &vortex_region, const PField &host ) 
 /****************************************************************************************/
 {
@@ -615,6 +682,7 @@ void VortexRegionSynchronize( VortexRegionMap_t &vortex_region, const PField &ho
 	for( VortexRegionMap_t::iterator vr=vortex_region.begin(); vr != vortex_region.end(); vr++ ) {
 		VortexRegionComputeVolume( vr->second );
 		VortexRegionComputeBarycenter( vr->second, host );
+		VortexRegionComputeInertia( vr->second, host );
 	}
 
 	return;
@@ -933,6 +1001,33 @@ void VortexRegionIndexToTag( VortexRegionMap_t &vortex_region,
 
 	//printf("WHAT DOWN\n");
 
+}
+
+/****************************************************************************************/
+void VortexRegionTrimBBox( VortexRegionMap_t &_vortex_region, const PField &_host, 
+			   const int _irange[2], const int _jrange[2], const int _krange[2] )
+/****************************************************************************************/
+{
+
+	VortexRegionMap_t vortex_region_trim;
+	
+	for( VortexRegionMap_t::iterator vr=_vortex_region.begin(); vr != _vortex_region.end(); vr++ ) {
+		bool trim_point=false;
+		// Loop over the vortex points in the vortex region
+		for( VortexMap_t::iterator v=vr->second.vortex_list.begin(); v != vr->second.vortex_list.end(); v++ ) {
+			const std::vector<int> ijk = _host.ijk( v->second.index );
+			if( ijk[0] < _irange[0] || ijk[0] > _irange[1] || 
+			    ijk[1] < _jrange[0] || ijk[1] > _jrange[1] ||
+			    ijk[2] < _krange[0] || ijk[2] > _krange[1] ) {
+				trim_point = true;
+				break;
+			}
+		}
+		if( ! trim_point )
+			vortex_region_trim[vr->second.tag] = vr->second;
+	}
+	_vortex_region.clear();
+	_vortex_region = vortex_region_trim;
 }
 
 }

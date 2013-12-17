@@ -2,6 +2,7 @@
 #define CORE_HPP_
 
 #define ZERO 1.0e-12L
+#define PI   3.14159265359
 
 typedef struct {
 	size_t index;

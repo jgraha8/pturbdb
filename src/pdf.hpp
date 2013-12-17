@@ -39,10 +39,10 @@ void PDFInit( PDF_2D_t &_p, const std::vector<size_t> &_nbins, const std::vector
 void PDFResize( PDF_t &_p, size_t _n );
 void PDFResize( PDF_2D_t &_p, const std::vector<size_t> &_n );
 
-size_t PDFGetSampleBin( PDF_t &_p, double _sample );
+size_t PDFGetSampleBin( PDF_t &_p, const double &_sample );
 std::vector<size_t> PDFGetSampleBin( PDF_2D_t &_p, const std::vector<double> &_sample );
 
-void PDFBinSample( PDF_t &_p, double _sample );
+void PDFBinSample( PDF_t &_p, const double &_sample );
 void PDFBinSample( PDF_2D_t &_p, const std::vector<double> &_sample );
 
 void PDFComputeNSamples( PDF_t &_p );

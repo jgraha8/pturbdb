@@ -7,6 +7,12 @@
 
 namespace pturbdb {
 
+typedef struct {
+	double tensor[3][3];
+	double eigenvalue[3];
+	double ellipsoid_volume;
+} Inertia_t;
+
 // Vortex (point) structure
 typedef struct {
 	size_t index;
@@ -21,6 +27,7 @@ typedef std::map<size_t,Vortex_t> VortexMap_t;
 typedef struct {
 	size_t tag;
 	double volume;
+	Inertia_t inertia;
 	std::vector<double> barycenter;
 	VortexMap_t vortex_list;
 } VortexRegion_t;
@@ -37,6 +44,7 @@ void VortexRegionSet( VortexRegion_t &vortex_region, const size_t &tag, VortexMa
 double VortexRegionGetVolume( VortexRegion_t &vortex_region );
 void VortexRegionComputeVolume( VortexRegion_t &vortex_region );
 void VortexRegionComputeBarycenter( VortexRegion_t &vortex_region, const PField &host );
+void VortexRegionComputeInertia( VortexRegion_t &vortex_region, const PField &host );
 void VortexRegionAppend( VortexRegion_t &vortex_region, const Vortex_t &vortex );
 void VortexRegionSearch( VortexRegionMap_t &vortex_region, const VortexMap_t &vortex_list, const PField &host );
 void VortexRegionSearchNeighbors( VortexRegion_t &vortex_region, const size_t &vortex_index, 
@@ -45,6 +53,8 @@ void VortexRegionCheckPoints( VortexRegion_t &vortex_region, VortexMap_t &vortex
 			      std::deque<point_t> &points, const PField &host );
 void VortexRegionSynchronize( VortexRegionMap_t &vortex_region, const PField &host );
 void VortexRegionIndexToTag( VortexRegionMap_t &vortex_region, std::map<size_t,size_t> &vr_index_to_tag );
+void VortexRegionTrimBBox( VortexRegionMap_t &_vortex_region, const PField &_host, 
+			   const int _irange[2], const int _jrange[2], const int _krange[2] );
 
 int VortexSortCompareIndex(const void *a,const void *b);
 int VortexSortCompareStrength(const void *a,const void *b);
