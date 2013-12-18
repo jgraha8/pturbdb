@@ -387,11 +387,15 @@ void VortexRegionComputeInertia( VortexRegion_t &vortex_region, const PField &ho
 	static const int identity[3][3] = { {1, 0, 0}, 
 					    {0, 1, 0},
 					    {0, 0, 1} };
+			
 
 	Inertia_t *inertia = &vortex_region.inertia;
 
 	// Set the inertia tensor to zero
 	std::fill_n( *inertia->tensor, 9, 0.0);
+	//double inertia_tensor_norm=0.0;
+
+	assert( vortex_region.vortex_list.size() != 0 );
 
 	// Loop through each vortex point in the vortex region
 	for (VortexMap_t::iterator v = vortex_region.vortex_list.begin(); v != vortex_region.vortex_list.end(); v++ ) {
@@ -407,34 +411,79 @@ void VortexRegionComputeInertia( VortexRegion_t &vortex_region, const PField &ho
 				      xyz_local[1] - vortex_region.barycenter[1],
 				      xyz_local[2] - vortex_region.barycenter[2] };
 		const double r2 = pow(r[0],2) + pow(r[1],2) + pow(r[2],2);
-		
+
 		for( int i=0; i<3; i++ ) {
 			for( int j=0; j<3; j++ ) {
 				inertia->tensor[i][j] += ( r2 * identity[i][j] - r[i]*r[j] ) * v->second.volume;
 			}
 		}
+		if( r2 <= ZERO || v->second.volume <= ZERO ) 
+			printf("r2, vortex_volume = %15.7e, %15.7e\n", r2, v->second.volume );
+
+		//inertia_tensor_norm += r2 * v->second.volume;
 		
 	}
 
-	for( int i=0; i<3; i++ ) {
-		for( int j=0; j<3; j++ ) {
-			inertia->tensor[i][j] /= vortex_region.volume;
-		}
-	}
+	// for( int i=0; i<3; i++ ) {
+	// 	for( int j=0; j<3; j++ ) {
+	// 		if( inertia_tensor_norm <= ZERO ) {
+	// 			inertia->tensor[i][j] = 0.0;
+	// 		} else {
+	// 			inertia->tensor[i][j] /= inertia_tensor_norm; //vortex_region.volume;
+	// 		}
+	// 	}
+	// }
+
+
+	// //printf("identity = \n");
+	// printf("tensor = \n");
+	// for( int i=0; i<3; i++ ) {
+	// 	printf("    ");
+	// 	for( int j=0; j<3; j++ ) {
+	// 		printf("%15.7e ", inertia->tensor[i][j]);
+	// 		//printf("%d ", identity[i][j]);
+	// 	}
+	// 	printf("\n");
+	// }
+
 
 	// Now get the eigen values of the inertia tensor
 	double _eigenvalue_imag[3]; // Imaginary eigenvalues; these should be zero
-	lapack_int info = LAPACKE_dgeev(LAPACK_ROW_MAJOR,'N','N', 3, *inertia->tensor, 3, 
+	lapack_int info = LAPACKE_dgeev(LAPACK_ROW_MAJOR,'N','N', 3, &inertia->tensor[0][0], 3, 
 					inertia->eigenvalue, _eigenvalue_imag, NULL, 3, NULL, 3);
 
 	assert( info == 0 );
 
+	//printf("inertia->eigenvalue = %15.7e, %15.7e, %15.7e\n", inertia->eigenvalue[0], inertia->eigenvalue[1], inertia->eigenvalue[2]);
 	// Compute the volume of the inertia tensor ellipsoid
-	//     x^2 / ( sqrt( a / I1 ) )^2 + y^2 / ( sqrt( a / I2 ) )^2 + z^2 / ( sqrt( a / I3 ) )^2 = 1
-	// where a=1 and I1, I2, I3 are the eigenvalues of the inertia tensor
-	inertia->ellipsoid_volume = 4.0/3.0 * PI / sqrt( inertia->eigenvalue[0] * 
-							 inertia->eigenvalue[1] *
-							 inertia->eigenvalue[2] );
+	//     x^2 / ( phi sqrt( 1 / I1 ) )^2 + y^2 / ( phi sqrt( 1 / I2 ) )^2 + z^2 / ( phi sqrt( 1 / I3 ) )^2 = 1
+	// where phi is determined to give an ellipsoid that has the same inertia and I1, I2, I3 are the eigenvalues of the inertia tensor
+	if( inertia->eigenvalue[0] <= ZERO ||
+	    inertia->eigenvalue[1] <= ZERO ||
+	    inertia->eigenvalue[2] <= ZERO ) {
+		inertia->ellipsoid_volume = 0.0;
+	} else {
+
+		// Have to find phi
+		const double _cache1 = ( inertia->eigenvalue[0] + 
+					 inertia->eigenvalue[1] + 
+					 inertia->eigenvalue[2] ) *
+			               sqrt( inertia->eigenvalue[0] ) * 
+			               sqrt( inertia->eigenvalue[1] ) * 
+			               sqrt( inertia->eigenvalue[2] ); 
+		const double _cache2 = 8.0 / 15.0 * PI * ( 1.0 / inertia->eigenvalue[0] + 
+							   1.0 / inertia->eigenvalue[1] +
+							   1.0 / inertia->eigenvalue[2] );
+
+		const double phi = pow( _cache1 / _cache2, 1.0/5.0 );
+
+		const double a = phi / sqrt( inertia->eigenvalue[0] );
+		const double b = phi / sqrt( inertia->eigenvalue[1] );
+		const double c = phi / sqrt( inertia->eigenvalue[2] );
+
+		inertia->ellipsoid_volume = 4.0/3.0 * PI * a * b *c;
+
+	}
 
 	return;
 }
@@ -451,7 +500,7 @@ void VortexRegionComputeBarycenter( VortexRegion_t &vortex_region, const PField 
 	const double *z_local = host.getZLocal();
 
 	vortex_region.barycenter.clear();
-	vortex_region.barycenter.resize(3,0.0L);
+	vortex_region.barycenter.resize(3,0.0);
 
 	for (VortexMap_t::iterator v = vortex_region.vortex_list.begin(); v != vortex_region.vortex_list.end(); v++ ) {
 		std::vector<int> ijk = host.ijk( v->second.index );
