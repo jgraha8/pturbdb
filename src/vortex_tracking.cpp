@@ -461,7 +461,7 @@ void VortexRegionComputeInertia( VortexRegion_t &vortex_region, const PField &ho
 	if( inertia->eigenvalue[0] <= ZERO ||
 	    inertia->eigenvalue[1] <= ZERO ||
 	    inertia->eigenvalue[2] <= ZERO ) {
-		inertia->ellipsoid_volume = 0.0;
+		inertia->ellipsoid_volume = 1.0/ZERO; // If it is invalid we are dropping it by making it too large to be binned
 	} else {
 
 		// Have to find phi
