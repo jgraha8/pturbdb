@@ -84,7 +84,7 @@
 
 #define H5_OUTPUT_PATH "/datascope/tdbchannel/analysis/vortex_volume"
 
-#define RUN_DIRECTORY "v7"
+#define RUN_DIRECTORY "v8"
 
 using namespace std;
 using namespace pturbdb;
