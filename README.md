@@ -15,8 +15,8 @@ Contained here is a working prototype for the Parallel Turbulence Database
 (pturbdb) library. The goal of pturbdb is to provide a high-level framework for
 constructing a database from a sequence of temporally ordered fields (the target
 fields are turbulent fields, but can really be anything) from which complex
-analyses may be easily perform on a desktop machine or a large-scale distruted
-system.
+analyses may be easily performed on a desktop machine or a large-scale
+distributed system.
 
 At the core of pturbdb is the parallel fields class (PField) which provides
 support for operating on distributed arrays. The idea is to have constructs

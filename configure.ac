@@ -2,7 +2,7 @@
 # Process this file with autoconf to produce a configure script.
 
 AC_PREREQ([2.69])
-AC_INIT([pTurbFields], [0.0], [jgraha8@gmail.com])
+AC_INIT([pturbdb], [0.1], [jgraha8@gmail.com])
 AM_INIT_AUTOMAKE([foreign])
 AC_CONFIG_SRCDIR([src/fields.cpp])
 AC_CONFIG_HEADERS([config.h])
